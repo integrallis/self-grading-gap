@@ -1,0 +1,873 @@
+% Drafting format: template-repo convention (article + local neurips_2026.sty,
+% self-contained, standard fonts). FSE 2027 submission converts to acmart at
+% submission prep. Every number here must trace to a committed results file
+% (see ../CLAUDE.md); traces are given as comments at each use.
+\documentclass{article}
+
+\PassOptionsToPackage{numbers, compress}{natbib}
+\usepackage[preprint]{neurips_2026}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+\begin{document}
+
+\title{Who Grades the Grader? The Verification Gap in Self-Testing Code Agents}
+% Affiliations/emails to be filled per author at submission prep.
+\maketitle
+
+\begin{abstract}
+Test-driven development reshaped software practice in the early 2000s: write the test first,
+then write code until it passes, so that tests become executable specifications and every
+change gets fast, trustworthy feedback. Agentic software engineering now rediscovers that loop
+at machine speed. An LLM writes tests from a natural-language specification, an LLM writes code
+against them, LLM-as-a-judge reviewers gate each step, and the pipeline reports success once
+its code passes its own tests. TDD's guarantee, though, rested on a human understanding the
+requirement. When models author both the tests and the code, nothing in the loop checks that
+the tests mean what the specification says. We call the resulting failure mode the
+\emph{verification gap}: problems a pipeline reports as solved that fail held-out benchmark
+tests the pipeline never sees. We measure an instrumented TDD pipeline on two benchmarks, one
+of them a LiveCodeBench window published after the generating model's training cutoff. The gap
+is systematic. With one inexpensive model in every role, roughly one reported success in four
+is wrong, and every wrong one has the same signature: tests and code that agree with each
+other but not with the specification. We then test the remedy builders reach for, a frontier
+model as the test author, as the LLM-as-a-judge reviewer, or both. The upgrade transforms the
+loop's efficiency. Wrongly rejected correct solutions drop to zero, and on the unseen problems
+the frontier reviewer's feedback lifts true success rates by a third. The rate of false
+success claims, however, does not change in any configuration we test. Model strength inside
+the loop buys completeness, not soundness. The recipe and its caveat are both concrete for
+builders: a cheap generator coached by a frontier reviewer is an efficient production
+configuration, but its ``all tests pass'' means the code agrees with its own tests, which is
+not the same as being correct, so shipping decisions still need one check from outside the
+loop, such as held-out tests or differential verification. Both benchmarks are single-function
+algorithms. To check whether the gap is an artifact of toy problems, we replicate on
+\textsc{RGRBench}, a released corpus of $89$ application-scale, multi-concern Python packages
+whose hand-verified oracles carry measured error bars. At that scale the gap widens rather than
+narrows. Roughly two claimed successes in five are wrong, the rate climbs with task
+complexity, and it grows worse after the pipeline's own retries. A frontier judge again leaves
+it untouched, and three independent instruments land on the same range. We release all
+instruments, prompts, raw results, and analyses.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+Test-driven development changed how software is built. Kent Beck codified it in the early
+2000s~\cite{beck2002tdd}, the agile movement spread it, and test-first practice turned tests
+into executable specifications and made fast regression feedback a default of the craft. Agent
+pipelines now run that loop autonomously, and they write their own acceptance criteria. An LLM
+turns a natural-language specification into a test suite, a second generation step writes code
+against those tests, LLM-as-a-judge reviewers endorse each step, and the pipeline declares
+success when its code passes its tests. The appeal is that the pipeline ships with its own
+evidence. The hazard is structural. When the test author misreads the specification, the
+implementation is optimized toward the same misreading, every internal signal turns green, and
+the error is exactly the kind the pipeline cannot notice. TDD practitioners already have a name
+for tests that reflect the code instead of the requirement: the \emph{ugly
+mirror}~\cite{rudolph2008uglymirror}. Their prescribed defense is test-first ordering, and we
+will show that autonomous test-first pipelines rebuild the mirror one level up, where no
+ordering can reach it. We call the resulting discrepancy the \emph{verification gap}: problems
+a pipeline claims to have solved that fail a held-out oracle the pipeline never sees
+(Sec.~\ref{sec:gap}).
+
+This paper measures that gap and then stress-tests its most plausible remedy. The pipeline we
+study is a reviewed, instrumented re-creation of an earlier (late 2025) test-first system; we
+corrected the defects the review found, rewrote its prompts to a documented contract
+(Sec.~\ref{sec:prompts}), and measured it fresh. In the control configuration, with the
+inexpensive model in every role (hereafter \emph{all-weak}), the gap is persistent and
+two-sided. Out of 30 problems per run, an average of $4.0$ reported successes fail HumanEval's
+strong oracle ($18\%$ of what the pipeline claims) and $4.8$ fail the hidden oracle of a
+LiveCodeBench window post-dating the generator's training cutoff ($29\%$ of claims), while
+$5.4$ and $3.4$ correct implementations per run are abandoned because the pipeline's own wrong
+tests vetoed them.
+% trace: experiments/exp006_model_asymmetry/results/ANALYSIS.md (control_rerun)
+% trace: experiments/exp007_lcb_asymmetry/results/ANALYSIS.md (control)
+
+The remedy every practitioner reaches for is model strength: surely a frontier model writing
+the tests, or reviewing them as an LLM-as-a-judge, closes the gap. Production systems
+increasingly run exactly this asymmetric recipe: a cheap model generating code and a frontier
+model somewhere in the verification path. The pipeline has two verification roles a stronger
+model can fill. The \emph{test author} turns the specification into the test suite; the
+\emph{judge} reviews tests and code and analyzes failures. We test both in two experiments that
+swap a frontier model (gpt-5.6-terra) into the test-author role, the judge role, and both,
+against a weak generator (gpt-4o-mini), on both benchmarks (Sec.~\ref{sec:design}). The result
+is the paper's central finding: \textbf{verification strength is asymmetric}. The false-success
+rate, the gap proper, does not change detectably in any configuration on either benchmark.
+False rejects collapse to zero in every frontier-judge run, and on unseen problems the frontier
+judge's feedback raises the true success rate by five to six problems in thirty ($p{\leq}.03$).
+It coaches the weak generator to better tests and better code, while its accept verdicts stay
+as blind as the weak judge's. A frontier model authoring tests outright moves nothing at all.
+
+\paragraph{From algorithmic to application scale.} Both benchmarks above are single-function
+and algorithmic. That is the shape the field usually measures, and it is far from the
+multi-file, stateful applications production agents build. To ask whether the gap is a
+toy-problem artifact, we built \textsc{RGRBench}: $89$ Python packages spanning stateful,
+multi-concern domains (event sourcing, reservations, billing) at three difficulty tiers, each
+graded by a hand-verified suite whose own blind-spot rate we measured (mutation kill rate
+$0.981$, every surviving mutant classified). We ran the full pipeline on all $89$ packages from
+their requirements alone, with the tests never shown, across $534$ runs. At that scale the gap
+does not shrink; it widens. Roughly two claimed successes in five fail the held-out oracle
+($41.5\%$, $95\%$ CI $[30.4, 53.7]$), the rate rises monotonically with complexity
+($31\% \to 54\% \to 86\%$ across tiers), and it grows worse after the pipeline's own retries
+($35\%$ first attempt against $64\%$ multi-attempt). A frontier judge, a third time, leaves it
+unmoved while again erasing false rejects. The range matches the SWE-bench overfitting
+literature independently: one in five to one in three self-test-passing patches are
+wrong~\cite{ahmed2025overfitting,yu2026sweabs}, and ours is the first such rate measured on
+oracles whose own error is published.
+% trace: experiments/exp010_flagship/results/ANALYSIS.md; FINDINGS.md; calibrate_adapter.py
+
+\paragraph{Contributions.}
+(1)~A definition and measurement protocol for the verification gap of self-testing pipelines,
+separating false accepts from false rejects and visible-adjacent from held-out oracles
+(Sec.~\ref{sec:gap}).
+(2)~Fresh, instrumented measurements on two benchmarks, one of them contamination-controlled,
+showing the gap is systematic: roughly one claimed success in four is wrong, in every
+configuration, including all-frontier verification (Sec.~\ref{sec:results}).
+(3)~Two model-asymmetry experiments, pre-registered (hypotheses, decision rules, and budget
+fixed before any data), with every contrast required to clear both a minimum effect size and
+statistical significance: the \emph{soundness-invariance} result (the false-success rate
+unchanged under a frontier test author, judge, or both) and the \emph{completeness} result
+(false rejects $\to 0$; off-distribution success rate $+5$--$6/30$, the only significant
+effects in either experiment) (Sec.~\ref{sec:results-asym}).
+(4)~A mechanism account from the pipeline's own telemetry: the frontier judge behaves as a
+coach rather than a gatekeeper, tripling demanded test volume and driving generation quality
+while accepting the same self-consistent failures (Sec.~\ref{sec:discussion}).
+(5)~A reviewed instrument with documented prompt contracts and defect register, plus all
+runners, raw results, analyses, and a runbook; every experiment pre-registered, nulls
+reported as results.
+(6)~An application-scale replication on \textsc{RGRBench}, a released 89-package TDD corpus
+with mutation-measured oracle error bars: the gap widens to $\sim$$42\%$, scales with task
+complexity, worsens under refinement, and stays invariant to a frontier judge. An automated
+adapter-fidelity calibration bounds the measurement's own instrument error at $0.000$
+(Sec.~\ref{sec:results-scale}).
+
+\section{Background and Related Work}
+\label{sec:related}
+
+\paragraph{Weak tests overestimate, in benchmarks and pipelines alike.}
+EvalPlus showed that the \emph{benchmark's} tests were the weak link in code evaluation:
+extending HumanEval's suites revealed substantial previously-undetected wrong code and
+reordered model rankings~\cite{liu2023evalplus}. LiveCodeBench addressed the complementary
+contamination problem with rolling problem collection~\cite{jain2024livecodebench}. We use
+both, EvalPlus as a strong oracle and a post-cutoff LiveCodeBench window as a hidden one. We
+study the agent-internal analog. When the \emph{pipeline's own} tests are the weak link, the
+same overestimation happens inside the loop, and no benchmark fix reaches it, because the
+pipeline's self-assessment inherits the same blindness EvalPlus documented for benchmarks. At
+repository scale the same overestimation is now being measured directly: strengthened or
+held-out suites reject roughly one in five to one in three patches that passed a benchmark's
+original tests~\cite{ahmed2025overfitting,yu2026sweabs}. Our verification gap is the
+agent-internal, TDD-native form of that finding, measured against oracles whose own error is
+quantified rather than assumed, and Sec.~\ref{sec:results-scale} shows the three instruments
+converge on the same range.
+
+\paragraph{The ugly mirror.}
+TDD's practitioner literature long ago named the failure mode of writing tests in the
+presence of an implementation: the \emph{ugly mirror}~\cite{rudolph2008uglymirror}, a test
+that reflects the code and certifies what it does rather than what it should, with the
+tautological test as its limiting case~\cite{pereira2010ttdd}. Test-first ordering is the
+classic defense: with no implementation to bend toward, the test can only encode the
+specification. Our subject pipelines follow that ordering, and our results show the mirror
+survives it by moving up a level. When a model authors tests from its \emph{reading} of the
+specification and a like-minded model writes code against them, both artifacts reflect the
+same misreading, and GREEN-phase generation then guarantees the code mirrors the tests by
+design. The pipeline reports that self-consistency as success, though it shows only that the
+tests and the code agree.
+
+\paragraph{Test-first generation with LLMs.}
+Providing tests alongside problem statements improves generation~\cite{mathews2024tdd};
+TiCoder makes test authorship interactive, with a human validating proposed tests before code
+is accepted~\cite{fakhoury2024ticoder}; TENET and TDFlow bring test-driven loops to
+repository-scale agents~\cite{sun2025tenet,tdflow2025}. Across this line, tests are either
+supplied, human-vetted, or evaluated by their end-to-end effect on pass rates. Our subject
+class is the fully autonomous case, in which the pipeline authors both tests and code. What we
+study is the reliability of the pipeline's own verdict about itself, which the end-to-end view
+cannot see because the benchmark oracle is outside the loop.
+
+\paragraph{Self-generated tests as signal.}
+CodeT uses generated tests to rank candidate solutions, exploiting agreement between
+generation and testing as a selection signal~\cite{chen2023codet}; ConVerTest improves
+ground-truth-free test generation through consensus and cross-validation~\cite{convertest2026}.
+Both treat agreement as evidence of correctness. The verification gap makes the failure mode of
+that assumption measurable: agreement between self-authored tests and code is exactly what our
+gap set exhibits, wrongly, on every one of its members. Our asymmetry experiments show the
+agreement stays wrong even when a frontier model supplies either half.
+
+\paragraph{LLM judges on code.}
+Benchmarks of LLM-as-judge for coding tasks find judges only moderately aligned with execution
+outcomes~\cite{jiang2025codejudgebench}, and systematic failures have been documented when
+LLMs verify code against natural-language specifications~\cite{verifyfailures2025}. Our
+subject pipeline embeds judges \emph{as gates} inside the loop, backed by an execution gate
+that overrides optimistic judge predictions. The asymmetry experiments extend those standalone
+findings with an in-pipeline result: upgrading the judge to a frontier model changes its
+value as a source of \emph{feedback} dramatically, and its value as a source of \emph{accept
+verdicts} not at all.
+
+\paragraph{Multi-agent code generation.}
+Multi-agent SDLC frameworks report end-to-end task success~\cite{hong2024metagpt}; their
+internal quality gates are, to our knowledge, evaluated by ablation on final pass rates
+rather than examined as verdicts. Our protocol is complementary and portable: any pipeline
+whose harness can capture the executed self-verdict alongside its outputs admits the same
+measurement.
+
+\section{The Verification Gap}
+\label{sec:gap}
+
+% Every number in this section traces to a committed result file; the trace is given in a
+% comment at each use. Files live under experiments/ in the artifact repository.
+
+\subsection{Definitions}
+
+Consider a code-generation pipeline that, for a problem $i$ with natural-language
+specification $\mathit{spec}_i$, produces an implementation $y_i$, a test suite $T_i$ that the
+pipeline itself authored from $\mathit{spec}_i$, and a self-verdict
+$s_i \in \{0,1\}$, the pipeline's own claim that the problem is solved, derived from running
+$T_i$ against $y_i$ and from any internal quality gates (in our subject pipeline, LLM judges).
+An \emph{oracle verdict} $o_i \in \{0,1\}$ is the outcome of a test suite the pipeline never
+sees. We use three oracles of increasing distance from the pipeline's inputs: the
+\emph{visible-adjacent oracle} $o^{\mathrm{base}}_i$ (HumanEval's original tests, which
+overlap the worked examples visible in $\mathit{spec}_i$), a \emph{strong oracle}
+$o^{\mathrm{plus}}_i$ (HumanEval\texttt{+}~\cite{liu2023evalplus}, whose tests exceed the
+visible examples by roughly two orders of magnitude), and a \emph{hidden oracle}
+(LiveCodeBench's private test sets~\cite{jain2024livecodebench}, never distributed with the
+problem statement at all).
+
+The \emph{verification gap} of a run over problems $P$ is the set
+$G = \{\, i \in P : s_i = 1 \wedge o_i = 0 \,\}$: problems the pipeline believes it solved and
+the oracle rejects, the \emph{false accepts}. We report it as a per-run count over $|P|$ and,
+where the denominator matters, as the \emph{conditional gap} $|G| / |\{ i : s_i = 1 \}|$, the
+probability that a claimed success is wrong. The complementary error set
+$R = \{\, i : s_i = 0 \wedge o_i = 1 \,\}$ (\emph{false rejects}: correct code vetoed by the
+pipeline's own tests) completes the picture; self-verification error runs in both directions.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.9\linewidth]{figures/fig1_loop.pdf}
+\caption{The self-verification loop. The pipeline authors tests $T$ and code $y$, grades
+itself by running $T(y)$, and emits self-verdict $s_i$; the oracle sees $y$ but never $T$.
+The verification gap is the set of problems where the two verdicts disagree in the pipeline's
+favor.}
+\label{fig:loop}
+\end{figure}
+
+Every element of $G$ is, by construction, a case of \emph{self-consistent misalignment}: $y_i$
+satisfies $T_i$, and both jointly deviate from $\mathit{spec}_i$. The gap is therefore not a
+measure of weak code generation, since those failures are caught internally. It measures the
+pipeline's inability to notice a particular class of its own errors, the ones its self-authored
+tests inherit. In the vocabulary of TDD practice, every gap member is an ugly
+mirror~\cite{rudolph2008uglymirror} the pipeline built for itself: the tests reflect an
+interpretation rather than the specification, and the implementation faithfully mirrors the
+tests.
+
+\subsection{Subject pipeline}
+
+Our subject is a test-first multi-agent pipeline in which an LLM writes tests from the
+specification (RED), an LLM judge scores the tests, a second generation step writes an
+implementation against those tests (GREEN), a judge predicts test outcomes, an execution
+gate then runs the tests and overrides optimistic judge predictions, and a final VERIFY phase
+runs the full suite, with bounded retries and textual feedback loops
+(Algorithm~\ref{alg:tdd}, Fig.~\ref{fig:loop}). The pipeline's headline configuration also
+\emph{anchors} self-authored tests: prompt and judge jointly mandate that every worked example
+in the specification appear as a test case verbatim. Note what the execution gate cannot do:
+it validates $y$ against $T$, so a wrong $T$ passes it wrongly.
+
+The complete instrument (engine, prompt templates, and the defect register from the
+line-by-line review that produced it) ships with the artifact.
+% trace: src/vgap/pipeline/REVIEW.md (H-1..H-15, B-1..B-10, E-1)
+
+\begin{algorithm}[t]
+\caption{Execution-gated TDD cycle (subject pipeline; generator $G$ and judge $J$ are
+role-assigned per experimental cell)}
+\label{alg:tdd}
+\begin{algorithmic}[1]
+\Require spec, test author $G_T$, code generator $G$, judge $J$, threshold $\tau$, retries $R$
+\For{$r \gets 1 \ldots R$} \Comment{RED: author the tests}
+  \State $T \gets G_T.\mathrm{tests}(\mathrm{spec}, f)$;\quad $q \gets J.\mathrm{score}(T, \mathrm{spec})$;\quad $f \gets J.\mathrm{feedback}$
+  \If{$q \geq \tau$} \textbf{break} \EndIf
+\EndFor
+\If{$q < \tau$} \Return $s{=}0$ \EndIf
+\For{$r \gets 1 \ldots R$} \Comment{GREEN: code against own tests}
+  \State $y \gets G.\mathrm{code}(\mathrm{spec}, T, f)$;\quad $\hat{q} \gets J.\mathrm{predict}(y, T)$
+  \If{$\hat{q} \geq \tau$}
+    \If{$\mathrm{run}(T, y).\mathrm{allPass}$} \textbf{break} \Comment{execution gate: judge overruled by pytest}
+    \Else\ $f \gets \mathrm{debugAnalysis}(T, y)$ \EndIf
+  \Else\ $f \gets J.\mathrm{feedback}$ \EndIf
+\EndFor
+\For{$r \gets 1 \ldots R$} \Comment{VERIFY: full suite; failures route back to GREEN}
+  \If{$\mathrm{run}(T, y).\mathrm{allPass}$} \Return $s{=}1,\, y,\, T$ \EndIf
+  \State $f \gets J.\mathrm{analyzeFailures}(T, y)$;\quad regenerate $y$ as in GREEN
+\EndFor
+\State \Return $s{=}0,\, y,\, T$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Prompt architecture}
+\label{sec:prompts}
+
+Four prompts carry the loop; their structure is part of the instrument and matters to the
+results, so we state it. (Skeletons in Appendix~\ref{app:prompts}; the templates ship with
+the artifact under a SHA-256 manifest, with render-contract tests asserting the properties
+below.)
+
+\emph{RED generator.} Role framing (``your tests are the only specification the implementer
+will see''), the task description and full specification, the scenario list, then an
+\emph{anchoring block}: for every worked example in the specification, a test named
+\texttt{test\_canonical\_example\_N} with the example's exact inputs and outputs and a
+one-line derivation comment. Five rules follow (test only specified behavior; exact
+signatures; computed expected values; import from the solution package; plain pytest). On
+retries, the judge's directives and the previous attempt are appended. Output contract: one
+fenced Python block; code is never requested as JSON.
+
+\emph{RED judge.} Judges one question, whether the suite faithfully verifies the
+specification, via ordered checks: canonical-example coverage (an anchoring block mirroring the
+generator's; a missing or altered example forces the minimum score), assertion fidelity
+(recompute every expected value), no invented constraints, coverage of stated behaviors, and
+sanity. A deduction schedule maps findings to a score; the response must end with the exact
+line \texttt{Final score: <x.xx>}, and feedback is emitted as apply-verbatim
+\texttt{ADD:}/\texttt{REMOVE:}/\texttt{FIX:} directives, the feedback channel that
+Sec.~\ref{sec:discussion} shows doing the real work.
+
+\emph{GREEN generator.} The tests are presented as the acceptance criterion; rules forbid
+hardcoding test inputs and invented behavior; output is a single JSON object carrying the
+implementation file (path, action, content). This is the one place structured output is used,
+with the code as an escaped string field.
+
+\emph{GREEN judge.} Predicts per-test PASS/FAIL by tracing the implementation against each
+test, flags test-gaming in one line, and must end with \texttt{Rating: <x.xx>} (predicted
+pass fraction). The execution gate then runs the tests regardless, so this judge's optimism
+is bounded by pytest.
+
+The anchoring blocks in the RED pair are delimited by explicit markers in the template
+source, and the artifact's ablation variants (generator-side only, judge-side only, neither)
+are excised mechanically from those markers, and the variant used in every run is asserted on
+the rendered prompt at smoke time. A fifth template, the failure analyst of
+Sec.~\ref{sec:gap}'s retry loops, fires whenever an execution gate or VERIFY run fails: it
+traces each failing test, names the root cause, and emits \texttt{FIX DIRECTIVES:} lines the
+next GREEN attempt consumes verbatim; it produces analysis only, never code.
+% trace: src/vgap/pipeline/templates/ (MANIFEST.sha256); scripts/make_variants.py;
+% trace: src/vgap/pipeline/test_render_smoke.py (contract assertions)
+
+\subsection{Measurement protocol}
+\label{sec:protocol}
+
+Three requirements make the gap measurable rather than anecdotal.
+
+\begin{algorithm}[t]
+\caption{Verification-gap measurement over instrumented runs}
+\label{alg:audit}
+\begin{algorithmic}[1]
+\Require pipeline $P$, problems $\mathcal{P}$, held-out oracle suites $O$, runs $N$
+\For{each problem $i \in \mathcal{P}$, run $r \in 1..N$}
+  \State $(y_{ir}, T_{ir}, s_{ir}) \gets P(i)$ \Comment{harness captures artifacts + the executed self-verdict}
+  \State $o_{ir} \gets \mathrm{Exec}(O_i \text{ on } y_{ir})$ \Comment{standard harness (EvalPlus / LCB), outside the loop}
+\EndFor
+\State $G \gets \{ (i,r) : s_{ir}{=}1 \wedge o_{ir}{=}0 \}$;\quad $R \gets \{ (i,r) : s_{ir}{=}0 \wedge o_{ir}{=}1 \}$
+\State \Return $G, R$, per-run provenance and cost
+\end{algorithmic}
+\end{algorithm}
+
+\emph{(1) Both verdicts measured, never reported.} The self-verdict $s_{ir}$ is an outcome the
+harness observes, not a claim the pipeline makes about itself: the executed result of the
+pipeline's own final test run, captured with per-call token and cost accounting. The oracle
+verdict is computed on the produced implementation, outside the loop, by the benchmark's own
+harness: EvalPlus~\cite{liu2023evalplus} for HumanEval and LiveCodeBench's
+evaluator~\cite{jain2024livecodebench} for the hidden-test problems. Every number in this paper
+derives from these two captured streams and is regenerable from committed per-run artifacts.
+% trace: src/vgap/pipeline/humaneval_runner.py, lcb_runner_local.py;
+% trace: experiments/exp007_lcb_asymmetry/score_lcb.py (harness-side scoring)
+
+\emph{(2) Oracles beyond the visible examples.} Anchoring couples $T_i$ to the
+specification's worked examples, which HumanEval's base oracle partially shares; a gap
+measured only against $o^{\mathrm{base}}$ understates the phenomenon. On the all-weak
+configuration, false accepts average $3.0$ per 30-problem run against the base oracle and
+$4.0$ against HumanEval\texttt{+}.
+% trace: exp006 ANALYSIS.md (control_rerun fa_base/fa_plus)
+The LiveCodeBench experiment removes visibility entirely: prompts carry the statement and its
+public examples, while scoring runs the private suites, on problems whose contest dates
+post-date the weak model's training cutoff by more than a year.
+
+\emph{(3) Pre-registered noise floors.} Per-problem outcomes are unstable across
+byte-identical runs: the all-weak configuration disagrees with itself on $6/30$ problems (HumanEval
+subset) and $9/30$ (LiveCodeBench) across five runs, with maximum pairwise pass-total
+differences of $4$ and $3$.
+% trace: exp006 scores/ per-run eval results; exp007 scores/ (flip counts derived in
+% scripts/make_figures.py inputs; totals in each ANALYSIS.md)
+Both experiments therefore fixed minimum effect sizes in advance ($4$ problems on
+success-rate contrasts, $2$ on false accepts, $2$ on false rejects, $3$ on total verdict
+error) that any contrast must exceed on top of statistical significance; the observed
+control spreads fall at or inside these thresholds. Single-run comparisons, common in the
+literature, cannot distinguish intervention effects of this size from run-to-run noise.
+
+\section{Study Design}
+\label{sec:design}
+
+The study asks four questions. \textbf{RQ1 (phenomenon):} how large is the verification
+gap, against visible-adjacent, strong, and hidden oracles, and how does it decompose into
+false accepts and false rejects? \textbf{RQ2 (asymmetry):} does a frontier model in the
+verification roles (as test author, as LLM-as-a-judge reviewer, or both) close the gap?
+\textbf{RQ3 (mechanism):} when a stronger verifier does help, does the improvement flow
+through its \emph{verdicts} (better gatekeeping) or through its \emph{feedback} (better
+generation)? \textbf{RQ4 (scale):} do the gap's magnitude and its invariance to verifier
+strength survive the move from single-function algorithms to application-scale, multi-concern
+programs, and how does the gap respond to task complexity and to the loop's own refinement?
+
+\paragraph{Experiments.} Two experiments share one design with four conditions
+(\emph{cells}): weak model W (gpt-4o-mini) generates code in every cell; a frontier model S
+(gpt-5.6-terra) replaces W in the test-author role, the judge role (all three judge duties),
+or both; the control is W everywhere. $N{=}5$ runs per cell, $30$ problems per run,
+escalation off, judge threshold and retries fixed across cells. Both experiments were
+\emph{pre-registered}: hypotheses, decision rules, and budget caps were committed to the
+repository before the first API call, so the analyses test predictions rather than fit them.
+The first experiment (exp006) runs a HumanEval subset enriched for previously unstable
+problems, scored by both EvalPlus oracles. The second (exp007) replicates it on
+contamination-controlled ground: all $19$ easy plus the first $11$ medium LeetCode problems
+from LiveCodeBench release~v6 with contest dates $\geq$~2025-01-01, selected by a
+deterministic rule fixed in advance after a pilot located the weak model's measurable band, and
+scored by the private LCB suites. The FR reduction and FA invariance observed in exp006 were
+registered as confirmatory predictions for exp007 before its first API call.
+% trace: experiments/exp006_model_asymmetry/README.md, exp007_lcb_asymmetry/README.md
+% (pre-registrations); experiments/pilots/README.md (band-location pilot)
+
+\paragraph{The application-scale experiment.} A third experiment (exp010) moves to
+\textsc{RGRBench}'s $89$ packages. The pipeline receives only each package's requirements
+document (user-story acceptance criteria derived from the tests alone, with the tests
+themselves never shown) and is graded by the hidden hand-verified suite through a non-cheating
+adapter (Sec.~\ref{sec:results-scale}). The design keeps the soundness-invariance contrast in its most
+consequential form: a \emph{control} cell (weak model in every role) against a
+\emph{strong-judge} cell (frontier model in all judge duties), $N{=}3$ runs per package per
+cell ($534$ runs). Because RGRBench labels each package by difficulty tier and the harness
+records whether a claim arrived on the first attempt or only after retries, the same runs test
+whether the gap scales with complexity (H-D4) and whether refinement worsens it (H-D2), both
+pre-registered before the first call.
+% trace: experiments/exp010_flagship/README.md (pre-registration); results/plan.json
+
+\paragraph{Statistical protocol.} All comparisons are paired per problem. For a contrast
+between cells we take each problem's majority outcome over the five runs and apply the exact
+McNemar test to the discordant pairs; we additionally require the mean per-run difference to
+exceed the minimum effect sizes of Sec.~\ref{sec:protocol}. We call this pair of
+requirements (minimum effect size \emph{and} $p<.05$) the \emph{decision bar}; a
+difference that clears only one of the two is reported as within noise. Cells are reported
+as per-run totals, never as single runs. Null results are reported as results.
+
+\paragraph{Telemetry.} Every LLM call is logged with token counts, cost, and a
+problem/cell/run tag. This telemetry is what makes the mechanism analysis of
+Sec.~\ref{sec:results-mech} possible, and it ships with the artifact.
+% trace: per-run usage.jsonl files; totals in each asym_summary.json
+
+\paragraph{Threats owned by design.} HumanEval is the field's most familiar benchmark and
+predates every current model's training data, so we treat it as within-distribution; the
+LiveCodeBench window is the off-distribution check, its problems post-dating the weak
+model's training data by over a year. No benchmark identifier reaches any model: we verified
+across all $7{,}962$ logged prompts of the two experiments that rendered prompts carry the
+problem statement and its worked examples only, never a problem number or benchmark name a
+memorizing model could key on. The frontier model's training cutoff is not public;
+Sec.~\ref{sec:threats} argues the design is robust in the direction that matters. Both problem
+sets are chosen for measurability (hardness-enriched; weak-model band), so per-run counts are
+not benchmark rates and are never reported as such.
+
+\section{Results}
+\label{sec:results}
+
+\subsection{RQ1: the gap on the corrected instrument}
+\label{sec:results-gap}
+
+Table~\ref{tab:cells} carries the complete result matrix; Figure~\ref{fig:asym} plots the
+error decomposition. On the all-weak control the gap is present on both benchmarks and
+two-sided. Per 30-problem run, HumanEval: $24.0$ oracle passes, $4.0$ false accepts against
+the strong oracle ($18\%$ of claimed successes), $5.4$ false rejects. LiveCodeBench (hidden
+oracle, post-cutoff problems): $15.2$ oracle passes, $4.8$ false accepts ($29\%$ of claims),
+$3.4$ false rejects. Contamination cannot explain the LCB gap: the weak model has never seen
+these problems, and the private tests never enter any prompt. Every false accept is, by
+construction, a self-consistent misalignment, tests and code agreeing with each other against
+the specification. Every false reject is correct code the pipeline paid to produce and then
+abandoned on its own tests' veto.
+% trace: exp006 ANALYSIS.md control_rerun; exp007 ANALYSIS.md control
+
+\begin{table}[t]
+\centering
+\caption{Complete result matrix: per-run means over $N{=}5$ runs of 30 problems (per-run
+values in the committed analyses). FA = false accepts (HumanEval: strong oracle; LCB: hidden
+oracle); FR = false rejects. The decision bar is a pre-set minimum effect size (pass 4, FA 2, FR 2)
+\emph{and} exact McNemar $p{<}.05$; $^{\dagger}$ = past the effect-size threshold,
+$^{\ast}$ = clears the full bar.}
+\label{tab:cells}
+\small
+\begin{tabular}{llrrrr}
+\toprule
+Benchmark & Cell & Oracle pass & FA & FR & tests/run \\
+\midrule
+HumanEval subset-30 & control (W everywhere) & 24.0 & 4.0 & 5.4 & 84 \\
+(strong oracle)     & S authors tests & 25.2 & 3.2 & 3.6 & 89 \\
+                    & S judges & 24.6 & 4.4 & 2.4$^{\dagger}$ & 105 \\
+                    & S authors + judges & 26.2 & 3.4 & 1.6$^{\dagger}$ & 101 \\
+\midrule
+LiveCodeBench lcb30 & control (W everywhere) & 15.2 & 4.8 & 3.4 & 76 \\
+(hidden oracle,     & S authors tests & 16.4 & 2.8 & 2.2 & 140 \\
+post-cutoff)        & S judges & 20.2$^{\ast}$ & 2.4 & 0.0$^{\dagger}$ & 182 \\
+                    & S authors + judges & 21.4$^{\ast}$ & 3.0 & 0.0$^{\dagger}$ & 194 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/fig2_asym.pdf}
+\caption{False accepts (hatched) and false rejects (solid) per cell; bars are means, dots the
+five runs; oracle pass means beneath each cell. The asymmetry is the finding: false accepts
+are flat everywhere, while the strong-judge cells drive false rejects toward zero and (right
+panel) lift pass rates.}
+\label{fig:asym}
+\end{figure}
+
+\subsection{RQ2: frontier models in the verification roles}
+\label{sec:results-asym}
+
+\paragraph{The false-success rate does not change anywhere.} Eight cells, two benchmarks,
+three ways of inserting a frontier model into verification: no false-accept contrast clears
+the decision bar. On HumanEval the counts do not even move directionally with the judge
+($4.0 \to 3.2/4.4/3.4$, all $p{=}1.0$; the frontier-judge cell sits \emph{above} control);
+on LiveCodeBench they lean down ($4.8 \to 2.8/2.4/3.0$) but no contrast is significant
+($p \in [0.125, 0.375]$), and we report the direction honestly: at $N{=}5$ an effect this
+size cannot be distinguished from run noise. This was the pre-registered confirmatory
+prediction (H-B2), and it held: the probability that a claimed success is wrong stays
+material, $2.4$--$4.4$ per run, whoever grades. The residual false accepts are not
+weak-model sloppiness that a stronger verifier would catch; they are the structural blind spot
+built into the loop.
+% trace: exp006 ANALYSIS.md contrasts; exp007 ANALYSIS.md contrasts (FA rows)
+
+\paragraph{False rejects collapse under the frontier judge.} On LiveCodeBench both
+frontier-judge cells record \emph{zero} false rejects in all ten runs (control: $3.4$); on
+HumanEval they fall from $5.4$ to $2.4$ (judge) and $1.6$ (both), every one of these
+contrasts past the minimum effect size. Where the loop wrongly kills correct code, a
+frontier judge stops it almost entirely.
+% trace: exp006/exp007 ANALYSIS.md (FR rows)
+
+\paragraph{Off-distribution, the frontier judge lifts the pass rate: the matrix's only
+significant signals.} On LiveCodeBench, oracle passes rise from $15.2$ to $20.2$ (judge;
+$\Delta{+}5.0$, $p{=}.0312$) and $21.4$ (both; $\Delta{+}6.2$, $p{=}.0156$), clearing the
+decision bar. On HumanEval the same cells move $+0.6$ and $+2.2$, within
+noise: near the weak model's in-distribution ceiling there is little for feedback to
+recover, while on unseen problems there is much.
+% trace: exp007 ANALYSIS.md contrasts (pass rows)
+
+\paragraph{A frontier test author does not move the pass rate.} The cell practitioners
+might bet on, a frontier model writing the tests while the weak model codes against them,
+leaves the oracle pass rate indistinguishable from control on both benchmarks ($+1.2$ on each,
+within noise), with FA and FR individually within noise as well. Registered as an open
+directional hypothesis (H-B3); the answer is null. One descriptive nuance: on LiveCodeBench its
+\emph{total} verdict error drops past that composite's effect-size threshold ($8.2 \to 5.0$),
+with both error directions leaning down, a smaller verdict-side benefit with no generation
+benefit, consistent with the mechanism account below.
+% trace: exp006/exp007 ANALYSIS.md (strong_testgen rows)
+
+\subsection{RQ3: the improvement flows through feedback}
+\label{sec:results-mech}
+
+The pipeline's telemetry locates the mechanism. Canonical (anchored) tests are constant at
+$75$ per run in every LCB cell; the anchoring mandate saturates. What changes is the volume
+the judge demands beyond them: control suites hold $\sim76$ tests per run; the frontier
+judge's \texttt{ADD:} directives push suites to $182$–$194$, and cycle completions rise from
+$\sim17/30$ to $23$–$24/30$ while completed cycles stay correct at a comparable rate. The
+judge's influence flows through the retry loop's feedback channel, with richer tests steering
+the weak generator toward correct implementations, and not through its accept verdicts, whose
+error rate (the false accepts) never clears the bar in any cell. The strong test author writes
+larger suites too ($140$ per run), but \emph{once}, with no iterative pressure on the
+generator: the pass rate does not move, and only the composite verdict error improves.
+% trace: exp007 ANALYSIS.md (tests_per_run/canonical rows); launch logs (TDD success counts)
+
+\subsection{RQ4: the gap widens at application scale}
+\label{sec:results-scale}
+
+On RGRBench the gap is not a small-problem artifact; it is larger. In the control cell $65$
+of $261$ valid runs end in a self-claimed success, and $41.5\%$ of those claims fail the
+hand-verified oracle ($95\%$ Wilson CI $[30.4, 53.7]$); the strong-judge cell claims $50$
+successes over $251$ valid runs at a statistically indistinguishable $42.0\%$
+($[29.4, 55.8]$). This is roughly double the $18\%$/$29\%$ of the algorithmic benchmarks, and
+even the lower confidence bound ($30\%$) exceeds their point estimates. RGRBench grades a
+candidate through a generated \emph{adapter} that re-exposes it under the oracle's expected
+import names, statically constrained so it can carry no behavior of its own, so we can bound
+the adapter's contribution to these numbers directly; an automated calibration puts it at
+$0.000$ (Sec.~\ref{sec:threats}). Three pre-registered properties sharpen the picture
+(Table~\ref{tab:scale}).
+% trace: exp010 results/ANALYSIS.md (control/strong_judge H-D1); calibration/calibration.json
+
+\begin{table}[t]
+\centering
+\caption{RGRBench (application scale): false accepts as a fraction of claimed successes, over
+$N{=}3$ runs of $89$ packages ($534$ runs). Control = weak model everywhere; strong-judge =
+frontier model in all judge roles. FA is conditional on a claimed success in a valid
+evaluation; tier and attempt rows are the same quantity restricted to each subset (integer
+counts in the committed analysis). Brackets are $95\%$ Wilson intervals.}
+\label{tab:scale}
+\small
+\begin{tabular}{lcc}
+\toprule
+ & control & strong-judge \\
+\midrule
+valid runs / claimed successes & 261 / 65 & 251 / 50 \\
+conditional FA (H-D1) & 0.415 [0.304, 0.537] & 0.420 [0.294, 0.558] \\
+\quad beginner tier (H-D4) & 0.31 & 0.38 \\
+\quad intermediate tier & 0.54 & 0.50 \\
+\quad advanced tier & 0.86 & 0.75 \\
+first- / multi-attempt FA (H-D2) & 0.35 / 0.64 & 0.34 / 0.67 \\
+false rejects (H-D3) & 14 & 0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{The gap scales with task complexity.} Conditional false accepts rise monotonically
+across the three difficulty tiers: $31\% \to 54\% \to 86\%$ in the control cell, and
+$38\% \to 50\% \to 75\%$ under the strong judge. On the hardest tier five of six claimed
+successes are wrong. This is a scaling axis single-function benchmarks cannot exhibit. The gap
+is not a fixed tax; it grows with the very complexity that motivates reaching for an agent.
+% trace: exp010 results/ANALYSIS.md (H-D4 rows)
+
+\paragraph{Refinement makes it worse.} Claims the pipeline reaches only after retrying are
+false about twice as often as first-attempt claims: $64\%$ against $35\%$ (control) and $67\%$
+against $34\%$ (strong judge). The loop's own iteration, sold as self-correction, drives it
+toward more confident wrongness, independently reproducing the ``refinement worsens
+overfitting'' effect reported on SWE-bench~\cite{ahmed2025overfitting}.
+% trace: exp010 results/ANALYSIS.md (H-D2 rows)
+
+\paragraph{Soundness invariance, a third time.} The frontier judge leaves the false-accept
+rate statistically unchanged ($41.5\% \to 42.0\%$) while eliminating false rejects outright
+($14 \to 0$), the completeness-not-soundness signature of the two algorithmic experiments,
+now at application scale on a third independent instrument. Across HumanEval\texttt{+}
+($18\%$), a post-cutoff LiveCodeBench window ($29\%$), and RGRBench ($42\%$), and alongside
+the external SWE-bench overfitting measurements
+($\sim$$20$–$33\%$~\cite{ahmed2025overfitting,yu2026sweabs}), the false-accept rate of a
+self-testing loop reads as a stable, oracle-independent constant that verifier strength does
+not touch.
+% trace: exp010 results/ANALYSIS.md (H-D1/H-D3); exp006/exp007 ANALYSIS.md (conditional FA)
+
+\section{Discussion}
+\label{sec:discussion}
+
+\paragraph{Completeness improves; soundness does not.} The two error directions respond to
+verifier strength in opposite ways, and the split is principled. False rejects are failures the loop
+can \emph{see}: a test fails, the cycle retries, feedback accumulates. A stronger judge
+converts that visibility into repair, and on unseen problems it eliminates the error class
+outright, zero false rejects in ten of ten frontier-judge runs. False accepts are failures the
+loop \emph{cannot represent}: tests and code agree, every internal signal is green, and there
+is no residual for any judge, however capable, to inspect. The judge grades the tests against
+its reading of the specification; when the test author's misreading is a plausible one, the
+judge makes that reading \emph{more} internally consistent. It does not check the reading
+against what the specification means. Model strength added inside the loop improves completeness
+because completeness failures are visible inside the loop; it cannot improve soundness because
+soundness failures, by construction, are not.
+
+\paragraph{The judge is a coach, not a gatekeeper.} The largest effect in either matrix, the
+five-to-six-problem pass-rate lift on unseen problems, is not a verification effect at all. It
+is the frontier judge \emph{teaching} the weak pipeline through demanded tests and directive
+feedback, visible in the tripled suite sizes and the recovered cycle completions. This
+reframes the production intuition that motivated the experiments: asymmetric deployments
+(cheap generator, frontier model in the loop) are genuinely valuable, and our data says the
+value concentrates in the judge seat rather than the test-author seat. But the mechanism is
+generation quality rather than verdict quality. The verdicts that matter for trust, ``this is
+correct, ship it,'' are exactly as unreliable as before.
+
+\paragraph{Implication for builders.} A self-testing pipeline's accept verdict is not
+evidence of correctness at any verifier strength the loop can buy, and the improvement that
+model strength \emph{does} deliver makes the verdicts more numerous (more cycles complete)
+without making them sounder: a pipeline that completes more and self-accepts at the same
+false-accept rate ships \emph{more} wrong code, more confidently. The calibration channel
+has to come from outside the loop: held-out test suites, differential testing against
+independent implementations, or accounting of verdict-versus-outcome on problems with known
+answers. No component inside the loop can supply that calibration.
+
+\paragraph{Why the strong test author disappoints.} The null on frontier-authored tests is
+the study's most counterintuitive cell. One reading: test quality binds through iteration,
+not authorship. A suite written once, however competently, exerts no corrective pressure on
+a weak generator's misreadings, while an adversarial reviewer of the weak model's own suites
+forces the specification to be re-derived every retry. This is exploratory interpretation;
+the pre-registered fact is the null.
+
+\paragraph{The gap is a validation failure, born at comprehension.} Every intervention we test
+lives downstream of the moment a natural-language specification becomes a test suite, and none
+moves the false-accept rate, because the misalignment is fixed at that moment, not after it.
+In the vocabulary of requirements engineering the loop performs \emph{verification} flawlessly
+(the code is built right, to its tests) while never performing \emph{validation} (the tests
+are the right ones, faithful to the intent)~\cite{boehm1984vv}. Read this way the
+soundness-invariance result is less a surprise than a near-tautology: no amount of verification
+strength closes a validation gap, because the two answer different questions. The failure long
+predates LLMs. It is the requirements ``telephone game'' in which a specification, refracted
+through each reader's domain assumptions, yields systems built correctly to the wrong intent;
+waterfall took months or years to surface such errors, and agile shortened the loop only where
+an external oracle (a customer, a failing production case) could expose the misread. A
+self-testing agent removes that oracle and re-runs the same misunderstanding at inference
+speed. The pattern holds even when the input is pre-structured. On RGRBench the pipeline is
+handed a user-story requirements document with explicit acceptance criteria, not a bare
+prompt, and the false-accept rate is still $42\%$. Structure at the story level does not
+remove the interpretive freedom of the natural-language-to-test step where the gap is born.
+
+\paragraph{Attacking the initial conditions.} If the gap is set at comprehension, the lever our
+experiments never touch is the \emph{input} to test authoring. Decomposing and disambiguating a
+specification into refined stories and acceptance criteria precise enough to read as pseudo-code
+for the tests would narrow the interpretive distance the RED author must cross, lowering the
+gap's initial magnitude instead of trying to catch it afterward, which is what our strong-judge
+and strong-author cells attempt without success. We did not test this, and one caution follows
+directly from the reframing above: a refinement stage that generates its own acceptance criteria
+self-consistently merely relocates the comprehension step, it does not remove it. Such a
+front-end most plausibly helps when the refined criteria are validated against intent from
+outside the loop: a human sign-off on the acceptance criteria, in the spirit of TiCoder's
+interactive test validation~\cite{fakhoury2024ticoder} lifted to the requirements layer.
+Building and measuring such a front-end on RGRBench is the constructive next step this diagnosis
+points to.
+
+\section{Threats to Validity}
+\label{sec:threats}
+
+\paragraph{Construct.} The gap is defined relative to an oracle; a weak oracle understates it
+and any oracle's own defects transfer. We measure against three oracles of increasing
+distance (visible-adjacent, strong, hidden) and the phenomenon persists under all three.
+Self-verdicts are harness-captured execution outcomes, not model claims. On RGRBench two
+further defenses apply. The oracle's own blind spots are bounded rather than assumed (mutation
+kill rate $0.981$, every surviving mutant individually classified), so the held-out suite's
+error is a measured quantity. And because RGRBench grades through a generated adapter, a
+mis-mapping adapter could in principle inflate false accepts; an automated calibration
+mangles each package's known-correct reference solution to an opaque foreign API (a
+behavior-preserving AST transform) and regrades it through a blind, model-authored adapter, so
+any resulting failure is pure adapter error. Behavior-preservation is certified per package
+before it counts, and the measured adapter-attributable false-accept rate is $0.000$ across
+all tiers (13 usable packages, the hardest included). The application-scale gap is not a
+plumbing artifact.
+% trace: experiments/exp010_flagship/calibrate_adapter.py, calibration/calibration.json;
+% trace: rgrbench instrument/mutation_scores.json, equivalent_mutants.md
+
+\paragraph{Internal.} We study one pipeline. Its complete instrument (engine, prompts,
+and the defect register from the review that produced it) ships with the artifact, and
+every reported number comes from that instrument.
+
+\paragraph{External.} Three benchmarks now, two single-function algorithmic and RGRBench's
+$89$ multi-concern packages, but a single weak/strong model pair. The move to
+application-scale, test-first-built corpora with hand-verified oracles was the designated
+robustness check, and it strengthened rather than softened the finding
+(Sec.~\ref{sec:results-scale}); what remains open is model diversity: the asymmetry cells
+rest on one weak/strong pair, and a public leaderboard over many systems on RGRBench is left
+as released-benchmark future work. The frontier model's training cutoff is not public, so its exposure to the LCB
+window is unknown; the design is robust in the direction that matters, since judge-side
+memorization of solutions could only \emph{reduce} false accepts, and the finding is that
+they did not move. The pass-rate lift, however, could in principle be flattered by exposure;
+its mechanism (test volume, feedback, completions) is measured, not assumed. One pipeline is
+studied; the protocol is portable, the constants are not.
+
+\paragraph{Conclusion validity.} Per-problem outcomes are unstable across identical runs; we
+pre-registered practical floors alongside significance tests, confirmed the floors
+conservative against observed control spreads, and treat sub-threshold differences as noise
+regardless of $p$-value. $N{=}5$ runs per cell bounds power: effects smaller than the floors
+would not be detected, which is why the invariance claim is stated as ``within pre-registered
+noise,'' not as a proof of zero effect.
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+A pipeline that writes its own tests holds its own report card, and nothing in the loop is
+tasked with grading the grader. We defined the verification gap to make that missing function
+measurable, measured it on three benchmarks (one whose problems the generator had never
+seen and whose tests no prompt ever contained, and one built at application scale with
+hand-verified, error-barred oracles), then paid for the obvious remedy: a frontier model in
+the verification roles. The report card is wrong about roughly one claimed success in four,
+and it stays wrong under a frontier test author, a frontier judge, and both at once. What the
+frontier judge buys is real and worth buying: false rejects vanish, and on unseen problems its
+feedback lifts true pass rates by a third. But it is a better coach, not a better gatekeeper,
+and every gain arrives through the feedback channel while the accept verdicts stay blind.
+Verification strength inside a self-testing loop purchases completeness, never soundness. And
+the blind spot is not a small-problem curiosity. On RGRBench's application-scale, multi-concern
+packages the report card is wrong about two claims in five, worse where the tasks are harder
+and worse again after the loop's own retries: the same failure, larger where the programs look
+more like the ones agents ship. For builders the implication is architectural. The accept
+verdict of a self-testing agent is not evidence at any internal verifier strength, and
+calibration must come from outside the loop: held-out oracles, differential checks, verdict
+accounting, or, upstream, a requirement grounded in intent before it is ever encoded as a
+test, since the gap is born in that translation and not in the grading that follows. No
+assignment of models to the roles inside the loop removes it.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\appendix
+
+\section{Defect register of the studied pipeline (summary)}
+\label{app:register}
+
+Recreating the 2025 system under review surfaced 15 harness defects (H-1--H-15: import-time
+side effects, environment-dependent tool invocation, missing response logging, list-content
+crashes on 2026 models, usage-logger stacking) and nine behavioral defects
+(Table~\ref{tab:register}). All harness defects and behavioral defects B-1--B-8 are fixed in
+the study instrument; B-10's underlying mechanism was later removed outright, so the failure
+analyst no longer produces code at all and nothing the judge writes can ship. The 2025-era
+prompt templates were separately rewritten after review (Sec.~\ref{sec:prompts}). Identifiers are stable against the
+repository's full register, which includes locations, failure scenarios, and dispositions.
+% trace: src/vgap/pipeline/REVIEW.md (B-9 was never assigned; IDs kept stable)
+
+\begin{table}[h]
+\centering
+\caption{Behavioral defects found in the 2025 original; disposition in the study instrument.}
+\label{tab:register}
+\small
+\begin{tabular}{lll}
+\toprule
+ID & Finding (in the 2025 original) & Disposition \\
+\midrule
+B-1 & Template render errors silently become empty prompts upstream & fixed \\
+B-2 & Hanging generated test aborts the whole problem run & fixed \\
+B-3 & Judge pass/fail verdicts via substring scan of the entire response & fixed \\
+B-4 & First-match score regex; ``Score: 85'' normalizes to a perfect 1.0 & fixed \\
+B-5 & GREEN judge verdict threshold hardcoded at 0.7, ignoring configuration & fixed \\
+B-6 & Two result classes with different validation semantics across judges & fixed \\
+B-7 & Latent \texttt{NameError} in the RED retry fallback (unreachable) & fixed \\
+B-8 & GREEN's execution gate tests one file; VERIFY tests the whole suite & fixed \\
+B-10 & Judge-corrected code never ships; travels only as prompt text & mechanism removed \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Prompt skeletons}
+\label{app:prompts}
+
+Abbreviated structure of the two RED-phase templates (the GREEN pair follows the same
+pattern; full templates in the artifact). Anchoring blocks are marked in the source and
+excised mechanically to produce ablation variants.
+
+\paragraph{RED generator (test author).}
+\begin{small}
+\begin{verbatim}
+You are writing the test suite for a Python function BEFORE any
+implementation exists (TDD, RED phase). Your tests are the only
+specification the implementer will see [...]
+## Task                     <- title, description, signatures
+## Specification details    <- full problem statement
+## Scenarios to cover       <- worked examples from the spec
+[ANCHOR] ## MANDATORY: Canonical Examples from Specification
+  For EVERY example: one test named test_canonical_example_N with
+  the EXACT inputs and EXACT expected output + derivation comment.
+## Rules  1. only specified behavior ... 5. plain pytest
+## Reviewer feedback on your previous suite   <- retry only
+## Output: one fenced ```python block, nothing else
+\end{verbatim}
+\end{small}
+
+\paragraph{RED judge (test reviewer).}
+\begin{small}
+\begin{verbatim}
+Judge one thing only: does this suite faithfully verify the
+specification? [...]
+[ANCHOR] ## Check 0 - MANDATORY Canonical Example Coverage
+  any missing/altered example => Final score: 0.00
+## Checks  1. fidelity (recompute every expected value)
+           2. no invented constraints  3. coverage  4. sanity
+## Scoring: deduction schedule (0.30/0.30/0.20/0.10, floor 0)
+## Output: findings; ADD:/REMOVE:/FIX: directives (apply-verbatim);
+           last line exactly `Final score: <x.xx>`
+\end{verbatim}
+\end{small}
+
+\end{document}
