@@ -1,0 +1,146 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784036466400
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from solution import calculateScore
+
+
+def test_canonical_example_1():
+    # spec: pairs (0, 2) for 2 points and (1, 4) for 3 points; total = 5
+    assert calculateScore("aczzx") == 5
+
+
+def test_canoni...[truncated]
+  impl_code: def calculateScore(s: str) -> int:
+    score = 0
+    mirror = {chr(i): chr(219 - i) for i in range(97, 123)}  # a-z to z-a mapping
+    available_indices = {char: [] for char in mirror.keys()}
+
+    for...[truncated]
+  task: {'id': 'LCB/3634', 'use_case_id': 'LCB/3634', 'story_id': 'LCB/3634', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement calculateScore()', 'description': 'You are given a string s.\nWe define the mirror...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement calculateScore()**
+
+## Tests (the acceptance criterion)
+
+```python
+from solution import calculateScore
+
+
+def test_canonical_example_1():
+    # spec: pairs (0, 2) for 2 points and (1, 4) for 3 points; total = 5
+    assert calculateScore("aczzx") == 5
+
+
+def test_canonical_example_2():
+    # spec: no character has an earlier unmarked mirror, so total = 0
+    assert calculateScore("abcdef") == 0
+
+
+def test_marked_indices_cannot_be_reused():
+    # i=1 pairs with i=0 for 1; i=3 pairs with i=2 for 1; total = 2
+    assert calculateScore("azaz") == 2
+
+
+def test_matches_use_available_unmarked_mirrors():
+    # i=2 pairs with closest z at i=1 for 1; i=3 pairs with remaining z at i=0 for 3; total = 4
+    assert calculateScore("zzaa") == 4
+
+
+def test_minimum_length_string_has_no_earlier_mirror():
+    # The only index has no earlier index, so total = 0
+    assert calculateScore("a") == 0
+
+
+def test_another_reversed_alphabet_mirror_pair():
+    # b at i=1 mirrors y at i=0, contributing 1 - 0 = 1
+    assert calculateScore("yb") == 1
+
+
+def test_maximum_length_string_accumulates_all_pair_distances():
+    # Each z at index 50000+k pairs with a at index 49999-k:
+    # sum((50000+k) - (49999-k) for k in range(50000)) = 2,500,000,000
+    s = "a" * 50000 + "z" * 50000
+    assert calculateScore(s) == 2500000000
+```
+
+## Failing implementation
+
+```python
+def calculateScore(s: str) -> int:
+    score = 0
+    mirror = {chr(i): chr(219 - i) for i in range(97, 123)}  # a-z to z-a mapping
+    available_indices = {char: [] for char in mirror.keys()}
+
+    for i, char in enumerate(s):
+        if available_indices[mirror[char]]:
+            j = available_indices[mirror[char]].pop()  # get the closest unmarked mirror index
+            score += i - j  # calculate score
+        available_indices[char].append(i)  # mark the current index for its character
+
+    return score
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /tmp/tmp3yp5l4t6/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1
+collecting ... collected 7 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [ 14%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 28%]
+tests/test_task.py::test_marked_indices_cannot_be_reused FAILED          [ 42%]
+tests/test_task.py::test_matches_use_available_unmarked_mirrors PASSED   [ 57%]
+tests/test_task.py::test_minimum_length_string_has_no_earlier_mirror PASSED [ 71%]
+tests/test_task.py::test_another_reversed_alphabet_mirror_pair PASSED    [ 85%]
+tests/test_task.py::test_maximum_length_string_accumulates_all_pair_distances PASSED [100%]
+
+=================================== FAILURES ===================================
+_____________________ test_marked_indices_cannot_be_reused _____________________
+tests/test_task.py:16: in test_marked_indices_cannot_be_reused
+    assert calculateScore("azaz") == 2
+E   AssertionError: assert 3 == 2
+E    +  where 3 = calculateScore('azaz')
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_marked_indices_cannot_be_reused - AssertionEr...
+========================= 1 failed, 6 passed in 0.03s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

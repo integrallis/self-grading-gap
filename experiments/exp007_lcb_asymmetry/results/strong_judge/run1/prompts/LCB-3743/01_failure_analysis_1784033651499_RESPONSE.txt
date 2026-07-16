@@ -1,0 +1,11 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_productive_multi_meeting_rescheduling — inputs `eventTime=20`, `k=2`, `startTime=[2, 7, 12]`, `endTime=[5, 9, 14]`; expected `11`, got `13`, because the implementation computes the gaps as `[2, 2, 3, 6]` (`2-0=2`, `7-5=2`, `12-9=3`, `20-14=6`), sorts them to `[6, 3, 2, 2]`, then returns `sum(gaps[:2]) + sum(gaps[2:]) = (6+3) + (2+2) = 13`. The divergence is the return expression `max_free_time + sum(gaps[k:])`: together with `max_free_time = sum(gaps[:k])`, it always returns the sum of *all* gaps, regardless of `k`. It also incorrectly sorts gaps: rescheduling up to `k` consecutive meetings can combine only `k + 1` consecutive gaps, not arbitrary gaps from different positions. There is no mechanical/import/signature failure; the failure is algorithmic.
+
+FIX DIRECTIVES:
+FIX: in `maxFreeTime`, preserve the original gap order; remove `gaps.sort(reverse=True)`.
+FIX: in `maxFreeTime`, build exactly `n + 1` gaps, including zero-length gaps: `gaps = [startTime[0]] + [startTime[i] - endTime[i - 1] for i in range(1, n)] + [eventTime - endTime[-1]]`, where `n = len(startTime)`.
+FIX: in `maxFreeTime`, replace the sorted-gap summation and `return max_free_time + sum(gaps[k:])` with a sliding-window maximum over `min(k + 1, len(gaps))` consecutive gaps, because moving `k` consecutive meetings merges the `k + 1` gaps around them.
+FIX: in `maxFreeTime`, compute the result as `window = min(k + 1, len(gaps)); current = sum(gaps[:window]); best = current;` then slide with `current += gaps[i] - gaps[i - window]` for `i` from `window` through `len(gaps) - 1`, updating `best`, and `return best`.

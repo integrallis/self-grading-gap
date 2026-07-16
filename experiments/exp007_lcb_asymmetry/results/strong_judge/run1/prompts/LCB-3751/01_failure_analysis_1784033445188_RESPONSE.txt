@@ -1,0 +1,20 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_canonical_example_2 — expected 4, got 7, because `maxFrequency` applies the algorithm for a different problem: it treats `k=10` as a total increment budget and sorts the array, whereas here `k` is the target value and one constant may be added to one contiguous subarray in the original order. There is no mechanical failure: `maxFrequency` is imported and called with the correct signature.
+
+For `nums=[10, 2, 3, 4, 5, 5, 4, 3, 2, 2]`, `k=10`, the implementation first executes `nums.sort()`, producing `[2, 2, 2, 3, 3, 4, 4, 5, 5, 10]`. It then accumulates this sorted window as though it could spend at most `10` increments to raise all window values to the rightmost value:
+- At `right=0`, `total_add=2`; `2 * 1 = 2 <= 2 + 10`; `max_freq=1`.
+- At `right=1`, `total_add=4`; `2 * 2 = 4 <= 4 + 10`; `max_freq=2`.
+- At `right=2`, `total_add=6`; `2 * 3 = 6 <= 6 + 10`; `max_freq=3`.
+- At `right=3`, `total_add=9`; `3 * 4 = 12 <= 9 + 10 = 19`; `max_freq=4`.
+- At `right=4`, `total_add=12`; `3 * 5 = 15 <= 12 + 10 = 22`; `max_freq=5`.
+- At `right=5`, `total_add=16`; `4 * 6 = 24 <= 16 + 10 = 26`; `max_freq=6`.
+- At `right=6`, `total_add=20`; `4 * 7 = 28 <= 20 + 10 = 30`; the `while` does not shrink the window, so `max_freq` becomes `7`.
+
+The computation diverges at `nums.sort()` and, specifically, at the condition `nums[right] * (right - left + 1) > total_add + k`: `+ k` incorrectly treats `k` as an increment budget. The sorted seven-element window `[2, 2, 2, 3, 3, 4, 4]` is neither a contiguous original subarray nor can all its values become `10` after one common addition. The valid best operation is adding `8` to original indices `1..9`, converting the three `2`s to `10` while preserving the original leading `10`, for frequency `4`.
+
+FIX DIRECTIVES:
+FIX: In `maxFrequency`, remove `nums.sort()`; subarray boundaries must use the original `nums` order.
+FIX: Replace the increment-budget sliding-window logic with target-frequency gain maximization: let `base = nums.count(k)`; for each distinct `value != k`, run Kadane’s algorithm over original `nums` with contribution `+1` for `x == value`, `-1` for `x == k`, and `0` otherwise; return `base + max(0, best_subarray_gain_over_all_values)`.

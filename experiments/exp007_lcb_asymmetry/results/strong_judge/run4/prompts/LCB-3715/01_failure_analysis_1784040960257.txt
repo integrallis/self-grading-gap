@@ -1,0 +1,158 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784040960257
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: TIMEOUT: test run exceeded 30s
+  test_code: from typing import List
+from solution import maximumCoins
+
+def test_canonical_example_1():
+    # spec: coins = [[8,10,1],[1,3,2],[5,6,4]], k = 4
+    # Selecting bags at positions [3, 4, 5, 6] gives th...[truncated]
+  impl_code: from typing import List
+
+
+def maximumCoins(coins: List[List[int]], k: int) -> int:
+    # Create a sorted list of intervals with their respective coin counts
+    intervals = sorted(coins)
+
+    max_coin...[truncated]
+  task: {'id': 'LCB/3715', 'use_case_id': 'LCB/3715', 'story_id': 'LCB/3715', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maximumCoins()', 'description': 'There are an infinite amount of bags on a number ...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement maximumCoins()**
+
+## Tests (the acceptance criterion)
+
+```python
+from typing import List
+from solution import maximumCoins
+
+def test_canonical_example_1():
+    # spec: coins = [[8,10,1],[1,3,2],[5,6,4]], k = 4
+    # Selecting bags at positions [3, 4, 5, 6] gives the maximum number of coins: 2 + 0 + 4 + 4 = 10
+    assert maximumCoins([[8,10,1],[1,3,2],[5,6,4]], 4) == 10
+
+def test_canonical_example_2():
+    # spec: coins = [[1,10,3]], k = 2
+    # Selecting bags at positions [1, 2] gives the maximum number of coins: 3 + 3 = 6
+    assert maximumCoins([[1,10,3]], 2) == 6
+
+def test_k_equals_1():
+    # spec: coins = [[5, 5, 7], [8, 8, 9]], k = 1
+    # Selecting the bag at position 8 gives the maximum number of coins: 9
+    assert maximumCoins([[5, 5, 7], [8, 8, 9]], 1) == 9
+
+def test_maximum_k():
+    # spec: coins = [[1, 1, 1000]], k = 10**9
+    # The only available bag has 1000 coins, so the maximum is 1000
+    assert maximumCoins([[1, 1, 1000]], 10**9) == 1000
+
+def test_maximum_coordinate_and_coin_value():
+    # spec: coins = [[1_000_000_000, 1_000_000_000, 1000]], k = 1
+    # The only available bag has 1000 coins, so the maximum is 1000
+    assert maximumCoins([[1_000_000_000, 1_000_000_000, 1000]], 1) == 1000
+
+def test_adjacent_segments():
+    # spec: coins = [[1, 2, 5], [3, 5, 1]], k = 3
+    # Selecting bags at positions [1, 2, 3] gives the maximum number of coins: 5 + 5 + 1 = 11
+    assert maximumCoins([[1, 2, 5], [3, 5, 1]], 3) == 11
+
+def test_window_can_contain_every_segment():
+    # spec: coins = [[1, 2, 3], [10, 12, 4]], k = 12
+    # Selecting bags from positions [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] gives the maximum coins: 3 + 0 + 0 + 0 + 0 + 0 + 0 + 0 + 0 + 4 + 4 + 4 = 18
+    assert maximumCoins([[1, 2, 3], [10, 12, 4]], 12) == 18
+
+def test_optimum_partially_includes_segment():
+    # spec: coins = [[1, 10, 1], [11, 11, 100]], k = 5
+    # Selecting bags at positions [7, 8, 9, 10, 11] gives the maximum coins: 1 + 1 + 1 + 1 + 100 = 104
+    assert maximumCoins([[1, 10, 1], [11, 11, 100]], 5) == 104
+
+def test_large_number_of_segments():
+    # spec: coins = [[i, i, 1] for i in range(1, 100001)], k = 100000
+    # Each bag has 1 coin and there are 100000 bags, so the maximum is 100000
+    assert maximumCoins([[i, i, 1] for i in range(1, 100001)], 100000) == 100000
+```
+
+## Failing implementation
+
+```python
+from typing import List
+
+
+def maximumCoins(coins: List[List[int]], k: int) -> int:
+    # Create a sorted list of intervals with their respective coin counts
+    intervals = sorted(coins)
+
+    max_coins = 0
+    current_coins = 0
+    current_position = 0
+    left_coins = 0
+
+    # This dictionary will help us keep track of accumulated coins in the window
+    active_intervals = []
+
+    for l, r, c in intervals:
+        while current_position < l:
+            # Move the window forward until we reach the start of the current interval
+            if active_intervals and (current_position + k) > active_intervals[0][0]:
+                # Remove the leftmost active interval from the sum if it moves out of the window
+                left_interval_start, left_interval_coins = active_intervals.pop(0)
+                left_coins -= left_interval_coins
+            # Add the current position's contributions
+            if current_position in range(l, r + 1):
+                current_coins += c
+
+            current_position += 1
+
+        # Now process the remaining positions for this interval
+        while current_position <= r:
+            current_coins += c
+            active_intervals.append((current_position, c))
+            current_position += 1
+
+        # Update max coins when we cover enough positions
+        if len(active_intervals) > 0:
+            # If we have at least one interval in the active list, calculate the potential maximum
+            max_coins = max(max_coins, left_coins + current_coins)
+            left_coins = current_coins
+
+    return max_coins
+
+```
+
+## Test execution output
+
+```
+TIMEOUT: test run exceeded 30s
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

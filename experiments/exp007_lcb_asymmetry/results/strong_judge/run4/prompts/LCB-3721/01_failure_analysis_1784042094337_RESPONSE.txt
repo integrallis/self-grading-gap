@@ -1,0 +1,8 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_offline_before_message — inputs: `numberOfUsers = 2`, `events = [["MESSAGE", "10", "HERE"], ["OFFLINE", "10", "0"]]`; expected `[0, 1]`, got `[1, 1]`, because events at the same timestamp must process `OFFLINE` before `MESSAGE`, regardless of their input order. There are no mechanical issues: `countMentions` is imported correctly, its signature matches, and `List` is imported. Trace: initialize `mentions = [0, 0]` and `online_status = [True, True]`. The first input event is processed by `for event in events:` as `MESSAGE` at timestamp `10`; `event_map` is empty, and `"HERE"` increments both currently online users: `mentions[0]` changes `0 -> 1` and `mentions[1]` changes `0 -> 1`, producing `[1, 1]`. The second event then marks user `0` offline and schedules their return at `70`, but it cannot undo the already-counted HERE mention. The computation diverges at `for event in events:`, which processes same-timestamp events in supplied order rather than ordering `OFFLINE` before `MESSAGE` for equal timestamps.
+
+FIX DIRECTIVES:
+FIX: in `countMentions`, process events in chronological timestamp order and break equal-timestamp ties with `OFFLINE` before `MESSAGE`, e.g. replace `for event in events:` with `for event in sorted(events, key=lambda e: (int(e[1]), 0 if e[0] == "OFFLINE" else 1)):`.

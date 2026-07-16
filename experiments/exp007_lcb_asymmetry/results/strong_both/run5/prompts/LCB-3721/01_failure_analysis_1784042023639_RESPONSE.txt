@@ -1,0 +1,8 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_offline_status_is_processed_before_message_at_same_timestamp — inputs: `numberOfUsers = 2`, `events = [["MESSAGE", "10", "HERE"], ["OFFLINE", "10", "0"]]`; expected `[0, 1]`, got `[1, 1]`, because sorting uses only `key=lambda x: int(x[1])`, and Python’s stable sort preserves the input order for equal timestamps. Thus the `"MESSAGE"` remains before the `"OFFLINE"`. At timestamp `10`, both users initially have `online_status = [True, True]` and `offline_until = [0, 0]`. Processing the message first, the status-update loop evaluates `10 >= 0` for both users and leaves both online; `"HERE"` then increments both mention counts, producing `[1, 1]`. The later offline event sets user 0 offline, but cannot undo the mention. The computation diverges at `sorted(events, key=lambda x: int(x[1]))`, which lacks a secondary ordering rule that puts `"OFFLINE"` before `"MESSAGE"` at equal timestamps.
+
+FIX DIRECTIVES:
+FIX: in `countMentions`, sort events by timestamp and then event priority so `"OFFLINE"` events are processed before `"MESSAGE"` events at the same timestamp; for example: `for event in sorted(events, key=lambda x: (int(x[1]), 0 if x[0] == "OFFLINE" else 1)):`.

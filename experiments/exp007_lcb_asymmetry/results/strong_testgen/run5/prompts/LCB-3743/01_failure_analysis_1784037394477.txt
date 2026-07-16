@@ -1,0 +1,183 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784037394477
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from solution import maxFreeTime
+
+
+def test_canonical_example_1():
+    # Gaps are [1, 1, 0]; moving one meeting can merge the first two gaps: 1 + 1 = 2.
+    assert maxFreeTime(5, 1, [1, 3], [2, 5]) ==...[truncated]
+  impl_code: from typing import List
+
+def maxFreeTime(eventTime: int, k: int, startTime: List[int], endTime: List[int]) -> int:
+    # Calculate gaps between meetings
+    gaps = []
+    previous_end = 0
+    for i in...[truncated]
+  task: {'id': 'LCB/3743', 'use_case_id': 'LCB/3743', 'story_id': 'LCB/3743', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maxFreeTime()', 'description': 'You are given an integer eventTime denoting the du...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement maxFreeTime()**
+
+## Tests (the acceptance criterion)
+
+```python
+from solution import maxFreeTime
+
+
+def test_canonical_example_1():
+    # Gaps are [1, 1, 0]; moving one meeting can merge the first two gaps: 1 + 1 = 2.
+    assert maxFreeTime(5, 1, [1, 3], [2, 5]) == 2
+
+
+def test_canonical_example_2():
+    # Gaps are [0, 1, 5, 0]; moving one meeting can merge gaps 1 and 5: 1 + 5 = 6.
+    assert maxFreeTime(10, 1, [0, 2, 9], [1, 4, 10]) == 6
+
+
+def test_canonical_example_3():
+    # Every meeting touches the next and covers the whole event, so every gap is 0.
+    assert maxFreeTime(5, 2, [0, 1, 2, 3, 4], [1, 2, 3, 4, 5]) == 0
+
+
+def test_two_rescheduled_meetings_merge_three_interior_gaps():
+    # Gaps are [2, 2, 3, 2, 2]; moving two adjacent meetings merges 2 + 3 + 2 = 7.
+    assert maxFreeTime(20, 2, [2, 6, 10, 15], [4, 7, 13, 18]) == 7
+
+
+def test_rescheduling_all_meetings_can_collect_all_free_time_at_an_edge():
+    # Total meeting duration is 2 + 2 = 4, so free time is 15 - 4 = 11.
+    assert maxFreeTime(15, 2, [3, 8], [5, 10]) == 11
+
+
+def test_large_event_time_uses_the_largest_pair_of_adjacent_gaps():
+    # Gaps are [100_000_000, 300_000_000, 400_000_000];
+    # one moved meeting merges 300_000_000 + 400_000_000 = 700_000_000.
+    assert maxFreeTime(
+        1_000_000_000,
+        1,
+        [100_000_000, 500_000_000],
+        [200_000_000, 600_000_000],
+    ) == 700_000_000
+```
+
+## Failing implementation
+
+```python
+from typing import List
+
+def maxFreeTime(eventTime: int, k: int, startTime: List[int], endTime: List[int]) -> int:
+    # Calculate gaps between meetings
+    gaps = []
+    previous_end = 0
+    for i in range(len(startTime)):
+        if startTime[i] > previous_end:
+            gaps.append(startTime[i] - previous_end)
+        previous_end = endTime[i]
+    if previous_end < eventTime:
+        gaps.append(eventTime - previous_end)
+
+    # Calculate total free time as total available time minus the duration of meetings
+    total_meeting_duration = sum(end - start for start, end in zip(startTime, endTime))
+    total_free_time = eventTime - total_meeting_duration
+
+    # If we can move k meetings, we need to maximize the gaps we can merge
+    # Sort gaps in descending order
+    gaps.sort(reverse=True)
+
+    # We need to merge gaps considering k movements
+    max_free_time_possible = total_free_time
+    for i in range(min(k, len(gaps))):
+        if i < len(gaps) - 1:
+            # Merging gaps i and i+1
+            max_free_time_possible += gaps[i] + gaps[i + 1]
+    
+    return max_free_time_possible
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /tmp/tmpwa8fz2tq/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1
+collecting ... collected 6 items
+
+tests/test_task.py::test_canonical_example_1 FAILED                      [ 16%]
+tests/test_task.py::test_canonical_example_2 FAILED                      [ 33%]
+tests/test_task.py::test_canonical_example_3 PASSED                      [ 50%]
+tests/test_task.py::test_two_rescheduled_meetings_merge_three_interior_gaps FAILED [ 66%]
+tests/test_task.py::test_rescheduling_all_meetings_can_collect_all_free_time_at_an_edge FAILED [ 83%]
+tests/test_task.py::test_large_event_time_uses_the_largest_pair_of_adjacent_gaps FAILED [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_1 ___________________________
+tests/test_task.py:6: in test_canonical_example_1
+    assert maxFreeTime(5, 1, [1, 3], [2, 5]) == 2
+E   assert 4 == 2
+E    +  where 4 = maxFreeTime(5, 1, [1, 3], [2, 5])
+___________________________ test_canonical_example_2 ___________________________
+tests/test_task.py:11: in test_canonical_example_2
+    assert maxFreeTime(10, 1, [0, 2, 9], [1, 4, 10]) == 6
+E   assert 12 == 6
+E    +  where 12 = maxFreeTime(10, 1, [0, 2, 9], [1, 4, 10])
+___________ test_two_rescheduled_meetings_merge_three_interior_gaps ____________
+tests/test_task.py:21: in test_two_rescheduled_meetings_merge_three_interior_gaps
+    assert maxFreeTime(20, 2, [2, 6, 10, 15], [4, 7, 13, 18]) == 7
+E   assert 20 == 7
+E    +  where 20 = maxFreeTime(20, 2, [2, 6, 10, 15], [4, 7, 13, 18])
+_____ test_rescheduling_all_meetings_can_collect_all_free_time_at_an_edge ______
+tests/test_task.py:26: in test_rescheduling_all_meetings_can_collect_all_free_time_at_an_edge
+    assert maxFreeTime(15, 2, [3, 8], [5, 10]) == 11
+E   assert 25 == 11
+E    +  where 25 = maxFreeTime(15, 2, [3, 8], [5, 10])
+_________ test_large_event_time_uses_the_largest_pair_of_adjacent_gaps _________
+tests/test_task.py:32: in test_large_event_time_uses_the_largest_pair_of_adjacent_gaps
+    assert maxFreeTime(
+E   assert 1500000000 == 700000000
+E    +  where 1500000000 = maxFreeTime(1000000000, 1, [100000000, 500000000], [200000000, 600000000])
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_canonical_example_1 - assert 4 == 2
+FAILED tests/test_task.py::test_canonical_example_2 - assert 12 == 6
+FAILED tests/test_task.py::test_two_rescheduled_meetings_merge_three_interior_gaps
+FAILED tests/test_task.py::test_rescheduling_all_meetings_can_collect_all_free_time_at_an_edge
+FAILED tests/test_task.py::test_large_event_time_uses_the_largest_pair_of_adjacent_gaps
+========================= 5 failed, 1 passed in 0.02s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

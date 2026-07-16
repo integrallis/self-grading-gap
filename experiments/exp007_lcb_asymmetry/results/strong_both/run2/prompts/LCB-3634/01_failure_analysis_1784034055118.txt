@@ -1,0 +1,124 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784034055118
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: TIMEOUT: test run exceeded 30s
+  test_code: from solution import calculateScore
+
+
+def test_canonical_example_1():
+    # i=2 pairs with i=0 for 2 points; i=4 pairs with i=1 for 3 points: 2 + 3 = 5.
+    assert calculateScore("aczzx") == 5
+
+
+def t...[truncated]
+  impl_code: def calculateScore(s: str) -> int:
+    score = 0
+    marked = set()
+
+    for i in range(len(s)):
+        if i in marked:
+            continue
+        mirror_char = chr(219 - ord(s[i]))  # 219 = 'a' + ...[truncated]
+  task: {'id': 'LCB/3634', 'use_case_id': 'LCB/3634', 'story_id': 'LCB/3634', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement calculateScore()', 'description': 'You are given a string s.\nWe define the mirror...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement calculateScore()**
+
+## Tests (the acceptance criterion)
+
+```python
+from solution import calculateScore
+
+
+def test_canonical_example_1():
+    # i=2 pairs with i=0 for 2 points; i=4 pairs with i=1 for 3 points: 2 + 3 = 5.
+    assert calculateScore("aczzx") == 5
+
+
+def test_canonical_example_2():
+    # No character has an earlier unmarked mirror, so the score is 0.
+    assert calculateScore("abcdef") == 0
+
+
+def test_uses_closest_unmarked_mirror_index():
+    # At i=2, 'z' pairs with the closest earlier 'a' at i=1: 1;
+    # at i=3, 'z' pairs with the remaining 'a' at i=0: 3; total = 1 + 3 = 4.
+    assert calculateScore("aazz") == 4
+
+
+def test_marked_indices_cannot_be_reused():
+    # i=1 pairs indices 0 and 1 for 1 point; i=2 cannot reuse marked index 0, so total = 1.
+    assert calculateScore("aza") == 1
+
+
+def test_minimum_length_string_has_zero_score():
+    # The only index has no earlier index to pair with, so the score is 0.
+    assert calculateScore("a") == 0
+
+
+def test_maximum_length_string():
+    # Each 'z' at index 50,000+k pairs with the closest remaining 'a' at index 49,999-k.
+    # Every pair spans 1, 3, 5, ..., 99,999, whose sum is 50,000^2 = 2,500,000,000.
+    s = "a" * 50_000 + "z" * 50_000
+    assert calculateScore(s) == 2_500_000_000
+```
+
+## Failing implementation
+
+```python
+def calculateScore(s: str) -> int:
+    score = 0
+    marked = set()
+
+    for i in range(len(s)):
+        if i in marked:
+            continue
+        mirror_char = chr(219 - ord(s[i]))  # 219 = 'a' + 'z'
+        for j in range(i - 1, -1, -1):
+            if j in marked:
+                continue
+            if s[j] == mirror_char:
+                score += i - j
+                marked.add(i)
+                marked.add(j)
+                break
+    return score
+
+```
+
+## Test execution output
+
+```
+TIMEOUT: test run exceeded 30s
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

@@ -1,0 +1,9 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_maximum_length — input `"a" * 50000 + "z" * 50000`, expected `2500000000`, got no result because the test times out. There is no mechanical failure: `calculateScore` has the correct importable name and signature. If it completed, it would compute the expected score: for the `k`th `'z'` (`k = 0..49999`), `i = 50000 + k` pairs with `j = 49999 - k`, adding `(50000 + k) - (49999 - k) = 1 + 2k`; the total is `sum(1 + 2k for k in range(50000)) = 50000 + 2 * (49999 * 50000 // 2) = 2500000000`. However, the inner-loop expression `for j in range(i - 1, -1, -1):` performs quadratic scanning. The initial 50,000 `'a'` characters perform `0 + 1 + ... + 49999 = 1249975000` failed scans, and the `'z'` characters perform `1 + 2 + ... + 50000 = 1250025000` scans through marked `'z'` characters and to their matching `'a'` characters. About `2500000000` loop iterations exceed the 30-second limit.
+
+FIX DIRECTIVES:
+FIX: in `calculateScore`, replace the backward `for j in range(i - 1, -1, -1)` search and `marked` array with stacks/lists of unmatched indices keyed by character, so each character is processed in O(1) amortized time.
+FIX: for each index `i` and character `ch`, compute `target = mirror[ch]`; if the unmatched stack for `target` is nonempty, pop `j` from it and add `i - j` to `score`; otherwise append `i` to the unmatched stack for `ch`.

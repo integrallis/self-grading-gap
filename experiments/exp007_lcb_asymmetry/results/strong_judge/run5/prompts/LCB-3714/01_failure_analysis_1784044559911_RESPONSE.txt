@@ -1,0 +1,10 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_maximum_k — inputs `nums = [1] * 70`, `k = 70`; expected `540032504`, got `901137584`, because there is no mechanical import/signature/name error, but the fixed-count expressions `min_count = pow(2, min(k - 1, n - 1), MOD)` and `max_count = pow(2, min(k - 1, n - 1), MOD)` incorrectly assign every element the same number of possible min/max subsequences. Here both counts are `2^69 mod MOD = 635008130`, so each `1` contributes `(635008130 + 635008130) mod MOD = 270016253`; across 70 elements, the implementation computes `70 * 270016253 = 18901137710`, and `18901137710 mod 1000000007 = 901137584`. The correct result is `2 * (2^70 - 1) mod MOD = 2 * (270016253 - 1) = 540032504`. An element’s count must depend on its sorted position: it can be a minimum only with elements to its right, and a maximum only with elements to its left.
+
+FIX DIRECTIVES:
+FIX: in `minMaxSums`, add `if not nums or k <= 0: return 0`, then sort the input with `nums.sort()` before computing contributions.
+FIX: in `minMaxSums`, replace the fixed `pow(2, ...)` `min_count`/`max_count` assignments with position-specific counts: for sorted index `i`, use `sum(C(n - i - 1, j) for j in range(k))` as its minimum count and `sum(C(i, j) for j in range(k))` as its maximum count, where invalid combinations are zero.
+FIX: compute those bounded binomial sums in `O(n)` after factorial/inverse-factorial precomputation: define `C(m, r) = 0 if r < 0 or r > m else fact[m] * inv_fact[r] * inv_fact[m-r] % MOD`; build `ways = [0] * n` with `ways[0] = 1` and `ways[m + 1] = (2 * ways[m] - C(m, k - 1)) % MOD`; then accumulate `total = (total + nums[i] * (ways[i] + ways[n - 1 - i])) % MOD` for each sorted index `i`.

@@ -1,0 +1,19 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_canonical_example_2 — expected 6, got 5, because the edit estimate only adds at most one distance unit per assumed remaining move and uses `s.index(move)`, which returns the first occurrence rather than the current loop position. There is no mechanical issue: `maxDistance` has the correct name and signature and requires no missing imports. For `s="NSWWEW"`, `k=3`, `len(s)=6`:
+- After `N` (index 0): `(x, y)=(0,1)`, `current_distance=1`; `s.index("N")=0`, so `possible_distance = 1 + min(3, 6-(0+1)) = 1+3=4`; `max_distance=4`.
+- After `S` (index 1): `(0,0)`, `current_distance=0`; `s.index("S")=1`, so `possible_distance = 0 + min(3, 6-(1+1)) = 0+3=3`; `max_distance=4`.
+- After first `W` (index 2): `(-1,0)`, `current_distance=1`; `s.index("W")=2`, so `possible_distance = 1 + min(3, 6-(2+1)) = 1+3=4`; `max_distance=4`.
+- After second `W` (index 3): `(-2,0)`, `current_distance=2`; `s.index("W")` still incorrectly returns `2`, so `possible_distance = 2 + min(3, 6-(2+1)) = 2+3=5`; `max_distance=5`.
+- After `E` (index 4): `(-1,0)`, `current_distance=1`; `s.index("E")=4`, so `possible_distance = 1 + min(3, 6-(4+1)) = 1+1=2`; `max_distance=5`.
+- After final `W` (index 5): `(-2,0)`, `current_distance=2`; `s.index("W")` again returns `2`, so `possible_distance=5`; the function returns `5`.
+
+The computation diverges at `possible_distance = current_distance + min(k, len(s) - (s.index(move) + 1))`. Edits may change moves already traversed, not only hypothetical later moves, and changing a move that opposes the chosen direction can improve its directional score by `2`, not merely `1`. In this case, change `S` to `N` and `E` to `W`, producing `NNWWWW` and distance `6`.
+
+FIX DIRECTIVES:
+FIX: in `maxDistance`, remove the `s.index(move)`-based `possible_distance` calculation; `s.index` is not a loop index and is incorrect for repeated directions.
+FIX: in `maxDistance`, evaluate each prefix against all four Manhattan-distance sign orientations `(sx, sy)` in `[(1,1), (1,-1), (-1,1), (-1,-1)]`.
+FIX: for each prefix and orientation, score each move as `+1` if it agrees with that orientation and `-1` otherwise; changing an opposing move raises that score by `2`, so compute `candidate = min(prefix_length, score + 2 * min(k, opposing_moves))`.
+FIX: update the answer with the largest `candidate` across every prefix and all four orientations, then return that answer.

@@ -1,0 +1,233 @@
+================================================================================
+TEMPLATE: judge/code_against_tests.j2
+TIMESTAMP: 1784037367748
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_code: from solution import countMentions
+
+
+def test_canonical_example_1():
+    events = [
+        ["MESSAGE", "10", "id1 id0"],
+        ["OFFLINE", "11", "0"],
+        ["MESSAGE", "71", "HERE"],
+    ]
+
+    ...[truncated]
+  impl_code: from typing import List
+
+
+def countMentions(numberOfUsers: int, events: List[List[str]]) -> List[int]:
+    mentions = [0] * numberOfUsers
+    online = [True] * numberOfUsers
+    return_time = [0] * nu...[truncated]
+  task: {'id': 'LCB/3721', 'use_case_id': 'LCB/3721', 'story_id': 'LCB/3721', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement countMentions()', 'description': 'You are given an integer numberOfUsers represent...[truncated]
+  recent_commits: []
+================================================================================
+
+You are predicting whether an implementation will pass a specific test suite. Trace the code
+with each test's inputs; do not judge style, design, or robustness — a crude implementation
+that passes every test rates 1.00, an elegant one that fails a test rates lower.
+
+## Task context
+
+**Implement countMentions()**
+
+## Tests
+
+```python
+from solution import countMentions
+
+
+def test_canonical_example_1():
+    events = [
+        ["MESSAGE", "10", "id1 id0"],
+        ["OFFLINE", "11", "0"],
+        ["MESSAGE", "71", "HERE"],
+    ]
+
+    # At 10 both users are explicitly mentioned; at 71 user 0 is online again, so HERE adds one each.
+    assert countMentions(2, events) == [2, 2]
+
+
+def test_canonical_example_2():
+    events = [
+        ["MESSAGE", "10", "id1 id0"],
+        ["OFFLINE", "11", "0"],
+        ["MESSAGE", "12", "ALL"],
+    ]
+
+    # The explicit message gives one each, and ALL at 12 includes offline user 0, giving two each.
+    assert countMentions(2, events) == [2, 2]
+
+
+def test_canonical_example_3():
+    events = [
+        ["OFFLINE", "10", "0"],
+        ["MESSAGE", "12", "HERE"],
+    ]
+
+    # User 0 remains offline at 12, so HERE mentions only user 1.
+    assert countMentions(2, events) == [0, 1]
+
+
+def test_explicit_ids_count_duplicates_and_can_mention_offline_users():
+    events = [
+        ["OFFLINE", "5", "1"],
+        ["MESSAGE", "6", "id1 id1 id2"],
+    ]
+
+    # Offline user 1 is explicitly mentioned twice and user 2 once; user 0 is not mentioned.
+    assert countMentions(3, events) == [0, 2, 1]
+
+
+def test_offline_status_change_precedes_message_at_same_timestamp():
+    events = [
+        ["MESSAGE", "10", "HERE"],
+        ["OFFLINE", "10", "0"],
+    ]
+
+    # The offline change at 10 is processed before HERE at 10, so only user 1 is mentioned.
+    assert countMentions(2, events) == [0, 1]
+
+
+def test_here_uses_each_users_individual_return_time():
+    events = [
+        ["OFFLINE", "1", "0"],
+        ["OFFLINE", "2", "1"],
+        ["MESSAGE", "61", "HERE"],
+    ]
+
+    # User 0 returns at 61, user 1 remains offline until 62, and user 2 was always online.
+    assert countMentions(3, events) == [1, 0, 1]
+
+
+def test_events_are_processed_by_timestamp_for_online_status():
+    events = [
+        ["MESSAGE", "70", "HERE"],
+        ["OFFLINE", "10", "0"],
+        ["MESSAGE", "9", "HERE"],
+    ]
+
+    # At 9 HERE mentions both; user 0 returns at 70, so HERE at 70 also mentions both.
+    assert countMentions(2, events) == [2, 2]
+
+
+def test_minimum_number_of_users_with_one_event():
+    events = [["MESSAGE", "1", "HERE"]]
+
+    # The only initially online user is mentioned once by HERE.
+    assert countMentions(1, events) == [1]
+
+
+def test_maximum_number_of_users_can_mention_id99():
+    events = [["MESSAGE", "1", "id99"]]
+
+    # Only user 99 is explicitly mentioned once.
+    assert countMentions(100, events) == [0] * 99 + [1]
+
+
+def test_exactly_one_explicit_id_token_counts_once():
+    events = [["MESSAGE", "1", "id0"]]
+
+    # The one explicit id0 token produces one mention for user 0.
+    assert countMentions(1, events) == [1]
+
+
+def test_one_hundred_duplicate_explicit_id_tokens_count_individually():
+    events = [["MESSAGE", "1", " ".join(["id0"] * 100)]]
+
+    # Each of the 100 id0 tokens is a separate mention of user 0.
+    assert countMentions(1, events) == [100]
+
+
+def test_one_hundred_events_accumulate_mentions():
+    events = [["MESSAGE", str(timestamp), "id0"] for timestamp in range(1, 101)]
+
+    # Each of the 100 message events explicitly mentions user 0 once.
+    assert countMentions(1, events) == [100]
+
+
+def test_timestamp_bounds_apply_status_changes_chronologically():
+    events = [
+        ["MESSAGE", "100000", "HERE"],
+        ["OFFLINE", "1", "0"],
+        ["MESSAGE", "1", "HERE"],
+    ]
+
+    # At time 1 user 0 goes offline before HERE, so only user 1 is mentioned;
+    # by time 100000 user 0 has returned, so HERE mentions both users.
+    assert countMentions(2, events) == [1, 2]
+```
+
+## Implementation
+
+```python
+from typing import List
+
+
+def countMentions(numberOfUsers: int, events: List[List[str]]) -> List[int]:
+    mentions = [0] * numberOfUsers
+    online = [True] * numberOfUsers
+    return_time = [0] * numberOfUsers
+
+    # Sort events by timestamp
+    events.sort(key=lambda x: int(x[1]))
+
+    for event in events:
+        event_type, timestamp_str, data = event
+        timestamp = int(timestamp_str)
+
+        # Process offline events first
+        if event_type == 'OFFLINE':
+            user_id = int(data)
+            online[user_id] = False
+            return_time[user_id] = timestamp + 60
+
+        # Process message events
+        elif event_type == 'MESSAGE':
+            mentions_list = data.split()
+            mentioned_users = set()
+            for mention in mentions_list:
+                if mention.startswith('id'):
+                    user_id = int(mention[2:])
+                    mentioned_users.add(user_id)
+                elif mention == 'ALL':
+                    mentioned_users.update(range(numberOfUsers))
+                elif mention == 'HERE':
+                    for user_id in range(numberOfUsers):
+                        if online[user_id]:
+                            mentioned_users.add(user_id)
+
+            for user_id in mentioned_users:
+                if online[user_id] or (return_time[user_id] > timestamp):
+                    mentions[user_id] += 1
+
+            # Update online status for users going offline at this timestamp
+            for user_id in range(numberOfUsers):
+                if not online[user_id] and return_time[user_id] <= timestamp:
+                    online[user_id] = True
+
+    return mentions
+
+```
+
+## Method
+
+For EACH test function: state the inputs, trace the implementation's computation step by
+step (do the arithmetic explicitly), state the value the test expects, and conclude PASS or
+FAIL for that test. Check import/name compatibility first: if the tests cannot even import
+the implementation, every test fails.
+
+Also flag test gaming if you see it (hardcoded answers for specific inputs, input
+pattern-matching): report it in one line, but rate on predicted test outcomes only.
+
+## Output format (exactly this structure)
+
+1. One line per test, in this shape:
+   `test_canonical_example_1: PASS — computes 5 for [1,2,1,2,1,1,1], matching the assertion`
+   If you cannot trace a test's outcome from the code, mark it FAIL and say why the trace
+   is blocked — an unverifiable pass prediction is not a pass.
+2. If any FAIL: one short paragraph naming the root cause in the implementation.
+3. The last line must be exactly: `Rating: <predicted fraction of tests passing>` with two
+   decimals, e.g. `Rating: 0.83`

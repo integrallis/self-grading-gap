@@ -1,0 +1,10 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_canonical_example_3 — expected 3, got 1, because `maxSum([1, 2, -1, -2, 1, 0, -1])` does not record the best sum when extending a duplicate-free window. There is no mechanical/import/signature issue: `maxSum` is called successfully. Trace: `1` makes `unique_nums={1}`, `current_sum=1`; `2` makes `{1,2}`, `current_sum=1+2=3`; `-1` makes `current_sum=3+(-1)=2`; `-2` makes `current_sum=2+(-2)=0`. At the next `1` (a duplicate), `max_sum = max(-inf, 0) = 0`, so the earlier valid unique subarray `[1, 2]` with sum `3` was never saved. The duplicate-handling loop removes the leading `1`, leaving `{2,-1,-2}`, then re-adds `1`, so `current_sum = 2+(-1)+(-2)+1=0`. Processing `0` leaves `current_sum=0`. At the final `-1` duplicate, `max_sum` remains `0`; after shrinking and re-adding, `current_sum=(-2)+1+0+(-1)=-2`. The final expression `return max(max_sum, max(nums, default=0))` evaluates `max(0, max([-2, 1, 0, -1])) = max(0, 1) = 1`, because prior `nums = nums[1:]` rebindings have discarded the initial `2` from the local `nums` reference. The computation first diverges when the `if num not in unique_nums:` branch updates `current_sum` to `3` for `[1, 2]` but does not update `max_sum`; the fallback return then cannot recover that missed subarray sum.
+
+FIX DIRECTIVES:
+FIX: in `maxSum`, replace the current set/slicing duplicate logic with enumeration of every contiguous duplicate-free subarray: for each `left`, initialize `seen = set()` and `total = 0`; extend `right` until a duplicate is encountered, add each new value to `total`, and update `best = max(best, total)` after every addition.
+FIX: initialize `best` to `float("-inf")` so all-negative inputs can return the largest negative singleton rather than being forced to zero.
+FIX: remove `nums = nums[1:]` and remove the final fallback `max(nums, default=0)`; do not mutate or rebind the input while determining the maximum.

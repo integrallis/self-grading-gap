@@ -1,0 +1,10 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_maximum_length — input `"a" * 50000 + "z" * 50000`, expected `2500000000`, got no result because the test times out. There are no mechanical issues: `calculateScore` exists, has the required signature, and needs no missing imports. The timeout is caused by the nested reverse scan `for j in range(i -1, -1, -1)`. For the first 50,000 `'a'` characters, no mirror `'z'` exists to the left, so the implementation performs `0 + 1 + ... + 49999 = 1,249,975,000` inner-loop checks. For the subsequent `'z'` characters, previously matched indices force increasingly long scans through marked positions: `1 + 3 + ... + 99999 = 2,500,000,000` additional checks. That is `3,749,975,000` reverse-loop iterations before completion, exceeding 30 seconds. If it completed, its score arithmetic would be correct: it would add `1 + 3 + ... + 99999 = 50000 * 50000 = 2500000000`; the divergence is performance at `for j in range(i - 1, -1, -1)`.
+
+FIX DIRECTIVES:
+FIX: in `calculateScore`, replace the backward scan and `marked` array with 26 per-character stacks of unmarked indices, so finding the closest prior unmarked mirror is O(1).
+FIX: in `calculateScore`, for each character at index `i`, compute `char_index = ord(s[i]) - ord('a')` and `mirror_index = 25 - char_index`; if the mirror stack is nonempty, pop `j` from it and add `i - j` to `score`, otherwise append `i` to the stack for `char_index`.
+FIX: ensure matched indices are not appended back into a stack; only unmatched indices remain available as future candidates.

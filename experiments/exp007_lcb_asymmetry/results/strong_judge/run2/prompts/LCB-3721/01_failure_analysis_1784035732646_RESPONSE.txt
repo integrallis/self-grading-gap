@@ -1,0 +1,8 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_same_timestamp_offline_priority — inputs: `numberOfUsers = 2`, `events = [["MESSAGE", "10", "HERE"], ["MESSAGE", "20", "HERE"], ["OFFLINE", "20", "0"]]`; expected `[1, 2]`, got `[2, 2]`, because events at the same timestamp must process `OFFLINE` before `MESSAGE`. The implementation sorts only by `int(x[1])`, so Python’s stable sort preserves the input order for the two timestamp-20 events: `MESSAGE 20 HERE` remains before `OFFLINE 20 0`. Trace: initially `online_status = [True, True]`, `mentions = [0, 0]`. At timestamp 10, `HERE` increments both online users: `[1, 1]`. At timestamp 20, the `MESSAGE` is processed first; neither user is offline, so `HERE` increments both again: `[2, 2]`. The later `OFFLINE` then sets user 0 offline, but too late to affect that timestamp’s message. The divergence occurs at `sorted_events = sorted(events, key=lambda x: int(x[1]))`, whose key does not include the required same-timestamp event-type priority.
+
+FIX DIRECTIVES:
+FIX: in `countMentions`, sort events by timestamp and then event priority, with `"OFFLINE"` before `"MESSAGE"` at equal timestamps; for example: `sorted_events = sorted(events, key=lambda event: (int(event[1]), 0 if event[0] == "OFFLINE" else 1))`.

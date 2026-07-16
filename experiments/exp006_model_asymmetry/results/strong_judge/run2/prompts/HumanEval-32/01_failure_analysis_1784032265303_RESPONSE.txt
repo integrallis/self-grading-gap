@@ -1,0 +1,9 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_non_canonical_find_zero — inputs `xs = [-8, 0, 0, 1]`; it expects the returned `root` to satisfy `poly([-8, 0, 0, 1], root) == pytest.approx(0)` with pytest’s default absolute tolerance of `1e-12`. `poly` correctly computes \(f(x) = -8 + x^3\). `find_zero` bisects `[-1000.0, 1000.0]` only until `upper_bound - lower_bound <= 1e-7`, then returns the interval midpoint rather than an exact root. Near \(x = 2\), a root error of roughly \(3.84 \times 10^{-9}\) produces a polynomial residual of approximately \(f(2+\delta) \approx 3(2^2)\delta = 12\delta \approx 9.22 \times 10^{-8}\), matching the reported result `9.220093488693237e-08`. The divergence is caused by `tolerance = 1e-7` together with the stopping condition `while upper_bound - lower_bound > tolerance:`: it limits interval/root accuracy, not the required `poly(xs, root)` residual accuracy, and is far too coarse for `pytest.approx(0)`.
+
+FIX DIRECTIVES:
+FIX: in `find_zero`, use a substantially tighter bisection tolerance, such as `tolerance = 1e-14`, so that the returned midpoint produces a residual within the test’s `1e-12` absolute tolerance.
+FIX: in `find_zero`, optionally make convergence residual-based as well: after computing `mid`, return `mid` when `poly(xs, mid) == 0` or `abs(poly(xs, mid)) <= 1e-13`; retain a sufficiently tight interval-width tolerance as a fallback.

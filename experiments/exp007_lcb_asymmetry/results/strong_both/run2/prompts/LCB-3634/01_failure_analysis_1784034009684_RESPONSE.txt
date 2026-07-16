@@ -1,0 +1,9 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_maximum_length_string — input `s = "a" * 50_000 + "z" * 50_000`, expected `2_500_000_000`, got no result because the test run times out. (The supplied timeout output does not name the individual test, but this is the input that triggers the quadratic behavior.) For indices `i = 1` through `49_999`, each character is `"a"` and its mirror is `"z"`, which does not occur earlier. The inner loop executes `i` times for each such index: `1 + 2 + ... + 49_999 = 49_999 * 50_000 / 2 = 1_249_975_000` backward-loop iterations before the first `"z"` is even processed. The timeout occurs at `for j in range(i - 1, -1, -1):`; repeatedly scanning all earlier indices makes `calculateScore` O(n²). If it could finish, the later `"z"` characters would produce spans `1 + 3 + ... + 99_999 = 2_500_000_000`, so the score arithmetic itself is not the divergence.
+
+FIX DIRECTIVES:
+FIX: In `calculateScore`, replace the nested backward search and `marked` set with a dictionary mapping each character to a stack/list of currently unpaired earlier indices.
+FIX: While scanning each index `i`, compute `mirror_char = chr(219 - ord(s[i]))`; if the stored stack for `mirror_char` is nonempty, pop its last index `j` and add `i - j` to `score`; otherwise, append `i` to the stack for `s[i]`. This pop selects the closest unmarked mirror and prevents either index from being reused.

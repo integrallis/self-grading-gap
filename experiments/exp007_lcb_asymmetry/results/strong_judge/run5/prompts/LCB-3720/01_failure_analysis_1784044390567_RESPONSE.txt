@@ -1,0 +1,40 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_canonical_example_2 — expected -1, got 1, because `canReachNodeZero` seeds its traversal from every reverse-graph vertex that has an allowed edge instead of starting from node `0`. There is no mechanical issue: `minMaxWeight` is imported and called with the correct signature, and all required imports exist. Inputs are `n=5`, `edges=[[0,1,1],[0,2,2],[0,3,1],[0,4,1],[1,2,1],[1,4,1]]`, and `threshold=1`.
+
+The reversed graph built by `graph[v].append((u, w))` is:
+- `graph[0] = []`
+- `graph[1] = [(0, 1)]`
+- `graph[2] = [(0, 2), (1, 1)]`
+- `graph[3] = [(0, 1)]`
+- `graph[4] = [(0, 1), (1, 1)]`
+
+At `max_weight=1`, the initialization loop marks nodes `1`, `2`, `3`, and `4` visited because each has at least one qualifying entry in its reversed adjacency list. Thus `queue = [1, 2, 3, 4]` and `visited = [False, True, True, True, True]`. When node `4` is popped, `(0, 1)` in `graph[4]` marks node `0` visited, so `all(visited)` incorrectly becomes `True`.
+
+Since this incorrect check is true at every binary-search midpoint down to `1` (`500000, 250000, ..., 7, 3, 1`), the function returns `1`. Correct reverse reachability must start from node `0`; here `graph[0]` is empty, so only node `0` is reachable in the reversed graph and the correct result is `-1`. The divergent expressions are `queue.append(u)` and `visited[u] = True` inside the initial `for u in range(n)` loop.
+
+test_canonical_example_4 — expected -1, got 2, because of the same incorrect traversal initialization described above. Inputs are `n=5`, `edges=[[1,2,1],[1,3,3],[1,4,5],[2,3,2],[4,0,1]]`, and `threshold=1`.
+
+The reversed graph is:
+- `graph[0] = [(4, 1)]`
+- `graph[1] = []`
+- `graph[2] = [(1, 1)]`
+- `graph[3] = [(1, 3), (2, 2)]`
+- `graph[4] = [(1, 5)]`
+
+At `max_weight=2`, the incorrect initialization marks nodes `0`, `2`, and `3`:
+- `graph[0]` has `(4, 1)`, so mark `0`.
+- `graph[2]` has `(1, 1)`, so mark `2`.
+- `graph[3]` has `(2, 2)`, so mark `3`.
+- `graph[4]` only has weight `5`, so it is initially unmarked.
+
+This gives `queue = [0, 2, 3]` and `visited = [True, False, True, True, False]`. Popping node `0` visits `4` through `(4, 1)`, and popping node `2` visits `1` through `(1, 1)`, making every node visited. Therefore the implementation incorrectly reports feasibility at weight `2`.
+
+At `max_weight=1`, node `3` is not initially marked and remains unvisited, so the check is false. Binary search therefore treats `1` as infeasible and `2` as feasible, returning `2`. Correct traversal from reversed node `0` reaches `0 -> 4` at weight `1`, but cannot continue from `4` until weight `5`, and even at weight `5` nodes `2` and `3` cannot reach `0` in the original graph. The correct result is `-1`. The divergence is again the initialization using `queue.append(u)` / `visited[u] = True` for all reverse-graph vertices rather than initializing from node `0`.
+
+FIX DIRECTIVES:
+FIX: in `canReachNodeZero`, remove the initial nested loop that marks every `u` having any qualifying edge: delete the logic containing `queue.append(u)` and `visited[u] = True`.
+FIX: in `canReachNodeZero`, initialize reverse reachability exclusively from node `0`: `visited = [False] * n; visited[0] = True; queue = [0]`.
+FIX: retain the existing traversal over `graph[node]`, but interpret each `(v, w)` as a predecessor of `node`; for `w <= max_weight`, mark and enqueue `v` only if it has not already been visited.

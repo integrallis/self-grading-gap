@@ -1,0 +1,23 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_canonical_example_3 — expected 3, got 1, because `maxSum([1, 2, -1, -2, 1, 0, -1])` accumulates the first four distinct values into `current_sum = 1 + 2 + (-1) + (-2) = 0` instead of considering the earlier unique subarray `[1, 2]`, whose sum is `1 + 2 = 3`. On the first duplicate `1`, `max_sum` becomes `max(-inf, 0) = 0`. The duplicate-handling block then removes the initial `1` and recalculates `current_sum = sum({2, -1, -2, 1}) = 0`. Later, on duplicate `-1`, it again records only `0`; after removing values through the previous `-1`, `current_sum = sum({-2, 1, 0, -1}) = -2`. At the end, `max_sum = max(0, -2) = 0`, and `max(nums)` is computed from the rebinding-mutated local `nums` list `[-2, 1, 0, -1]`, yielding `1`, so the function returns `max(0, 1) = 1`. The computation diverges at `max_sum = max(max_sum, current_sum)`: it evaluates a candidate only when a duplicate occurs and therefore never records the valid prefix `[1, 2]` with sum `3`. The `while` block’s `nums = nums[1:]` rebinding also makes the final `max(nums, default=0)` operate on a suffix rather than the original input.
+
+FIX DIRECTIVES:
+FIX: in `maxSum`, replace the current single-pass duplicate/removal logic with explicit evaluation of every contiguous subarray whose elements are unique; update the best sum after every newly added unique element, not only when a duplicate is encountered.
+FIX: preserve the original input list; do not reassign `nums` with `nums = nums[1:]` while iterating.
+FIX: initialize the best result to `float("-inf")` so singleton negative subarrays remain valid candidates. A correct structure is:
+```python
+best = float("-inf")
+for start in range(len(nums)):
+    seen = set()
+    total = 0
+    for end in range(start, len(nums)):
+        if nums[end] in seen:
+            break
+        seen.add(nums[end])
+        total += nums[end]
+        best = max(best, total)
+return best
+```

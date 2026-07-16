@@ -1,0 +1,16 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_canonical_example_1: FAIL — for `[[0,1,-1],[1,-2,3],[2,-3,4]]`, `dp[0][1]=0` but `(0,0)` is skipped, so the seed is never propagated; the subsequent normalized gains `1,0,1,0,3,2,0,4` are each added only to `-inf` predecessors, leaving `dp[3][3]=-inf`; `max(-inf,0)=0`, but the assertion expects `8`.
+test_canonical_example_2: FAIL — for `[[10,10,10],[10,10,10]]`, `(0,0)` is skipped after setting `dp[0][1]=0`; each of the remaining five `10` cells has only `-inf` predecessors, so `dp[2][3]=-inf` and the function returns `max(-inf,0)=0`, while the assertion expects `40`.
+test_two_neutralizations: FAIL — for `[[5,-7,-11,4]]`, `(0,0)` containing `5` is skipped and does not transfer the initialized `0`; at `-7`, normalized gain is `0` but all normal and neutralization candidates are `-inf`; the same occurs at `-11`, and then `4` is added to `-inf`, so the result is `0`, while the assertion expects `9`.
+test_negative_after_neutralizations: FAIL — for `[[-1,-2,-3,-4]]`, the starting `-1` cell is skipped; each later robber has normalized gain `0`, and every normal/special neutralization expression remains `-inf` (for example, at `(0,1)`, `-inf + 0 + 0 = -inf`); thus `dp[1][4]=-inf` and the returned value is `0`, while the assertion expects `-3`.
+test_neutralize_starting_robber: FAIL — for `[[-5,1]]`, `-5` is skipped and at `1` both predecessors are `-inf`, yielding return value `0` rather than expected `1`; for `[[1,-5]]`, `1` is skipped and the later robber's normal and neutralization candidates are all `-inf`, also yielding `0` rather than expected `1`.
+test_single_cell: PASS — for `[[-1000]]`, the only cell `(0,0)` is skipped, so `dp[1][1]` remains `-inf`; `max(-inf,0)=0`, matching the assertion.
+test_single_column: FAIL — for `[[-1],[-2],[-3]]`, the start is skipped; at `-2`, normalized gain is `0` and all candidates are `-inf`, and at `-3` the same calculation remains `-inf`; therefore `max(dp[3][1],0)=0`, but the assertion expects `-1`.
+test_maximum_dimension: FAIL — for the `500 x 500` grid of `1000`s, `(0,0)` is skipped, leaving the sole finite seed `dp[0][1]=0` disconnected; by induction every processed cell has only `-inf` predecessors, so `dp[500][500]=-inf` and the function returns `0`, while the assertion expects `999000000`.
+
+The root cause is that the only initialized DP state, `dp[0][1] = 0`, would be used when processing `(0,0)`, but that cell is skipped. No subsequent cell can become reachable, and the final clamp always returns `0`.
+
+Rating: 0.13

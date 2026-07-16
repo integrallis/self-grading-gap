@@ -1,0 +1,19 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_canonical_example_1: PASS — input events process as MESSAGE(10, `id1 id0`) → mentions [1, 1]; OFFLINE(11, 0) → user 0 offline until 71; MESSAGE(71, `HERE`) restores user 0 since 71 >= 71 and adds [1, 1], producing [2, 2], matching expected [2, 2].
+test_canonical_example_2: PASS — MESSAGE(10, `id1 id0`) produces [1, 1]; OFFLINE(11, 0) sets user 0 offline until 71; MESSAGE(12, `ALL`) adds one to every user regardless of status, producing [2, 2], matching expected [2, 2].
+test_canonical_example_3: PASS — OFFLINE(10, 0) sets user 0 offline until 70; MESSAGE(12, `HERE`) leaves user 0 offline because 12 < 70 and mentions only user 1, producing [0, 1], matching expected [0, 1].
+test_explicit_id_mentions_count_duplicates: PASS — MESSAGE(5, `id1 id0 id1`) increments user 1 twice and user 0 once: [0, 0] → [0, 1] → [1, 1] → [1, 2], matching expected [1, 2].
+test_explicit_id_mention_counts_when_user_is_offline: PASS — OFFLINE(10, 0) sets user 0 offline until 70; MESSAGE(12, `id0`) explicitly increments user 0 despite offline status, producing [1, 0], matching expected [1, 0].
+test_offline_status_is_processed_before_message_at_same_timestamp: FAIL — stable timestamp sorting retains input order, so MESSAGE(10, `HERE`) runs before OFFLINE(10, 0); both users are initially online, producing [1, 1], then user 0 is set offline. The test expects [0, 1].
+test_events_are_evaluated_by_timestamp_when_input_is_not_chronological: PASS — sorting changes the input order to OFFLINE(10, 0), then MESSAGE(12, `HERE`); user 0 remains offline until 70, so only user 1 is mentioned and the result is [0, 1], matching expected [0, 1].
+test_user_is_online_again_exactly_sixty_time_units_after_offline: PASS — OFFLINE(10, 0) sets offline_until[0] = 10 + 60 = 70; at MESSAGE(70, `HERE`), 70 >= 70 restores the user and increments mentions from [0] to [1], matching expected [1].
+test_maximum_users_and_mentions_in_one_message: PASS — MESSAGE(100000, 99 copies of `id0` plus one `id99`) increments user 0 by 99 and user 99 by 1; result is [99] + [0] * 98 + [1], matching expected [99] + [0] * 98 + [1].
+test_overlapping_offline_periods_track_each_user_independently: PASS — OFFLINE(10, 0) sets user 0 until 70; MESSAGE(20, `HERE`) adds to users 1 and 2: [0,1,1]; OFFLINE(30, 1) sets user 1 until 90; MESSAGE(75, `HERE`) restores user 0 and adds to users 0 and 2: [1,1,2]; MESSAGE(90, `HERE`) restores user 1 and adds to all: [2,2,3], matching expected [2,2,3].
+test_minimum_timestamp_with_maximum_number_of_events: PASS — each of the 100 MESSAGE(1, `id0`) events increments the sole user's count by 1, so [0] + 100 increments produces [100], matching expected [100].
+
+The failure is caused by sorting only on timestamp: for equal timestamps, Python preserves input order, but the required behavior processes OFFLINE events before MESSAGE events at the same timestamp.
+
+Rating: 0.91

@@ -1,0 +1,172 @@
+================================================================================
+TEMPLATE: judge/code_against_tests.j2
+TIMESTAMP: 1784033297520
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_code: from solution import countMentions
+
+
+def test_canonical_example_1():
+    events = [
+        ["MESSAGE", "10", "id1 id0"],
+        ["OFFLINE", "11", "0"],
+        ["MESSAGE", "71", "HERE"],
+    ]
+
+    ...[truncated]
+  impl_code: from typing import List
+
+def countMentions(numberOfUsers: int, events: List[List[str]]) -> List[int]:
+    mentions = [0] * numberOfUsers
+    online_status = [True] * numberOfUsers
+    event_queue = []...[truncated]
+  task: {'id': 'LCB/3721', 'use_case_id': 'LCB/3721', 'story_id': 'LCB/3721', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement countMentions()', 'description': 'You are given an integer numberOfUsers represent...[truncated]
+  recent_commits: []
+================================================================================
+
+You are predicting whether an implementation will pass a specific test suite. Trace the code
+with each test's inputs; do not judge style, design, or robustness — a crude implementation
+that passes every test rates 1.00, an elegant one that fails a test rates lower.
+
+## Task context
+
+**Implement countMentions()**
+
+## Tests
+
+```python
+from solution import countMentions
+
+
+def test_canonical_example_1():
+    events = [
+        ["MESSAGE", "10", "id1 id0"],
+        ["OFFLINE", "11", "0"],
+        ["MESSAGE", "71", "HERE"],
+    ]
+
+    # At 10 both users are mentioned; at 71 user 0 has returned, so HERE mentions both.
+    assert countMentions(2, events) == [2, 2]
+
+
+def test_canonical_example_2():
+    events = [
+        ["MESSAGE", "10", "id1 id0"],
+        ["OFFLINE", "11", "0"],
+        ["MESSAGE", "12", "ALL"],
+    ]
+
+    # The first message mentions both users, and ALL at 12 mentions both including offline user 0.
+    assert countMentions(2, events) == [2, 2]
+
+
+def test_canonical_example_3():
+    events = [
+        ["OFFLINE", "10", "0"],
+        ["MESSAGE", "12", "HERE"],
+    ]
+
+    # User 0 remains offline at 12, so HERE mentions only online user 1.
+    assert countMentions(2, events) == [0, 1]
+
+
+def test_explicit_id_mentions_count_duplicates_and_include_offline_users():
+    events = [
+        ["OFFLINE", "1", "1"],
+        ["MESSAGE", "2", "id1 id1 id2"],
+    ]
+
+    # id1 is offline but is explicitly mentioned twice; id2 is mentioned once; id0 is not mentioned.
+    assert countMentions(3, events) == [0, 2, 1]
+
+
+def test_here_mentions_only_users_online_at_that_timestamp():
+    events = [
+        ["OFFLINE", "5", "0"],
+        ["OFFLINE", "6", "2"],
+        ["MESSAGE", "10", "HERE"],
+        ["MESSAGE", "65", "HERE"],
+    ]
+
+    # At 10 only id1 is online; at 65 id0 has returned while id2 is still offline.
+    assert countMentions(3, events) == [1, 2, 0]
+
+
+def test_status_change_at_same_timestamp_is_processed_before_message():
+    events = [
+        ["MESSAGE", "10", "HERE"],
+        ["OFFLINE", "10", "0"],
+    ]
+
+    # The offline change at 10 is processed before HERE at 10, so only user 1 is mentioned.
+    assert countMentions(2, events) == [0, 1]
+```
+
+## Implementation
+
+```python
+from typing import List
+
+def countMentions(numberOfUsers: int, events: List[List[str]]) -> List[int]:
+    mentions = [0] * numberOfUsers
+    online_status = [True] * numberOfUsers
+    event_queue = []
+
+    for event in events:
+        event_queue.append((int(event[1]), event[0], event[2]))
+
+    event_queue.sort()  # Sort events by timestamp
+
+    for timestamp, event_type, data in event_queue:
+        if event_type == 'OFFLINE':
+            user_id = int(data)
+            online_status[user_id] = False
+            # Set user back online after 60 time units
+            # We need to track when they will be back online
+            for i in range(len(event_queue)):
+                if event_queue[i][0] >= timestamp + 60:
+                    event_queue.append((timestamp + 60, 'ONLINE', user_id))
+                    break
+        elif event_type == 'MESSAGE':
+            if data == 'HERE':
+                mentioned_users = [i for i in range(numberOfUsers) if online_status[i]]
+            elif data == 'ALL':
+                mentioned_users = range(numberOfUsers)
+            else:
+                mentioned_users = []
+                ids = data.split()
+                for user_id in ids:
+                    if user_id.startswith('id'):
+                        mentioned_users.append(int(user_id[2:]))
+
+            for user_id in mentioned_users:
+                mentions[user_id] += 1
+
+            # Process any online events triggered by the OFFLINE event
+            for i in range(len(event_queue)):
+                if event_queue[i][0] <= timestamp:
+                    if event_queue[i][1] == 'ONLINE':
+                        online_status[event_queue[i][2]] = True
+
+    return mentions
+```
+
+## Method
+
+For EACH test function: state the inputs, trace the implementation's computation step by
+step (do the arithmetic explicitly), state the value the test expects, and conclude PASS or
+FAIL for that test. Check import/name compatibility first: if the tests cannot even import
+the implementation, every test fails.
+
+Also flag test gaming if you see it (hardcoded answers for specific inputs, input
+pattern-matching): report it in one line, but rate on predicted test outcomes only.
+
+## Output format (exactly this structure)
+
+1. One line per test, in this shape:
+   `test_canonical_example_1: PASS — computes 5 for [1,2,1,2,1,1,1], matching the assertion`
+   If you cannot trace a test's outcome from the code, mark it FAIL and say why the trace
+   is blocked — an unverifiable pass prediction is not a pass.
+2. If any FAIL: one short paragraph naming the root cause in the implementation.
+3. The last line must be exactly: `Rating: <predicted fraction of tests passing>` with two
+   decimals, e.g. `Rating: 0.83`

@@ -1,0 +1,181 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784041105788
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from typing import List
+from solution import maximumAmount
+
+def test_canonical_example_1():
+    # spec: maximumAmount([[0, 1, -1], [1, -2, 3], [2, -3, 4]]) -> 8
+    # Explanation:
+    # Start at (0, 0...[truncated]
+  impl_code: from typing import List
+
+def maximumAmount(coins: List[List[int]]) -> int:
+    m, n = len(coins), len(coins[0])
+    dp = [[[float('-inf')] * 3 for _ in range(n)] for _ in range(m)]
+    dp[0][0][0] = c...[truncated]
+  task: {'id': 'LCB/3677', 'use_case_id': 'LCB/3677', 'story_id': 'LCB/3677', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maximumAmount()', 'description': "You are given an m x n grid. A robot starts at t...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement maximumAmount()**
+
+## Tests (the acceptance criterion)
+
+```python
+from typing import List
+from solution import maximumAmount
+
+def test_canonical_example_1():
+    # spec: maximumAmount([[0, 1, -1], [1, -2, 3], [2, -3, 4]]) -> 8
+    # Explanation:
+    # Start at (0, 0) with 0 coins (total coins = 0).
+    # Move to (0, 1), gaining 1 coin (total coins = 0 + 1 = 1).
+    # Move to (1, 1), where there's a robber stealing 2 coins. 
+    # The robot uses one neutralization here, avoiding the robbery (total coins = 1).
+    # Move to (1, 2), gaining 3 coins (total coins = 1 + 3 = 4).
+    # Move to (2, 2), gaining 4 coins (total coins = 4 + 4 = 8).
+    assert maximumAmount([[0, 1, -1], [1, -2, 3], [2, -3, 4]]) == 8
+
+def test_canonical_example_2():
+    # spec: maximumAmount([[10, 10, 10], [10, 10, 10]]) -> 40
+    # Explanation:
+    # Start at (0, 0) with 10 coins (total coins = 10).
+    # Move to (0, 1), gaining 10 coins (total coins = 10 + 10 = 20).
+    # Move to (0, 2), gaining another 10 coins (total coins = 20 + 10 = 30).
+    # Move to (1, 2), gaining the final 10 coins (total coins = 30 + 10 = 40).
+    assert maximumAmount([[10, 10, 10], [10, 10, 10]]) == 40
+
+def test_two_neutralizations_negative_optimum():
+    # Using two neutralizations to avoid robbers, the path can yield:
+    # Start at (0, 0) with -5 coins (total coins = -5).
+    # Move to (0, 1), gaining -1 coins (total coins = -5 - 1 = -6).
+    # Move to (0, 2), gaining -7 coins (total coins = -6 - 7 = -13).
+    # Neutralizing both robbers gives 0 coins.
+    assert maximumAmount([[-5, -1, -7]]) == -1
+
+def test_one_by_one_negative_cell():
+    # Single cell with a negative value, can neutralize it
+    # Start at (0, 0) with -1000 coins (total coins = -1000).
+    # Neutralizing it gives 0 coins.
+    assert maximumAmount([[-1000]]) == 0
+
+def test_single_column():
+    # A single column with positive and negative cells.
+    # Start at (0, 0) with 1 coin (total coins = 1).
+    # Move to (1, 0), gaining -5 coins (total coins = 1 - 5 = -4).
+    # Move to (2, 0), gaining 2 coins (total coins = -4 + 2 = -2).
+    # Neutralizing -5 gives total coins = 1 + 2 = 3.
+    assert maximumAmount([[1], [-5], [2]]) == 3
+
+def test_boundary_values():
+    # Test a row with maximum values and a negative robber.
+    # Start at (0, 0) with 1000 coins (total coins = 1000).
+    # Move to (0, 1), gaining -1000 (total coins = 1000 - 1000 = 0).
+    # Move to (0, 2), gaining -1000 (total coins = 0 - 1000 = -1000).
+    # Move to (0, 3), gaining -1000 (total coins = -1000 - 1000 = -2000).
+    # Neutralizing the first -1000 gives total coins = 0.
+    assert maximumAmount([[1000, -1000, -1000, -1000]]) == 0
+
+def test_maximum_dimension():
+    # Test the maximum grid size filled with zeros
+    # The robot moves through 500 * 500 cells, all with 0 coins.
+    assert maximumAmount([[0] * 500 for _ in range(500)]) == 0
+```
+
+## Failing implementation
+
+```python
+from typing import List
+
+def maximumAmount(coins: List[List[int]]) -> int:
+    m, n = len(coins), len(coins[0])
+    dp = [[[float('-inf')] * 3 for _ in range(n)] for _ in range(m)]
+    dp[0][0][0] = coins[0][0] if coins[0][0] >= 0 else 0
+    
+    for i in range(m):
+        for j in range(n):
+            for k in range(3):  # k is the number of neutralizations used
+                if i == 0 and j == 0:
+                    continue
+                gain = coins[i][j]
+                if gain < 0:
+                    if k > 0:
+                        dp[i][j][k] = max(dp[i][j][k], dp[i][j][k-1])
+                else:
+                    dp[i][j][k] = max(dp[i][j][k], dp[i-1][j][k] + gain if i > 0 else float('-inf'))
+                    dp[i][j][k] = max(dp[i][j][k], dp[i][j-1][k] + gain if j > 0 else float('-inf'))
+                if gain < 0 and k > 0:
+                    dp[i][j][k] = max(dp[i][j][k], dp[i-1][j][k-1] if i > 0 else float('-inf'))
+                    dp[i][j][k] = max(dp[i][j][k], dp[i][j-1][k-1] if j > 0 else float('-inf'))
+    return max(dp[m-1][n-1])
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /tmp/tmpaoi87qxy/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1
+collecting ... collected 7 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [ 14%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 28%]
+tests/test_task.py::test_two_neutralizations_negative_optimum FAILED     [ 42%]
+tests/test_task.py::test_one_by_one_negative_cell PASSED                 [ 57%]
+tests/test_task.py::test_single_column PASSED                            [ 71%]
+tests/test_task.py::test_boundary_values FAILED                          [ 85%]
+tests/test_task.py::test_maximum_dimension PASSED                        [100%]
+
+=================================== FAILURES ===================================
+__________________ test_two_neutralizations_negative_optimum ___________________
+tests/test_task.py:30: in test_two_neutralizations_negative_optimum
+    assert maximumAmount([[-5, -1, -7]]) == -1
+E   assert 0 == -1
+E    +  where 0 = maximumAmount([[-5, -1, -7]])
+_____________________________ test_boundary_values _____________________________
+tests/test_task.py:53: in test_boundary_values
+    assert maximumAmount([[1000, -1000, -1000, -1000]]) == 0
+E   assert -inf == 0
+E    +  where -inf = maximumAmount([[1000, -1000, -1000, -1000]])
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_two_neutralizations_negative_optimum - assert...
+FAILED tests/test_task.py::test_boundary_values - assert -inf == 0
+========================= 2 failed, 5 passed in 0.29s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

@@ -1,0 +1,143 @@
+================================================================================
+TEMPLATE: judge/code_against_tests.j2
+TIMESTAMP: 1784032383903
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_code: from solution import maxFreeTime
+
+
+def test_canonical_example_1():
+    # Moving [1, 2] to [2, 3] makes [0, 2] free, so the maximum is 2.
+    assert maxFreeTime(5, 1, [1, 3], [2, 5]) == 2
+
+
+def test_ca...[truncated]
+  impl_code: from typing import List
+
+def maxFreeTime(eventTime: int, k: int, startTime: List[int], endTime: List[int]) -> int:
+    n = len(startTime)
+    free_times = []
+    last_end = 0
+
+    # Calculate free per...[truncated]
+  task: {'id': 'LCB/3743', 'use_case_id': 'LCB/3743', 'story_id': 'LCB/3743', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maxFreeTime()', 'description': 'You are given an integer eventTime denoting the du...[truncated]
+  recent_commits: []
+================================================================================
+
+You are predicting whether an implementation will pass a specific test suite. Trace the code
+with each test's inputs; do not judge style, design, or robustness — a crude implementation
+that passes every test rates 1.00, an elegant one that fails a test rates lower.
+
+## Task context
+
+**Implement maxFreeTime()**
+
+## Tests
+
+```python
+from solution import maxFreeTime
+
+
+def test_canonical_example_1():
+    # Moving [1, 2] to [2, 3] makes [0, 2] free, so the maximum is 2.
+    assert maxFreeTime(5, 1, [1, 3], [2, 5]) == 2
+
+
+def test_canonical_example_2():
+    # Moving [2, 4] to [1, 3] makes [3, 9] free, so the maximum is 6.
+    assert maxFreeTime(10, 1, [0, 2, 9], [1, 4, 10]) == 6
+
+
+def test_canonical_example_3():
+    # Meetings occupy the entire event from 0 through 5, leaving 0 free time.
+    assert maxFreeTime(5, 2, [0, 1, 2, 3, 4], [1, 2, 3, 4, 5]) == 0
+
+
+def test_rescheduling_two_meetings_combines_three_adjacent_free_periods():
+    # Free gaps are 2, 2, 3, and 5; moving the last two meetings combines 2 + 3 + 5 = 10.
+    assert maxFreeTime(20, 2, [2, 7, 12], [5, 9, 15]) == 10
+
+
+def test_rescheduling_all_meetings_can_leave_total_slack_as_one_free_period():
+    # Meeting durations total 2 + 3 = 5, so packing both meetings together leaves 15 - 5 = 10 free.
+    assert maxFreeTime(15, 2, [2, 8], [4, 11]) == 10
+
+
+def test_at_most_k_meetings_allows_preserving_an_existing_largest_free_period():
+    # The existing free periods are 5 before the first meeting and 1 after the last, so the maximum is 5.
+    assert maxFreeTime(10, 1, [5, 6], [6, 9]) == 5
+```
+
+## Implementation
+
+```python
+from typing import List
+
+def maxFreeTime(eventTime: int, k: int, startTime: List[int], endTime: List[int]) -> int:
+    n = len(startTime)
+    free_times = []
+    last_end = 0
+
+    # Calculate free periods before the first meeting and between meetings
+    for i in range(n):
+        if i == 0:
+            if startTime[i] > 0:
+                free_times.append(startTime[i])  # Free time before the first meeting
+        else:
+            free_times.append(startTime[i] - endTime[i - 1])  # Free time between meetings
+        last_end = endTime[i]
+
+    # Free time after the last meeting
+    if last_end < eventTime:
+        free_times.append(eventTime - last_end)
+
+    # If k is 0, return the maximum free time found
+    if k == 0:
+        return max(free_times) if free_times else 0
+
+    # We need to try to combine free periods by rescheduling meetings
+    max_free = 0
+    total_free = sum(free_times)
+
+    for i in range(n):
+        # Try to move the i-th meeting to the left to create more free time
+        if i > 0:
+            free_period_before = startTime[i] - endTime[i - 1]
+            if free_period_before > 0:
+                total_free += free_period_before
+                free_times[i - 1] = 0  # We've removed this gap by moving the meeting
+        if i < n - 1:
+            free_period_after = startTime[i + 1] - endTime[i]
+            if free_period_after > 0:
+                total_free += free_period_after
+                free_times[i] = 0  # We've removed this gap by moving the meeting
+
+        # If we can reschedule this meeting, take the max free time possible
+        if k > 0:
+            max_free = max(max_free, total_free)
+
+        # Reset the total free time after trying to move each meeting
+        total_free = sum(free_times)
+
+    return max_free
+```
+
+## Method
+
+For EACH test function: state the inputs, trace the implementation's computation step by
+step (do the arithmetic explicitly), state the value the test expects, and conclude PASS or
+FAIL for that test. Check import/name compatibility first: if the tests cannot even import
+the implementation, every test fails.
+
+Also flag test gaming if you see it (hardcoded answers for specific inputs, input
+pattern-matching): report it in one line, but rate on predicted test outcomes only.
+
+## Output format (exactly this structure)
+
+1. One line per test, in this shape:
+   `test_canonical_example_1: PASS — computes 5 for [1,2,1,2,1,1,1], matching the assertion`
+   If you cannot trace a test's outcome from the code, mark it FAIL and say why the trace
+   is blocked — an unverifiable pass prediction is not a pass.
+2. If any FAIL: one short paragraph naming the root cause in the implementation.
+3. The last line must be exactly: `Rating: <predicted fraction of tests passing>` with two
+   decimals, e.g. `Rating: 0.83`

@@ -1,0 +1,8 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_offline_status_is_processed_before_message_at_same_timestamp — inputs: `numberOfUsers=2`, `events=[["MESSAGE", "10", "HERE"], ["OFFLINE", "10", "0"]]`; expected `[0, 1]`, got `[1, 1]`, because both events have timestamp `10`, but `sorted(events, key=lambda x: int(x[1]))` is stable and preserves their input order. The implementation therefore processes `["MESSAGE", "10", "HERE"]` first: both `online_status[0]` and `online_status[1]` are initially `True`; the reactivation check changes nothing; `HERE` increments both totals, producing `[1, 1]`. It then processes `["OFFLINE", "10", "0"]`, setting `online_status[0] = False` and `time_offline[0] = 10 + 60 = 70`, but this happens after the message and cannot undo the mention. The divergence is at `for event in sorted(events, key=lambda x: int(x[1])):`: its sort key orders only by timestamp and does not give `OFFLINE` events priority over `MESSAGE` events at equal timestamps.
+
+FIX DIRECTIVES:
+FIX: in `countMentions`, sort equal-timestamp events so `OFFLINE` is processed before `MESSAGE`; for example, replace `sorted(events, key=lambda x: int(x[1]))` with `sorted(events, key=lambda x: (int(x[1]), 0 if x[0] == "OFFLINE" else 1))`.

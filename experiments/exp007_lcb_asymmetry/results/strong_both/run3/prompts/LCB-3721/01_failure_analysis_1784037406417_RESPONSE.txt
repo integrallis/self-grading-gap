@@ -1,0 +1,8 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_offline_status_change_precedes_message_at_same_timestamp — inputs: `numberOfUsers = 2`, `events = [["MESSAGE", "10", "HERE"], ["OFFLINE", "10", "0"]]`; expected `[0, 1]`, got `[1, 1]`, because events are sorted only by `int(x[1])`. Python’s stable sort preserves the input order for equal timestamps, so the `MESSAGE` remains before the `OFFLINE`. At timestamp 10, before the message, both users are online: the return-time loop changes nothing (`online = [True, True]`). Processing `"HERE"` adds 1 to each online user, producing `mentions = [1, 1]`. The subsequent `OFFLINE` sets user 0 offline, but it is too late to affect that message. The divergence is at `events.sort(key=lambda x: int(x[1]))`, whose key does not order `"OFFLINE"` before `"MESSAGE"` when timestamps are equal.
+
+FIX DIRECTIVES:
+FIX: in `countMentions`, sort events by timestamp and, for equal timestamps, process `"OFFLINE"` before `"MESSAGE"`; for example: `events.sort(key=lambda event: (int(event[1]), 0 if event[0] == "OFFLINE" else 1))`.

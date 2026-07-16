@@ -1,0 +1,152 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784033445188
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from typing import List
+from solution import maxFrequency
+
+def test_canonical_example_1():
+    # spec: maxFrequency([1, 2, 3, 4, 5, 6], 1) -> 2
+    # After adding -5 to nums[2..5], 1 has a frequency o...[truncated]
+  impl_code: from typing import List
+
+def maxFrequency(nums: List[int], k: int) -> int:
+    nums.sort()
+    n = len(nums)
+    left = 0
+    total_add = 0
+    max_freq = 0
+
+    for right in range(n):
+        total_a...[truncated]
+  task: {'id': 'LCB/3751', 'use_case_id': 'LCB/3751', 'story_id': 'LCB/3751', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maxFrequency()', 'description': 'You are given an array nums of length n. You are ...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement maxFrequency()**
+
+## Tests (the acceptance criterion)
+
+```python
+from typing import List
+from solution import maxFrequency
+
+def test_canonical_example_1():
+    # spec: maxFrequency([1, 2, 3, 4, 5, 6], 1) -> 2
+    # After adding -5 to nums[2..5], 1 has a frequency of 2 in [1, 2, -2, -1, 0, 1].
+    assert maxFrequency([1, 2, 3, 4, 5, 6], 1) == 2
+
+def test_canonical_example_2():
+    # spec: maxFrequency([10, 2, 3, 4, 5, 5, 4, 3, 2, 2], 10) -> 4
+    # After adding 8 to nums[1..9], 10 has a frequency of 4 in [10, 10, 11, 12, 13, 13, 12, 11, 10, 10].
+    assert maxFrequency([10, 2, 3, 4, 5, 5, 4, 3, 2, 2], 10) == 4
+
+def test_minimum_size():
+    # spec: maxFrequency([1], 1) -> 1
+    # The only element is 1, so its frequency is 1.
+    assert maxFrequency([1], 1) == 1
+
+def test_maximum_constraint():
+    # spec: maxFrequency([50] * 100000, 50) -> 100000
+    # All elements are 50, so the frequency of 50 is 100000.
+    assert maxFrequency([50] * 100000, 50) == 100000
+
+def test_one_element_subarray():
+    # spec: maxFrequency([2, 1, 3], 1) -> 2
+    # Adding 0 to the subarray [1] makes 1 appear twice.
+    assert maxFrequency([2, 1, 3], 1) == 2
+
+def test_entire_array_selection():
+    # spec: maxFrequency([2, 2, 2], 1) -> 3
+    # Adding -1 to the entire array makes all 2's into 1's.
+    assert maxFrequency([2, 2, 2], 1) == 3
+
+def test_zero_optimal_selection():
+    # spec: maxFrequency([1, 1, 1], 1) -> 3
+    # Adding 0 to the entire array retains all 1's, giving a frequency of 3.
+    assert maxFrequency([1, 1, 1], 1) == 3
+```
+
+## Failing implementation
+
+```python
+from typing import List
+
+def maxFrequency(nums: List[int], k: int) -> int:
+    nums.sort()
+    n = len(nums)
+    left = 0
+    total_add = 0
+    max_freq = 0
+
+    for right in range(n):
+        total_add += nums[right]
+        while nums[right] * (right - left + 1) > total_add + k:
+            total_add -= nums[left]
+            left += 1
+        max_freq = max(max_freq, right - left + 1)
+
+    return max_freq
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /tmp/tmpwpdjjo_r/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1
+collecting ... collected 7 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [ 14%]
+tests/test_task.py::test_canonical_example_2 FAILED                      [ 28%]
+tests/test_task.py::test_minimum_size PASSED                             [ 42%]
+tests/test_task.py::test_maximum_constraint PASSED                       [ 57%]
+tests/test_task.py::test_one_element_subarray PASSED                     [ 71%]
+tests/test_task.py::test_entire_array_selection PASSED                   [ 85%]
+tests/test_task.py::test_zero_optimal_selection PASSED                   [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_2 ___________________________
+tests/test_task.py:12: in test_canonical_example_2
+    assert maxFrequency([10, 2, 3, 4, 5, 5, 4, 3, 2, 2], 10) == 4
+E   assert 7 == 4
+E    +  where 7 = maxFrequency([2, 2, 2, 3, 3, 4, ...], 10)
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_canonical_example_2 - assert 7 == 4
+========================= 1 failed, 6 passed in 0.03s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

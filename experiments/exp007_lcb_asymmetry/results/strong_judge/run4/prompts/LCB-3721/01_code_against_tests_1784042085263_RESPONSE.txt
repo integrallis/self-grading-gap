@@ -1,0 +1,17 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_canonical_example_1: PASS — inputs `(2, [["MESSAGE","10","id1 id0"],["OFFLINE","11","0"],["MESSAGE","71","HERE"]])`; starts mentions `[0,0]`, message at 10 adds id1 and id0 → `[1,1]`; OFFLINE 0 schedules return at `11 + 60 = 71`; message at 71 restores id0, then HERE adds both online users → `[2,2]`, matching `[2,2]`
+test_canonical_example_2: PASS — inputs `(2, [["MESSAGE","10","id1 id0"],["OFFLINE","11","0"],["MESSAGE","12","ALL"]])`; message at 10 gives `[1,1]`; id0 goes offline with return scheduled for 71; ALL at 12 increments every user, including offline id0, giving `[2,2]`, matching `[2,2]`
+test_canonical_example_3: PASS — inputs `(2, [["OFFLINE","10","0"],["MESSAGE","12","HERE"]])`; OFFLINE makes statuses `[False,True]` and schedules return at 70; HERE at 12 increments only online id1, so mentions are `[0,1]`, matching `[0,1]`
+test_duplicate_id_mentions: PASS — inputs `(3, [["MESSAGE","1","id2 id2 id0"]])`; starts `[0,0,0]`; explicit ids add id2 twice (`0 + 2 = 2`) and id0 once (`0 + 1 = 1`), producing `[1,0,2]`, matching `[1,0,2]`
+test_offline_before_message: FAIL — inputs `(2, [["MESSAGE","10","HERE"],["OFFLINE","10","0"]])`; implementation processes input order rather than prioritizing OFFLINE at equal timestamps: HERE runs first while both users are online, producing `[1,1]`; OFFLINE then changes status but does not remove the mention. It computes `[1,1]`, not expected `[0,1]`
+test_explicit_id_mentions_while_offline: PASS — inputs `(2, [["OFFLINE","1","0"],["MESSAGE","2","id0"]])`; OFFLINE makes id0 offline and schedules return at 61; explicit `id0` at 2 increments id0 regardless of online status, giving `[1,0]`, matching `[1,0]`
+test_minimum_boundary: PASS — inputs `(1, [["MESSAGE","1","id0"]])`; starts `[0]`, explicit id0 adds `1`, resulting in `[1]`, matching `[1]`
+test_maximum_boundary: PASS — inputs `(100, 100 MESSAGE events each containing "id99")`; each event increments index 99 by 1, so after `100` additions mentions are `[0] * 99 + [100]`, matching the assertion
+test_maximum_id_mentions: PASS — inputs `(1, [["MESSAGE","100000","id0 " * 100]])`; splitting the message yields 100 `id0` tokens, each adds 1, so `0 + 100 = 100` and output is `[100]`, matching `[100]`
+
+The failure is caused by processing events in supplied list order at identical timestamps. The required behavior for the equal-timestamp case is that OFFLINE takes effect before MESSAGE, but this implementation handles the MESSAGE first.
+
+Rating: 0.89

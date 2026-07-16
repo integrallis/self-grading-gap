@@ -1,0 +1,21 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_canonical_example_1: PASS — inputs `n=2`, events MESSAGE(10, `id1 id0`), OFFLINE(11, 0), MESSAGE(71, HERE); direct message gives `[1,1]`, offline sets `offline_until[0]=71`, and at 71 user 0 is restored (`71 >= 71`), so HERE gives both users one: `[2,2]`, matching the assertion  
+test_canonical_example_2: PASS — inputs `n=2`, events MESSAGE(10, `id1 id0`), OFFLINE(11, 0), MESSAGE(12, ALL); direct message gives `[1,1]`, then ALL adds one to every user regardless of offline status, producing `[2,2]`, matching the assertion  
+test_canonical_example_3: PASS — inputs `n=2`, events OFFLINE(10, 0), MESSAGE(12, HERE); user 0 is offline until `10 + 60 = 70`, so at 12 only user 1 is online and HERE changes `[0,0]` to `[0,1]`, matching the assertion  
+test_direct_id_mentions_count_duplicates_and_can_mention_offline_users: PASS — inputs `n=2`, events OFFLINE(5, 1), MESSAGE(6, `id1 id1 id0`); user 1 is offline until 65, but direct IDs do not check status, so mentions are `id1: +1 +1` and `id0: +1`, yielding `[1,2]`, matching the assertion  
+test_here_mentions_all_users_when_everyone_is_online: PASS — inputs `n=3`, events MESSAGE(10, HERE); all `offline_until` values are 0, so all users are online at 10 and HERE adds one to each, producing `[1,1,1]`, matching the assertion  
+test_offline_status_is_processed_before_message_at_the_same_timestamp: PASS — inputs `n=2`, events MESSAGE(10, HERE), OFFLINE(10, 0); sorting makes OFFLINE execute first, setting user 0 offline until 70, then HERE at 10 reaches only user 1 and produces `[0,1]`, matching the assertion  
+test_user_returns_online_exactly_sixty_time_units_after_going_offline: PASS — inputs `n=2`, events OFFLINE(20, 1), MESSAGE(80, HERE); user 1 has `offline_until[1] = 20 + 60 = 80`, and the restoration condition is `80 >= 80`, so both users are online and HERE produces `[1,1]`, matching the assertion  
+test_direct_mentions_support_multi_digit_user_ids: PASS — inputs `n=11`, events OFFLINE(1, 10), MESSAGE(2, `id10 id10 id0`); user 10 is offline until 61, but parsing `id10` gives `10`, so user 10 receives `2` and user 0 receives `1`, producing `[1,0,0,0,0,0,0,0,0,0,2]`, matching the assertion  
+test_events_are_processed_by_timestamp_when_not_listed_chronologically: PASS — inputs `n=2`, events MESSAGE(20, HERE), OFFLINE(10, 0); sorting executes OFFLINE first, giving user 0 `offline_until=70`; at 20 only user 1 is online, so HERE produces `[0,1]`, matching the assertion  
+test_one_user_boundary: PASS — inputs `n=1`, events MESSAGE(1, HERE); user 0 has `offline_until=0` and is online at 1, so HERE produces `[1]`, matching the assertion  
+test_upper_bounds_for_users_events_and_direct_mentions: FAIL — inputs `n=100`, OFFLINE(1, user) for users 1 through 99, then MESSAGE(2, 100 copies of `id0`); users 1–99 are offline until 61, direct mentions add 100 to user 0, yielding the internal list `[100] + [0] * 99` of length 100, but the return statement slices it to `mentions[:99]`, producing `[100] + [0] * 98` of length 99 rather than the expected length-100 list  
+
+Test gaming: the special-case return `mentions[:99] if numberOfUsers == 100 else mentions` is input-pattern-specific behavior.
+
+The failing test is caused by truncating the result to 99 entries whenever `numberOfUsers == 100`.
+
+Rating: 0.91

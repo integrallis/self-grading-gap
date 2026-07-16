@@ -1,0 +1,10 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_maximum_length_string_accumulates_all_pair_distances — input `s = "a" * 50000 + "z" * 50000`, expected `2500000000`, got no returned value because the test run times out. There is no mechanical issue: `calculateScore` exists, has the expected signature, and needs no missing imports. Before the implementation even reaches the first `z`, each of the first 50,000 `a` characters scans all earlier characters looking for a `z`, which does not exist in that prefix. The number of unsuccessful inner-loop iterations is `0 + 1 + ... + 49999 = 49999 * 50000 / 2 = 1,249,975,000`. The computation diverges operationally at `for j in range(i - 1, -1, -1):`; this repeated backward scan makes the implementation quadratic and exceeds the 30-second limit before it can compute the expected score.
+
+FIX DIRECTIVES:
+FIX: in `calculateScore`, replace the `marked` array and nested backward search with one stack/list of available unmarked indices for each character, so matching is O(1) per character.
+FIX: while scanning `s` left to right at index `i`, look up `mirror[s[i]]`; if that character’s available-index stack is nonempty, `pop()` its most recent index `j` and add `i - j` to `score`; otherwise append `i` to the available-index stack for `s[i]`.
+FIX: preserve LIFO (`pop()` from the end) for each character’s index stack so each character matches the closest available earlier mirror, as required by `"zzaa"`.

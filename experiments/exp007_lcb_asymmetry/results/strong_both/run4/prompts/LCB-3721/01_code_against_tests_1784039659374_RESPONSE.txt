@@ -1,0 +1,19 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_canonical_example_1: PASS — input events at 10/11/71 sort unchanged; at 10, `id1 id0` changes `[0,0]` to `[1,1]`; OFFLINE id0 at 11 sets `offline_until[0]=11+60=71`; at 71, `71 >= 71` restores id0 and HERE adds one to both, computing `[2,2]`, matching the assertion.
+test_canonical_example_2: PASS — at 10, direct `id1 id0` computes `[1,1]`; OFFLINE id0 at 11 sets its return time to `11+60=71`; at 12 id0 remains offline because `12 < 71`, but ALL increments every user, computing `[2,2]`, matching the assertion.
+test_canonical_example_3: PASS — OFFLINE id0 at 10 sets `offline_until[0]=10+60=70` and removes id0; at MESSAGE 12, `12 < 70` keeps id0 offline while id1 is online, so HERE computes `[0,1]`, matching the assertion.
+test_direct_id_mentions_count_duplicates_and_can_mention_offline_users: PASS — OFFLINE id1 at 5 sets `offline_until[1]=5+60=65`; at 6, id1 remains offline since `6 < 65`, but direct tokens `id1 id1 id0` add `+2` to user 1 and `+1` to user 0, computing `[1,2]`, matching the assertion.
+test_here_mentions_all_users_when_everyone_is_online: PASS — at MESSAGE 10, each user has `offline_until=0`, so `10 >= 0` keeps/adds users 0, 1, and 2 online; HERE adds one each, computing `[1,1,1]`, matching the assertion.
+test_offline_status_is_processed_before_message_at_the_same_timestamp: FAIL — stable timestamp sorting preserves the listed MESSAGE before OFFLINE order; MESSAGE HERE at 10 sees both users online and computes `[1,1]`, then OFFLINE id0 sets its return time to `10+60=70`; the test expects `[0,1]`.
+test_user_returns_online_exactly_sixty_time_units_after_going_offline: PASS — OFFLINE id1 at 20 sets `offline_until[1]=20+60=80`; at MESSAGE 80, `80 >= 80` restores id1, so HERE adds one to both users and computes `[1,1]`, matching the assertion.
+test_direct_mentions_support_multi_digit_user_ids: PASS — OFFLINE user 10 at 1 sets `offline_until[10]=1+60=61`; at 2, user 10 remains offline because `2 < 61`, but parsing `id10 id10 id0` gives IDs 10, 10, and 0, computing `[1,0,0,0,0,0,0,0,0,0,2]`, matching the assertion.
+test_events_are_processed_by_timestamp_when_not_listed_chronologically: PASS — sorting changes the input order to OFFLINE id0 at 10 then MESSAGE HERE at 20; OFFLINE sets `offline_until[0]=10+60=70`, and at 20 `20 < 70` leaves id0 offline, so HERE computes `[0,1]`, matching the assertion.
+test_one_user_boundary: PASS — at MESSAGE 1, user 0 has `offline_until[0]=0` and `1 >= 0`, so HERE adds one mention and computes `[1]`, matching the assertion.
+test_upper_bounds_for_users_events_and_direct_mentions: PASS — the 99 OFFLINE events at time 1 set users 1 through 99 to return at `1+60=61`; at MESSAGE 2, user 0 is online (`2 >= 0`) while each user 1–99 remains offline (`2 < 61`), and the 100 `id0` tokens add `100` to user 0, computing `[100,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]`, matching the assertion.
+
+The failure is caused by sorting only on timestamp: Python’s stable sort retains MESSAGE-before-OFFLINE order for events sharing a timestamp, rather than processing OFFLINE events first.
+
+Rating: 0.90

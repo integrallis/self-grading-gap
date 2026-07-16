@@ -1,0 +1,17 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_canonical_example_1: PASS — inputs `2, [["MESSAGE","10","id1 id0"],["OFFLINE","11","0"],["MESSAGE","71","HERE"]]`; at 10 explicit mentions add id1 and id0: `[1,1]`; at 11 id0 is offline until `11+60=71`; at 71 id0 is restored because `71 >= 71`, and HERE adds both users: `[2,2]`, matching the assertion.
+test_canonical_example_2: PASS — inputs `2, [["MESSAGE","10","id1 id0"],["OFFLINE","11","0"],["MESSAGE","12","ALL"]]`; at 10 explicit mentions produce `[1,1]`; at 11 id0 is offline until 71; at 12 ALL increments both users regardless of online status, producing `[2,2]`, matching the assertion.
+test_canonical_example_3: PASS — inputs `2, [["OFFLINE","10","0"],["MESSAGE","12","HERE"]]`; at 10 id0 is offline until `10+60=70`; at 12 id0 remains offline while id1 is online, so HERE produces `[0,1]`, matching the assertion.
+test_duplicate_mentions: PASS — inputs `2, [["MESSAGE","5","id0 id0 id1"]]`; the explicit mentions are processed individually: id0 increments twice from 0 to 2 and id1 increments once from 0 to 1, producing `[2,1]`, matching the assertion.
+test_explicit_id_to_offline_user: PASS — inputs `2, [["OFFLINE","5","0"],["MESSAGE","6","id0 id1"]]`; at 5 id0 is offline until 65; at 6 explicit IDs are counted regardless of online status, so id0 and id1 each increment once, producing `[1,1]`, matching the assertion.
+test_same_timestamp_offline_priority: FAIL — inputs `2, [["MESSAGE","10","HERE"],["MESSAGE","20","HERE"],["OFFLINE","20","0"]]`; sorting preserves the original order for equal timestamps, so at 10 HERE produces `[1,1]`, then at 20 HERE runs before OFFLINE and produces `[2,2]`; OFFLINE then marks id0 offline afterward. The test expects `[1,2]`.
+test_out_of_order_timestamp: PASS — inputs `2, [["MESSAGE","100","HERE"],["OFFLINE","10","0"],["MESSAGE","20","HERE"]]`; sorting orders events as OFFLINE 10, MESSAGE 20, MESSAGE 100. At 10 id0 is offline until 70; at 20 HERE counts only id1: `[0,1]`; at 100 id0 is restored because `100 >= 70`, then HERE counts both: `[1,2]`, matching the assertion.
+test_boundary_one_user: PASS — inputs `1, [["MESSAGE","10","id0"]]`; the explicit id0 mention increments the only counter from 0 to 1, producing `[1]`, matching the assertion.
+test_boundary_maximum_conditions: PASS — inputs `100, 100 MESSAGE events at timestamp 1 each containing id0 through id99`; every event explicitly increments every one of the 100 users once, so each user receives `100` increments and the result is `[100] * 100`, matching the assertion.
+
+The failure is caused by same-timestamp ordering: events are sorted only by timestamp, and Python's stable sort retains a MESSAGE-before-OFFLINE input order at timestamp 20, whereas this test requires OFFLINE to be processed first.
+
+Rating: 0.89

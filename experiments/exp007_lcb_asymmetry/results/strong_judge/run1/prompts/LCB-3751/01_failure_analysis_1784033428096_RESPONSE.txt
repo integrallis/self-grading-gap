@@ -1,0 +1,22 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_canonical_example_2 — expected 4, got 7, because `maxFrequency([10, 2, 3, 4, 5, 5, 4, 3, 2, 2], 10)` sorts the input into `[2, 2, 2, 3, 3, 4, 4, 5, 5, 10]` and applies the wrong “increment values with a total budget” algorithm. There is no mechanical failure: `maxFrequency` exists, has the expected `(nums, k)` signature, and imports `List`.
+
+The implementation computes:
+- `right = 0`: `total_add = 2`; `2 * 1 = 2 <= 2 + 10 = 12`; `max_freq = 1`.
+- `right = 1`: `total_add = 4`; `2 * 2 = 4 <= 4 + 10 = 14`; `max_freq = 2`.
+- `right = 2`: `total_add = 6`; `2 * 3 = 6 <= 6 + 10 = 16`; `max_freq = 3`.
+- `right = 3`: `total_add = 9`; `3 * 4 = 12 <= 9 + 10 = 19`; `max_freq = 4`.
+- `right = 4`: `total_add = 12`; `3 * 5 = 15 <= 12 + 10 = 22`; `max_freq = 5`.
+- `right = 5`: `total_add = 16`; `4 * 6 = 24 <= 16 + 10 = 26`; `max_freq = 6`.
+- `right = 6`: `total_add = 20`; `4 * 7 = 28 <= 20 + 10 = 30`; `max_freq = 7`.
+
+Thus it returns `7`. The divergence is the condition `while nums[right] * (right - left + 1) > total_add + k:`: it treats `k` as a total increment budget and treats the goal as raising sorted values to `nums[right]`. In the required operation, `k` is the target value, and the operation is to add one chosen integer to one contiguous subarray in the original order. Sorting also destroys the required subarray order. The valid best operation is adding `8` to original indices `1..9`, producing four `10`s, so the answer is `4`.
+
+FIX DIRECTIVES:
+FIX: in `maxFrequency`, remove `nums.sort()`; subarray selection must use the original input order.
+FIX: replace the sorted-window / increment-budget logic (`left`, `total_add`, and `nums[right] * ... > total_add + k`) with logic for one constant addition on one contiguous subarray.
+FIX: compute `base = nums.count(k)`. For any chosen source value `value != k`, adding `k - value` to a subarray changes each `value` inside that subarray into `k` (+1) and changes each existing `k` inside it away from `k` (-1). Maximize `count(value in subarray) - count(k in subarray)`, then return `base + max(0, best_gain)`.
+FIX: implement the gain computation in one original-order pass using per-value Kadane state. For each `value != k`, keep `gain[value]` and `last_k_count[value]`; maintain a global `seen_k`. On a `k`, increment `seen_k`. On a non-`k` value `v`, update `gain[v] = max(1, gain.get(v, 0) + 1 - (seen_k - last_k_count.get(v, seen_k)))`, then set `last_k_count[v] = seen_k` and update the global best gain.

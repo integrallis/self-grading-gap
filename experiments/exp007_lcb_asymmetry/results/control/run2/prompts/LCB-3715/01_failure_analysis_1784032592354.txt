@@ -1,0 +1,142 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784032592354
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from typing import List
+from solution import maximumCoins
+
+def test_canonical_example_1():
+    # spec: coins = [[8, 10, 1], [1, 3, 2], [5, 6, 4]], k = 4
+    # Selecting bags at positions [3, 4, 5, 6] ...[truncated]
+  impl_code: from typing import List
+
+
+def maximumCoins(coins: List[List[int]], k: int) -> int:
+    # Create a list to hold the number of coins in each bag
+    coin_count = {}
+
+    # Fill the coin_count dictionary...[truncated]
+  task: {'id': 'LCB/3715', 'use_case_id': 'LCB/3715', 'story_id': 'LCB/3715', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maximumCoins()', 'description': 'There are an infinite amount of bags on a number ...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement maximumCoins()**
+
+## Tests (the acceptance criterion)
+
+```python
+from typing import List
+from solution import maximumCoins
+
+def test_canonical_example_1():
+    # spec: coins = [[8, 10, 1], [1, 3, 2], [5, 6, 4]], k = 4
+    # Selecting bags at positions [3, 4, 5, 6] gives the maximum number of coins: 2 + 0 + 4 + 4 = 10
+    assert maximumCoins([[8, 10, 1], [1, 3, 2], [5, 6, 4]], 4) == 10
+
+def test_canonical_example_2():
+    # spec: coins = [[1, 10, 3]], k = 2
+    # Selecting bags at positions [1, 2] gives the maximum number of coins: 3 + 3 = 6
+    assert maximumCoins([[1, 10, 3]], 2) == 6
+```
+
+## Failing implementation
+
+```python
+from typing import List
+
+
+def maximumCoins(coins: List[List[int]], k: int) -> int:
+    # Create a list to hold the number of coins in each bag
+    coin_count = {}
+
+    # Fill the coin_count dictionary based on the coins array
+    for l, r, c in coins:
+        for i in range(l, r + 1):
+            coin_count[i] = coin_count.get(i, 0) + c
+
+    # Convert the dictionary to a sorted list of bags (positions)
+    positions = sorted(coin_count.keys())
+    total_bags = len(positions)
+
+    # If k is greater than the number of available bags, return 0
+    if k > total_bags:
+        return 0
+
+    # Initialize the maximum coins we can get from a sliding window
+    max_coins = 0
+    current_coins = 0
+    left = 0
+
+    # Slide through the positions to find the maximum coins in k consecutive bags
+    for right in range(total_bags):
+        current_coins += coin_count[positions[right]]
+
+        # If we have more than k bags, slide the window
+        if right - left + 1 > k:
+            current_coins -= coin_count[positions[left]]
+            left += 1
+
+        # Update max_coins if we have exactly k bags
+        if right - left + 1 == k:
+            max_coins = max(max_coins, current_coins)
+
+    return max_coins
+
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /tmp/tmp_jcb6uf5/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1
+collecting ... collected 2 items
+
+tests/test_task.py::test_canonical_example_1 FAILED                      [ 50%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_1 ___________________________
+tests/test_task.py:7: in test_canonical_example_1
+    assert maximumCoins([[8, 10, 1], [1, 3, 2], [5, 6, 4]], 4) == 10
+E   assert 12 == 10
+E    +  where 12 = maximumCoins([[8, 10, 1], [1, 3, 2], [5, 6, 4]], 4)
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_canonical_example_1 - assert 12 == 10
+========================= 1 failed, 1 passed in 0.02s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

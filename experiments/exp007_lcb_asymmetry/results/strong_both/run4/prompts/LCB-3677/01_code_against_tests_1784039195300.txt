@@ -1,0 +1,143 @@
+================================================================================
+TEMPLATE: judge/code_against_tests.j2
+TIMESTAMP: 1784039195300
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_code: from solution import maximumAmount
+
+
+def test_canonical_example_1():
+    # Optimal route collects 0 + 1 + 0 (neutralized -2) + 3 + 4 = 8.
+    assert maximumAmount([[0, 1, -1], [1, -2, 3], [2, -3, 4]])...[truncated]
+  impl_code: from typing import List
+
+
+def maximumAmount(coins: List[List[int]]) -> int:
+    m, n = len(coins), len(coins[0])
+    dp = [[[-float('inf')] * 3 for _ in range(n)] for _ in range(m)]
+    dp[0][0][0] = ...[truncated]
+  task: {'id': 'LCB/3677', 'use_case_id': 'LCB/3677', 'story_id': 'LCB/3677', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maximumAmount()', 'description': "You are given an m x n grid. A robot starts at t...[truncated]
+  recent_commits: []
+================================================================================
+
+You are predicting whether an implementation will pass a specific test suite. Trace the code
+with each test's inputs; do not judge style, design, or robustness — a crude implementation
+that passes every test rates 1.00, an elegant one that fails a test rates lower.
+
+## Task context
+
+**Implement maximumAmount()**
+
+## Tests
+
+```python
+from solution import maximumAmount
+
+
+def test_canonical_example_1():
+    # Optimal route collects 0 + 1 + 0 (neutralized -2) + 3 + 4 = 8.
+    assert maximumAmount([[0, 1, -1], [1, -2, 3], [2, -3, 4]]) == 8
+
+
+def test_canonical_example_2():
+    # Any route visits four cells worth 10 coins each: 10 + 10 + 10 + 10 = 40.
+    assert maximumAmount([[10, 10, 10], [10, 10, 10]]) == 40
+
+
+def test_can_neutralize_a_robber_at_the_starting_cell():
+    # The only path contains -7, which can be neutralized, so the total is 0.
+    assert maximumAmount([[-7]]) == 0
+
+
+def test_can_neutralize_two_robbers_on_a_path():
+    # Neutralize -7 and -5; collect 4 + 2 - 3 = 3.
+    assert maximumAmount([[-5, 4, -7, 2, -3]]) == 3
+
+
+def test_profit_can_remain_negative_after_two_neutralizations():
+    # Neutralize -4 and -3; the remaining robber losses are -1 + -2 = -3.
+    assert maximumAmount([[-1, -2, -3, -4]]) == -3
+
+
+def test_selects_the_route_with_the_best_profit():
+    # Going right, right, down neutralizes -10 and collects 1 + 100 + 1 = 102.
+    assert maximumAmount([[1, -10, 100], [50, -100, 1]]) == 102
+
+
+def test_single_column_uses_down_only_traversal():
+    # The only path is 1, -5, 4, -7; neutralize both robbers for 1 + 4 = 5.
+    assert maximumAmount([[1], [-5], [4], [-7]]) == 5
+
+
+def test_maximum_grid_dimensions_with_maximum_positive_values():
+    # A 500 by 500 path visits 500 + 500 - 1 = 999 cells, each worth 1000: 999000.
+    coins = [[1000] * 500 for _ in range(500)]
+    assert maximumAmount(coins) == 999000
+
+
+def test_minimum_value_losses_remain_after_two_neutralizations():
+    # Neutralize two of the three -1000 robbers; the remaining loss is -1000.
+    assert maximumAmount([[-1000, -1000, -1000]]) == -1000
+```
+
+## Implementation
+
+```python
+from typing import List
+
+
+def maximumAmount(coins: List[List[int]]) -> int:
+    m, n = len(coins), len(coins[0])
+    dp = [[[-float('inf')] * 3 for _ in range(n)] for _ in range(m)]
+    dp[0][0][0] = coins[0][0]
+
+    for i in range(m):
+        for j in range(n):
+            for k in range(3):
+                if i + 1 < m:
+                    new_value = dp[i][j][k] + coins[i + 1][j]
+                    if coins[i + 1][j] < 0:
+                        if k > 0:
+                            dp[i + 1][j][k - 1] = max(dp[i + 1][j][k - 1], new_value)
+                        else:
+                            dp[i + 1][j][k] = max(dp[i + 1][j][k], new_value)
+                    else:
+                        dp[i + 1][j][k] = max(dp[i + 1][j][k], new_value)
+
+                if j + 1 < n:
+                    new_value = dp[i][j][k] + coins[i][j + 1]
+                    if coins[i][j + 1] < 0:
+                        if k > 0:
+                            dp[i][j + 1][k - 1] = max(dp[i][j + 1][k - 1], new_value)
+                        else:
+                            dp[i][j + 1][k] = max(dp[i][j + 1][k], new_value)
+                    else:
+                        dp[i][j + 1][k] = max(dp[i][j + 1][k], new_value)
+
+    max_profit = float('-inf')
+    for k in range(3):
+        max_profit = max(max_profit, dp[m - 1][n - 1][k])
+
+    return max_profit
+
+```
+
+## Method
+
+For EACH test function: state the inputs, trace the implementation's computation step by
+step (do the arithmetic explicitly), state the value the test expects, and conclude PASS or
+FAIL for that test. Check import/name compatibility first: if the tests cannot even import
+the implementation, every test fails.
+
+Also flag test gaming if you see it (hardcoded answers for specific inputs, input
+pattern-matching): report it in one line, but rate on predicted test outcomes only.
+
+## Output format (exactly this structure)
+
+1. One line per test, in this shape:
+   `test_canonical_example_1: PASS — computes 5 for [1,2,1,2,1,1,1], matching the assertion`
+   If you cannot trace a test's outcome from the code, mark it FAIL and say why the trace
+   is blocked — an unverifiable pass prediction is not a pass.
+2. If any FAIL: one short paragraph naming the root cause in the implementation.
+3. The last line must be exactly: `Rating: <predicted fraction of tests passing>` with two
+   decimals, e.g. `Rating: 0.83`

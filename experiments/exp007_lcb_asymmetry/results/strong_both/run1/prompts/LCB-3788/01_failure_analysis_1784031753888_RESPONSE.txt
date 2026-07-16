@@ -1,0 +1,12 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_single_negative_minimum_value — input `[-100]`; expected `-100`, got `0`. There is no mechanical failure: `maxSum` is imported successfully, its name/signature match the tests, and `List` is imported. Trace: initialize `unique_elements = set()`, `current_sum = 0`, `max_sum = -inf`, `left = 0`. For `right = 0`, `-100` is not in the set, so add it and compute `current_sum = 0 + (-100) = -100`; then `max_sum = max(-inf, -100) = -100`. The function then returns `max(max_sum, 0) = max(-100, 0) = 0`. The divergence is the final expression `return max(max_sum, 0)`, which permits an empty-selection sum of `0` even though the test requires a non-empty selection.
+
+test_multi_element_all_negative_array — input `[-5, -2, -9]`; expected `-2`, got `0`. This is the same root cause as the previous failure; there is no mechanical import, naming, signature, or typing issue. Trace: initialize `current_sum = 0`, `max_sum = -inf`. At `right = 0`, add `-5`: `current_sum = 0 + (-5) = -5`, `max_sum = max(-inf, -5) = -5`. At `right = 1`, add `-2`: `current_sum = -5 + (-2) = -7`, `max_sum = max(-5, -7) = -5`. At `right = 2`, add `-9`: `current_sum = -7 + (-9) = -16`, `max_sum = max(-5, -16) = -5`. The final return computes `max(-5, 0) = 0`, which is incorrect because the required non-empty unique selection can choose `[-2]`, whose sum is `-2`. The immediate divergence is again `return max(max_sum, 0)`. Additionally, removing that clamp alone would return `-5`, not `-2`, because the sliding-window running sum does not discard negative values unless a duplicate forces removal.
+
+FIX DIRECTIVES:
+FIX: in `maxSum`, do not clamp the result to zero; a non-empty selection is required, so do not use `return max(max_sum, 0)`.
+FIX: replace the contiguous duplicate-free sliding-window sum logic with selection of distinct values: sum each distinct positive value once; if no positive value exists, return `0` if `0` occurs, otherwise return the largest value in `nums`.
+FIX: ensure the all-negative fallback returns the maximum element, e.g. after building `unique_values = set(nums)`, use `positive_sum = sum(value for value in unique_values if value > 0)` and return `positive_sum if positive_sum > 0 else max(unique_values)`.

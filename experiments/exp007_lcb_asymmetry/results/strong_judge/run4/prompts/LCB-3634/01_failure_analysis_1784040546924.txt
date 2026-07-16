@@ -1,0 +1,135 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784040546924
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: TIMEOUT: test run exceeded 30s
+  test_code: from solution import calculateScore
+
+def test_canonical_example_1():
+    # spec: calculateScore("aczzx") -> 5
+    # Explanation:
+    # i = 0: no j, skip.
+    # i = 1: no j, skip.
+    # i = 2: j = 0 (m...[truncated]
+  impl_code: def calculateScore(s: str) -> int:
+    score = 0
+    marked = [False] * len(s)
+    mirror = {chr(i): chr(122 - (i - 97)) for i in range(97, 123)}  # a-z to z-a
+
+    for i in range(len(s)):
+        if ...[truncated]
+  task: {'id': 'LCB/3634', 'use_case_id': 'LCB/3634', 'story_id': 'LCB/3634', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement calculateScore()', 'description': 'You are given a string s.\nWe define the mirror...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement calculateScore()**
+
+## Tests (the acceptance criterion)
+
+```python
+from solution import calculateScore
+
+def test_canonical_example_1():
+    # spec: calculateScore("aczzx") -> 5
+    # Explanation:
+    # i = 0: no j, skip.
+    # i = 1: no j, skip.
+    # i = 2: j = 0 (mirror 'a' is 'z'), score += 2 - 0 = 2.
+    # i = 3: no j, skip.
+    # i = 4: j = 1 (mirror 'c' is 'x'), score += 4 - 1 = 3.
+    # Total score = 2 + 3 = 5
+    assert calculateScore("aczzx") == 5
+
+def test_canonical_example_2():
+    # spec: calculateScore("abcdef") -> 0
+    # Explanation:
+    # For each index i, there is no index j that satisfies the conditions.
+    assert calculateScore("abcdef") == 0
+
+def test_closest_prior_mirror():
+    # spec: calculateScore("aaz") -> 1
+    # Explanation:
+    # i = 0: no j, skip.
+    # i = 1: j = 0 (mirror 'a' is 'z'), score += 1 - 0 = 1.
+    # i = 2: no j, skip.
+    # Total score = 1
+    assert calculateScore("aaz") == 1
+
+def test_current_index_marked():
+    # spec: calculateScore("aza") -> 1
+    # Explanation:
+    # i = 0: no j, skip.
+    # i = 1: j = 0 (mirror 'a' is 'z'), score += 1 - 0 = 1.
+    # i = 2: no j, skip (index 1 is marked).
+    # Total score = 1
+    assert calculateScore("aza") == 1
+
+def test_minimum_length():
+    # spec: calculateScore("a") -> 0
+    # Explanation:
+    # Only one character, no j exists.
+    assert calculateScore("a") == 0
+
+def test_maximum_length():
+    # spec: calculateScore("a" * 50_000 + "z" * 50_000) -> 2_500_000_000
+    # Explanation:
+    # Each 'a' at indices 0 to 49,999 will match with 'z' at indices 50,000 to 99,999.
+    # Total score = sum of (i - j) for all pairs, which is 49,999 + 49,998 + ... + 0 = 2_500_000_000.
+    s = "a" * 50_000 + "z" * 50_000
+    assert calculateScore(s) == 2_500_000_000
+```
+
+## Failing implementation
+
+```python
+def calculateScore(s: str) -> int:
+    score = 0
+    marked = [False] * len(s)
+    mirror = {chr(i): chr(122 - (i - 97)) for i in range(97, 123)}  # a-z to z-a
+
+    for i in range(len(s)):
+        if marked[i]:  # skip if current index is already marked
+            continue
+        for j in range(i - 1, -1, -1):  # find closest unmarked index j
+            if not marked[j] and mirror[s[i]] == s[j]:
+                score += i - j
+                marked[i] = marked[j] = True  # mark both indices
+                break
+    return score
+
+```
+
+## Test execution output
+
+```
+TIMEOUT: test run exceeded 30s
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

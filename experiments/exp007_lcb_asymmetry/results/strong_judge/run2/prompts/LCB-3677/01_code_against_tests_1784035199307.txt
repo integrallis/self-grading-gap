@@ -1,0 +1,122 @@
+================================================================================
+TEMPLATE: judge/code_against_tests.j2
+TIMESTAMP: 1784035199307
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_code: from solution import maximumAmount
+
+def test_canonical_example_1():
+    # spec: maximumAmount([[0, 1, -1], [1, -2, 3], [2, -3, 4]]) -> 8
+    assert maximumAmount([[0, 1, -1], [1, -2, 3], [2, -3, 4]]) ...[truncated]
+  impl_code: from typing import List
+
+def maximumAmount(coins: List[List[int]]) -> int:
+    m, n = len(coins), len(coins[0])
+    dp = [[-float('inf')] * (n + 1) for _ in range(m + 1)]
+    dp[0][0] = coins[0][0]  #...[truncated]
+  task: {'id': 'LCB/3677', 'use_case_id': 'LCB/3677', 'story_id': 'LCB/3677', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maximumAmount()', 'description': "You are given an m x n grid. A robot starts at t...[truncated]
+  recent_commits: []
+================================================================================
+
+You are predicting whether an implementation will pass a specific test suite. Trace the code
+with each test's inputs; do not judge style, design, or robustness — a crude implementation
+that passes every test rates 1.00, an elegant one that fails a test rates lower.
+
+## Task context
+
+**Implement maximumAmount()**
+
+## Tests
+
+```python
+from solution import maximumAmount
+
+def test_canonical_example_1():
+    # spec: maximumAmount([[0, 1, -1], [1, -2, 3], [2, -3, 4]]) -> 8
+    assert maximumAmount([[0, 1, -1], [1, -2, 3], [2, -3, 4]]) == 8
+
+def test_canonical_example_2():
+    # spec: maximumAmount([[10, 10, 10], [10, 10, 10]]) -> 40
+    assert maximumAmount([[10, 10, 10], [10, 10, 10]]) == 40
+
+def test_two_neutralizations():
+    # spec: maximumAmount([[-5, -6, -7]]) -> -5
+    # Neutralizing -6 and -7 leaves -5.
+    assert maximumAmount([[-5, -6, -7]]) == -5
+
+def test_negative_optimal_result():
+    # spec: maximumAmount([[-1, -2, -3, -4]]) -> -1
+    # Robot can neutralize -1 and end up with -1.
+    assert maximumAmount([[-1, -2, -3, -4]]) == -1
+
+def test_minimum_size_grid():
+    # spec: maximumAmount([[-1000]]) -> 0
+    # Neutralizing the only robber leaves 0.
+    assert maximumAmount([[-1000]]) == 0
+
+def test_one_column_grid():
+    # spec: maximumAmount([[5], [-10], [4]]) -> 9
+    # Collect 5, neutralize -10, collect 4.
+    assert maximumAmount([[5], [-10], [4]]) == 9
+
+def test_boundary_values():
+    # spec: maximumAmount([[-1000, 1000]]) -> 1000
+    # Neutralizing -1000 leaves 1000.
+    assert maximumAmount([[-1000, 1000]]) == 1000
+
+def test_large_grid():
+    # Test a 500 x 500 grid with all zeros.
+    # spec: maximumAmount([[0]*500]*500) -> 0
+    assert maximumAmount([[0]*500]*500) == 0
+```
+
+## Implementation
+
+```python
+from typing import List
+
+def maximumAmount(coins: List[List[int]]) -> int:
+    m, n = len(coins), len(coins[0])
+    dp = [[-float('inf')] * (n + 1) for _ in range(m + 1)]
+    dp[0][0] = coins[0][0]  # Initialize with starting cell's value
+
+    for i in range(m):
+        for j in range(n):
+            current_coins = coins[i][j]
+            # If moving from above
+            if i > 0:
+                dp[i][j] = max(dp[i][j], dp[i - 1][j] + current_coins)
+            # If moving from the left
+            if j > 0:
+                dp[i][j] = max(dp[i][j], dp[i][j - 1] + current_coins)
+
+            # If current_coins is negative, consider neutralizing it (up to 2 times)
+            if current_coins < 0:
+                if i > 0:
+                    dp[i][j] = max(dp[i][j], dp[i - 1][j] - current_coins)  # Neutralize from above
+                if j > 0:
+                    dp[i][j] = max(dp[i][j], dp[i][j - 1] - current_coins)  # Neutralize from left
+
+    return max(dp[m - 1][n - 1], 0)
+
+```
+
+## Method
+
+For EACH test function: state the inputs, trace the implementation's computation step by
+step (do the arithmetic explicitly), state the value the test expects, and conclude PASS or
+FAIL for that test. Check import/name compatibility first: if the tests cannot even import
+the implementation, every test fails.
+
+Also flag test gaming if you see it (hardcoded answers for specific inputs, input
+pattern-matching): report it in one line, but rate on predicted test outcomes only.
+
+## Output format (exactly this structure)
+
+1. One line per test, in this shape:
+   `test_canonical_example_1: PASS — computes 5 for [1,2,1,2,1,1,1], matching the assertion`
+   If you cannot trace a test's outcome from the code, mark it FAIL and say why the trace
+   is blocked — an unverifiable pass prediction is not a pass.
+2. If any FAIL: one short paragraph naming the root cause in the implementation.
+3. The last line must be exactly: `Rating: <predicted fraction of tests passing>` with two
+   decimals, e.g. `Rating: 0.83`

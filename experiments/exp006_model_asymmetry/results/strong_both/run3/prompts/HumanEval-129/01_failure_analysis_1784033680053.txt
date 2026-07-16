@@ -1,0 +1,169 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784033680053
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from solution import minPath
+
+
+def test_canonical_example_1():
+    # Starting at 1 is smallest; from 1 the smallest edge-neighbor is 2,
+    # and from 2 the smallest edge-neighbor is 1, so the path is...[truncated]
+  impl_code: def minPath(grid, k):
+    from heapq import heappop, heappush
+    from collections import deque
+
+    n = len(grid)
+    directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+    min_path = []
+
+    # Priority...[truncated]
+  task: {'id': 'HumanEval/129', 'use_case_id': 'HumanEval/129', 'story_id': 'HumanEval/129', 'epic_id': 'HUMANEVAL', 'title': 'Implement minPath()', 'description': "Given a grid with N rows and N columns (N >...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement minPath()**
+
+## Tests (the acceptance criterion)
+
+```python
+from solution import minPath
+
+
+def test_canonical_example_1():
+    # Starting at 1 is smallest; from 1 the smallest edge-neighbor is 2,
+    # and from 2 the smallest edge-neighbor is 1, so the path is [1, 2, 1].
+    assert minPath([[1, 2, 3], [4, 5, 6], [7, 8, 9]], 3) == [1, 2, 1]
+
+
+def test_canonical_example_2():
+    # A path of length 1 visits one cell, so it contains the grid's minimum value: [1].
+    assert minPath([[5, 9, 3], [4, 1, 6], [7, 8, 2]], 1) == [1]
+
+
+def test_uses_only_edge_neighbors_not_diagonal_cells():
+    # Start at 1; its edge-neighbors are 9 and 8, so choose 8.
+    # The smaller value 2 is diagonal and therefore cannot be the next cell.
+    assert minPath([[1, 9], [8, 2]], 2) == [1, 8]
+
+
+def test_path_may_revisit_cells():
+    # Start at 1; its smallest neighbor is 3. From 3, returning to 1 is
+    # smaller than moving to 2, and then 3 is again the smallest neighbor.
+    assert minPath([[4, 1], [2, 3]], 4) == [1, 3, 1, 3]
+
+
+def test_does_not_wrap_across_grid_boundaries():
+    # From top-left 1, the only edge-neighbors are 9 and 8, so choose 8.
+    # Values 2, 3, and 4 are on opposite edges and are not neighbors.
+    assert minPath([[1, 9, 2], [8, 7, 6], [3, 5, 4]], 2) == [1, 8]
+
+
+def test_allows_path_longer_than_number_of_cells():
+    # Starting at 1, alternate with its smallest neighbor 3 for five visited cells:
+    # [1, 3, 1, 3, 1].
+    assert minPath([[4, 1], [2, 3]], 5) == [1, 3, 1, 3, 1]
+```
+
+## Failing implementation
+
+```python
+def minPath(grid, k):
+    from heapq import heappop, heappush
+    from collections import deque
+
+    n = len(grid)
+    directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+    min_path = []
+
+    # Priority queue to store potential paths with lexicographical order
+    pq = []
+
+    # Start from every cell in the grid
+    for i in range(n):
+        for j in range(n):
+            heappush(pq, (grid[i][j], [(grid[i][j])], i, j))  # (current_value, path_so_far, x, y)
+
+    while pq:
+        current_value, path, x, y = heappop(pq)
+
+        if len(path) == k:
+            return path
+
+        # Check all 4 possible directions
+        for dx, dy in directions:
+            nx, ny = x + dx, y + dy
+
+            if 0 <= nx < n and 0 <= ny < n:
+                heappush(pq, (grid[nx][ny], path + [grid[nx][ny]], nx, ny))
+
+    return min_path
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /tmp/tmp9r5ubj1m/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1
+collecting ... collected 6 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [ 16%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 33%]
+tests/test_task.py::test_uses_only_edge_neighbors_not_diagonal_cells PASSED [ 50%]
+tests/test_task.py::test_path_may_revisit_cells PASSED                   [ 66%]
+tests/test_task.py::test_does_not_wrap_across_grid_boundaries FAILED     [ 83%]
+tests/test_task.py::test_allows_path_longer_than_number_of_cells PASSED  [100%]
+
+=================================== FAILURES ===================================
+__________________ test_does_not_wrap_across_grid_boundaries ___________________
+tests/test_task.py:30: in test_does_not_wrap_across_grid_boundaries
+    assert minPath([[1, 9, 2], [8, 7, 6], [3, 5, 4]], 2) == [1, 8]
+E   AssertionError: assert [3, 5] == [1, 8]
+E     
+E     At index 0 diff: 3 != 1
+E     
+E     Full diff:
+E       [
+E     -     1,
+E     ?     ^...
+E     
+E     ...Full output truncated (7 lines hidden), use '-vv' to show
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_does_not_wrap_across_grid_boundaries - Assert...
+========================= 1 failed, 5 passed in 0.02s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

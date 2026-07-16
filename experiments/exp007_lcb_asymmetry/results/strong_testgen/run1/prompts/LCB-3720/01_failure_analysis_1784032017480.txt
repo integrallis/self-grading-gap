@@ -1,0 +1,191 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784032017480
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from solution import minMaxWeight
+
+
+def test_canonical_example_1():
+    # Keeping 1->0, 3->0, 4->3, and 2->1 lets every node reach 0 with maximum weight 1.
+    assert minMaxWeight(
+        5,
+        ...[truncated]
+  impl_code: from typing import List
+
+
+def minMaxWeight(n: int, edges: List[List[int]], threshold: int) -> int:
+    from collections import defaultdict, deque
+
+    def can_reach_all(max_weight):
+        graph = de...[truncated]
+  task: {'id': 'LCB/3720', 'use_case_id': 'LCB/3720', 'story_id': 'LCB/3720', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement minMaxWeight()', 'description': 'You are given two integers, n and threshold, as w...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement minMaxWeight()**
+
+## Tests (the acceptance criterion)
+
+```python
+from solution import minMaxWeight
+
+
+def test_canonical_example_1():
+    # Keeping 1->0, 3->0, 4->3, and 2->1 lets every node reach 0 with maximum weight 1.
+    assert minMaxWeight(
+        5,
+        [[1, 0, 1], [2, 0, 2], [3, 0, 1], [4, 3, 1], [2, 1, 1]],
+        2,
+    ) == 1
+
+
+def test_canonical_example_2():
+    # Nodes 2, 3, and 4 have no directed path to node 0, so satisfying reachability is impossible.
+    assert minMaxWeight(
+        5,
+        [[0, 1, 1], [0, 2, 2], [0, 3, 1], [0, 4, 1], [1, 2, 1], [1, 4, 1]],
+        1,
+    ) == -1
+
+
+def test_canonical_example_3():
+    # Keeping 1->2 (1), 2->3 (2), 3->4 (2), and 4->0 (1) reaches 0 from all nodes;
+    # weight 1 cannot work because node 2 then cannot reach 0.
+    assert minMaxWeight(
+        5,
+        [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [3, 4, 2], [4, 0, 1]],
+        1,
+    ) == 2
+
+
+def test_canonical_example_4():
+    # Node 3 has no directed path to node 0, so satisfying reachability is impossible.
+    assert minMaxWeight(
+        5,
+        [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [4, 0, 1]],
+        1,
+    ) == -1
+
+
+def test_selects_lower_weight_parallel_edge():
+    # Of the two edges from 1 to 0, retaining the weight-4 edge reaches node 0 with maximum weight 4.
+    assert minMaxWeight(2, [[1, 0, 9], [1, 0, 4]], 1) == 4
+```
+
+## Failing implementation
+
+```python
+from typing import List
+
+
+def minMaxWeight(n: int, edges: List[List[int]], threshold: int) -> int:
+    from collections import defaultdict, deque
+
+    def can_reach_all(max_weight):
+        graph = defaultdict(list)
+        out_degree = [0] * n
+
+        for u, v, w in edges:
+            if w <= max_weight:
+                if out_degree[u] < threshold:
+                    graph[u].append((v, w))  # Store outgoing edges instead
+                    out_degree[u] += 1
+
+        reachable = [False] * n
+        queue = deque([0])
+        reachable[0] = True
+
+        while queue:
+            node = queue.popleft()
+            for neighbor, weight in graph[node]:
+                if not reachable[neighbor]:
+                    reachable[neighbor] = True
+                    queue.append(neighbor)
+
+        return all(reachable)
+
+    left, right = 1, max(w for _, _, w in edges)
+    result = -1
+
+    while left <= right:
+        mid = (left + right) // 2
+        if can_reach_all(mid):
+            result = mid
+            right = mid - 1
+        else:
+            left = mid + 1
+
+    return result
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /tmp/tmpuijpiyf8/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1
+collecting ... collected 5 items
+
+tests/test_task.py::test_canonical_example_1 FAILED                      [ 20%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 40%]
+tests/test_task.py::test_canonical_example_3 FAILED                      [ 60%]
+tests/test_task.py::test_canonical_example_4 PASSED                      [ 80%]
+tests/test_task.py::test_selects_lower_weight_parallel_edge FAILED       [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_1 ___________________________
+tests/test_task.py:6: in test_canonical_example_1
+    assert minMaxWeight(
+E   assert -1 == 1
+E    +  where -1 = minMaxWeight(5, [[1, 0, 1], [2, 0, 2], [3, 0, 1], [4, 3, 1], [2, 1, 1]], 2)
+___________________________ test_canonical_example_3 ___________________________
+tests/test_task.py:25: in test_canonical_example_3
+    assert minMaxWeight(
+E   assert -1 == 2
+E    +  where -1 = minMaxWeight(5, [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [3, 4, 2], [4, 0, 1]], 1)
+___________________ test_selects_lower_weight_parallel_edge ____________________
+tests/test_task.py:43: in test_selects_lower_weight_parallel_edge
+    assert minMaxWeight(2, [[1, 0, 9], [1, 0, 4]], 1) == 4
+E   assert -1 == 4
+E    +  where -1 = minMaxWeight(2, [[1, 0, 9], [1, 0, 4]], 1)
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_canonical_example_1 - assert -1 == 1
+FAILED tests/test_task.py::test_canonical_example_3 - assert -1 == 2
+FAILED tests/test_task.py::test_selects_lower_weight_parallel_edge - assert -...
+========================= 3 failed, 2 passed in 0.02s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

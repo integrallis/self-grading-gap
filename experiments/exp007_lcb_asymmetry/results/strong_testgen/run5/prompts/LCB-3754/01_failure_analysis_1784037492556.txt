@@ -1,0 +1,168 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784037492556
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from solution import maxDistance
+
+
+def test_canonical_example_1():
+    # Change "NWSE" to "NWNE"; after three moves position is (-1, 2), distance 3.
+    assert maxDistance("NWSE", 1) == 3
+
+
+def test_c...[truncated]
+  impl_code: def maxDistance(s: str, k: int) -> int:
+    x, y = 0, 0
+    max_distance = 0
+
+    # Check maximum distance reachable at every position in the string
+    for char in s:
+        # Update position based ...[truncated]
+  task: {'id': 'LCB/3754', 'use_case_id': 'LCB/3754', 'story_id': 'LCB/3754', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maxDistance()', 'description': 'You are given a string s consisting of the charact...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement maxDistance()**
+
+## Tests (the acceptance criterion)
+
+```python
+from solution import maxDistance
+
+
+def test_canonical_example_1():
+    # Change "NWSE" to "NWNE"; after three moves position is (-1, 2), distance 3.
+    assert maxDistance("NWSE", 1) == 3
+
+
+def test_canonical_example_2():
+    # Change "NSWWEW" to "NNWWWW"; after all six moves distance is 6.
+    assert maxDistance("NSWWEW", 3) == 6
+
+
+def test_no_changes_uses_the_farthest_prefix():
+    # Positions for "NSEW" have distances 1, 0, 1, 0, so the maximum is 1.
+    assert maxDistance("NSEW", 0) == 1
+
+
+def test_one_change_can_turn_an_opposite_move_into_a_matching_move():
+    # Change "NS" to "NN"; after two moves position is (0, 2), distance 2.
+    assert maxDistance("NS", 1) == 2
+
+
+def test_maximum_can_occur_before_the_final_move():
+    # Change the third move in "NNSS" to N: "NNNS" reaches distance 3 after move three.
+    assert maxDistance("NNSS", 1) == 3
+
+
+def test_budget_can_change_every_move():
+    # Change all moves in "NSEW" to N; after four moves position is (0, 4), distance 4.
+    assert maxDistance("NSEW", 4) == 4
+```
+
+## Failing implementation
+
+```python
+def maxDistance(s: str, k: int) -> int:
+    x, y = 0, 0
+    max_distance = 0
+
+    # Check maximum distance reachable at every position in the string
+    for char in s:
+        # Update position based on current character
+        if char == 'N':
+            y += 1
+        elif char == 'S':
+            y -= 1
+        elif char == 'E':
+            x += 1
+        elif char == 'W':
+            x -= 1
+
+        # Calculate current Manhattan distance
+        current_distance = abs(x) + abs(y)
+
+        # Update the maximum distance considering k changes
+        max_distance = max(max_distance, current_distance + k)
+
+        # We can change the current move to maximize the distance
+        if k > 0:
+            # If we have budget left, we consider changing the last move to the optimal one
+            distance_with_change = current_distance + min(k, abs(x) + abs(y + 1))
+            max_distance = max(max_distance, distance_with_change)
+            distance_with_change = current_distance + min(k, abs(x) + abs(y - 1))
+            max_distance = max(max_distance, distance_with_change)
+            distance_with_change = current_distance + min(k, abs(x + 1) + abs(y))
+            max_distance = max(max_distance, distance_with_change)
+            distance_with_change = current_distance + min(k, abs(x - 1) + abs(y))
+            max_distance = max(max_distance, distance_with_change)
+
+    return max_distance
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /tmp/tmplic0r2sz/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1
+collecting ... collected 6 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [ 16%]
+tests/test_task.py::test_canonical_example_2 FAILED                      [ 33%]
+tests/test_task.py::test_no_changes_uses_the_farthest_prefix PASSED      [ 50%]
+tests/test_task.py::test_one_change_can_turn_an_opposite_move_into_a_matching_move PASSED [ 66%]
+tests/test_task.py::test_maximum_can_occur_before_the_final_move PASSED  [ 83%]
+tests/test_task.py::test_budget_can_change_every_move FAILED             [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_2 ___________________________
+tests/test_task.py:11: in test_canonical_example_2
+    assert maxDistance("NSWWEW", 3) == 6
+E   AssertionError: assert 5 == 6
+E    +  where 5 = maxDistance('NSWWEW', 3)
+______________________ test_budget_can_change_every_move _______________________
+tests/test_task.py:31: in test_budget_can_change_every_move
+    assert maxDistance("NSEW", 4) == 4
+E   AssertionError: assert 5 == 4
+E    +  where 5 = maxDistance('NSEW', 4)
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_canonical_example_2 - AssertionError: assert ...
+FAILED tests/test_task.py::test_budget_can_change_every_move - AssertionError...
+========================= 2 failed, 4 passed in 0.02s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

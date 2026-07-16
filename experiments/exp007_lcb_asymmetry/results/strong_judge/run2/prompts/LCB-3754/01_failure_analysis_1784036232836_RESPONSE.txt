@@ -1,0 +1,18 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_maximum_length — expected 100000, got TIMEOUT, because `maxDistance("N" * 100_000, 0)` performs quadratic work in the nested prefix-rescan loop. There is no mechanical issue: `maxDistance` has the expected name and signature and uses no missing imports.
+
+For input `s = "N" * 100_000`, `k = 0`, after processing index `i`, the position is `x = 0`, `y = i + 1`, so `current_distance = abs(0) + abs(i + 1) = i + 1`. For each of the two orientations with `sy = 1`, `score = i + 1`, `opposing_moves = 0`, and `candidate = min(i + 1, i + 1 + 2 * min(0, 0)) = i + 1`. Thus the correct maximum would eventually reach `100000`.
+
+However, for every outer-loop index `i`, the implementation executes all four orientations and rescans every prior character with `for j in range(i + 1):`. The total number of inner-loop iterations is:
+
+`4 * (1 + 2 + ... + 100000) = 4 * 5,000,050,000 = 20,000,200,000`
+
+Each iteration evaluates the multi-condition opposing-move expression. This cannot complete within the 30-second test limit. The exact performance divergence is the nested `for j in range(i + 1):` loop used to recompute `opposing_moves` for every prefix and every orientation.
+
+FIX DIRECTIVES:
+FIX: in `maxDistance`, remove the nested `for j in range(i + 1):` prefix rescan; it makes the function `O(n^2)`.
+FIX: in `maxDistance`, maintain four running opposing-move counters, one for each `(sx, sy)` orientation, and update each counter once per newly processed character. For example, initialize `opposing = {(1, 1): 0, (1, -1): 0, (-1, 1): 0, (-1, -1): 0}` before the main loop.
+FIX: after processing each character at index `i`, for each `(sx, sy)`, increment `opposing[(sx, sy)]` if that new character is opposing that orientation, then compute `candidate = min(i + 1, x * sx + y * sy + 2 * min(k, opposing[(sx, sy)]))`. This preserves the existing calculation while reducing runtime to `O(4n) = O(n)`.

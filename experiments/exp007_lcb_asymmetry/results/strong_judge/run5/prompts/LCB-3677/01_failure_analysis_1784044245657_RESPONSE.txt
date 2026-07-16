@@ -1,0 +1,15 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_negative_total — input `[[-1, -2, -3, -4]]`, expected `-3`, got `-2`, because the starting negative cell is neutralized without recording a neutralization. There is no mechanical issue: `maximumAmount` is imported, named, and called correctly. The divergence is at `dp[0][0][0] = max(coins[0][0], 0)`: for `coins[0][0] == -1`, this sets `dp[0][0][0]` to `0`, even though state `k=0` means zero robbers have been neutralized. The row DP then computes:
+- at `-2`: states `[k=0, k=1, k=2] = [-2, 0, -inf]`;
+- at `-3`: `[-5, -2, 0]`;
+- at `-4`: `[-9, -5, -2]`.
+Thus `max(dp[0][3])` is `-2`. That result effectively neutralizes the starting `-1` for free and also uses the two tracked neutralizations on later cells, allowing three neutralized robbers. Correctly allowing only two neutralizations leaves `-1 + -2 = -3` after neutralizing `-3` and `-4`.
+
+test_large_grid — input is a `500 x 500` grid where every cell is `-1000`, expected `-997000`, got `-996000`, for the same initialization bug at `dp[0][0][0] = max(coins[0][0], 0)`. A monotone path from `(0, 0)` to `(499, 499)` visits `500 + 500 - 1 = 999` cells. The initialization changes the first `-1000` to `0` while keeping `k=0`, so it has already neutralized one robber without consuming either of the two allowed neutralizations. The DP can then use `k=1` and `k=2` to neutralize two additional `-1000` cells. It therefore pays for only `999 - 3 = 996` cells: `996 * -1000 = -996000`. The expected result permits only two neutralizations, so it must pay for `999 - 2 = 997` cells: `997 * -1000 = -997000`.
+
+FIX DIRECTIVES:
+FIX: in `maximumAmount`, replace `dp[0][0][0] = max(coins[0][0], 0)` with `dp[0][0][0] = coins[0][0]` so state `k=0` never includes a free neutralization.
+FIX: in `maximumAmount`, when the starting cell is negative, explicitly initialize the one-neutralization state: `if coins[0][0] < 0: dp[0][0][1] = 0`. Keep `dp[0][0][2]` as negative infinity.

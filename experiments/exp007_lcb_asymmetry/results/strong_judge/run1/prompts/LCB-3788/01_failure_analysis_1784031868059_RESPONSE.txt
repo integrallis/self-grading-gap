@@ -1,0 +1,11 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_singleton_negative — input `[-7]`, expected `-7`, got `0`. There are no mechanical issues: `maxSum` is imported successfully, has the expected signature, and runs. Trace: initialization sets `max_sum = 0`, `current_sum = 0`, and `unique_nums = set()`. At `right = 0`, `-7` is not in the set, so the loop adds it: `unique_nums = {-7}` and `current_sum = 0 + (-7) = -7`. The update `max_sum = max(max_sum, current_sum)` computes `max(0, -7) = 0`, so the function returns `0`. The divergence is at the initialization expression `max_sum = 0`, which incorrectly treats an empty subarray of sum zero as an allowable result; this test requires selecting at least one element.
+
+test_min_value — input `[-100, -99]`, expected `-99`, got `0`. This is the same root cause as `test_singleton_negative`; no mechanical import, naming, signature, or typing issue is present. Trace: initialization sets `max_sum = 0`, `current_sum = 0`, and `unique_nums = set()`. At `right = 0`, add `-100`: `current_sum = 0 + (-100) = -100`; then `max_sum = max(0, -100) = 0`. At `right = 1`, add `-99`: `current_sum = -100 + (-99) = -199`; then `max_sum = max(0, -199) = 0`. The function returns `0` rather than the best non-empty distinct subarray sum, `-99` from `[-99]`. The initial divergence is again `max_sum = 0`; additionally, after accumulating `[-100, -99]`, the sliding window never discards a negative prefix unless a duplicate forces it, so it does not evaluate the valid better subarray `[-99]`.
+
+FIX DIRECTIVES:
+FIX: in `maxSum`, initialize `max_sum` to the first element (for example, `max_sum = nums[0]`) rather than `0`, so all-negative inputs can return a negative non-empty subarray sum.
+FIX: in `maxSum`, before adding each `nums[right]`, remove leading negative values from the current distinct window as well as removing values to resolve duplicates. For example, use a loop condition such as `while left <= right and (nums[right] in unique_nums or current_sum < 0): ...`; this allows `[-100, -99]` to discard `-100` and evaluate `[-99]` with sum `-99`.

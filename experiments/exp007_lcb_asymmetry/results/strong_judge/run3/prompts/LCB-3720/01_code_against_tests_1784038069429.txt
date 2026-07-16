@@ -1,0 +1,156 @@
+================================================================================
+TEMPLATE: judge/code_against_tests.j2
+TIMESTAMP: 1784038069429
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_code: from solution import minMaxWeight
+
+def test_canonical_example_1():
+    # input: n = 5, edges = [[1, 0, 1], [2, 0, 2], [3, 0, 1], [4, 3, 1], [2, 1, 1]], threshold = 2
+    # After removing edge 2 -> 0, ...[truncated]
+  impl_code: from typing import List
+
+
+def minMaxWeight(n: int, edges: List[List[int]], threshold: int) -> int:
+    from collections import defaultdict, deque
+
+    # Create a graph based on the edges
+to_graph = de...[truncated]
+  task: {'id': 'LCB/3720', 'use_case_id': 'LCB/3720', 'story_id': 'LCB/3720', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement minMaxWeight()', 'description': 'You are given two integers, n and threshold, as w...[truncated]
+  recent_commits: []
+================================================================================
+
+You are predicting whether an implementation will pass a specific test suite. Trace the code
+with each test's inputs; do not judge style, design, or robustness — a crude implementation
+that passes every test rates 1.00, an elegant one that fails a test rates lower.
+
+## Task context
+
+**Implement minMaxWeight()**
+
+## Tests
+
+```python
+from solution import minMaxWeight
+
+def test_canonical_example_1():
+    # input: n = 5, edges = [[1, 0, 1], [2, 0, 2], [3, 0, 1], [4, 3, 1], [2, 1, 1]], threshold = 2
+    # After removing edge 2 -> 0, the max weight is 1
+    assert minMaxWeight(5, [[1, 0, 1], [2, 0, 2], [3, 0, 1], [4, 3, 1], [2, 1, 1]], 2) == 1
+
+def test_canonical_example_2():
+    # input: n = 5, edges = [[0, 1, 1], [0, 2, 2], [0, 3, 1], [0, 4, 1], [1, 2, 1], [1, 4, 1]], threshold = 1
+    # Impossible to reach node 0 from node 2, so return -1
+    assert minMaxWeight(5, [[0, 1, 1], [0, 2, 2], [0, 3, 1], [0, 4, 1], [1, 2, 1], [1, 4, 1]], 1) == -1
+
+def test_canonical_example_3():
+    # input: n = 5, edges = [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [3, 4, 2], [4, 0, 1]], threshold = 1
+    # Remove edges 1 -> 3 and 1 -> 4, max weight among remaining is 2
+    assert minMaxWeight(5, [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [3, 4, 2], [4, 0, 1]], 1) == 2
+
+def test_canonical_example_4():
+    # input: n = 5, edges = [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [4, 0, 1]], threshold = 1
+    # Impossible to reach node 0 from node 3 as there are no valid edges, so return -1
+    assert minMaxWeight(5, [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [4, 0, 1]], 1) == -1
+
+def test_no_removal():
+    # input: n = 2, edges = [[1, 0, 1]], threshold = 1
+    # No edges need to be removed; max weight is 1
+    assert minMaxWeight(2, [[1, 0, 1]], 1) == 1
+
+def test_maximum_weight():
+    # input: n = 2, edges = [[1, 0, 1_000_000]], threshold = 1
+    # No edges need to be removed; max weight is 1_000_000
+    assert minMaxWeight(2, [[1, 0, 1_000_000]], 1) == 1_000_000
+
+def test_parallel_edges():
+    # input: n = 3, edges = [[1, 0, 1], [1, 0, 5], [2, 1, 2]], threshold = 1
+    # Retain edge 2 -> 1 and one of the edges 1 -> 0 (either works); max weight is 2
+    assert minMaxWeight(3, [[1, 0, 1], [1, 0, 5], [2, 1, 2]], 1) == 2
+
+def test_maximum_size_boundary():
+    # input: n = 100000, threshold = 99999, edges = [[i, 0, 1] for i in range(1, 100000)] + [[1, 0, 2]]
+    # We can retain edges from every node to 0 with weight 1, and one edge 1 -> 0 with weight 2; max weight is 1
+    n = 100000
+    edges = [[i, 0, 1] for i in range(1, n)] + [[1, 0, 2]]
+    assert minMaxWeight(n, edges, n - 1) == 1
+```
+
+## Implementation
+
+```python
+from typing import List
+
+
+def minMaxWeight(n: int, edges: List[List[int]], threshold: int) -> int:
+    from collections import defaultdict, deque
+
+    # Create a graph based on the edges
+to_graph = defaultdict(list)
+    for u, v, w in edges:
+        to_graph[v].append((u, w))  # reverse graph to check reachability to node 0
+
+    # Function to check if all nodes can reach node 0 with the max weight limit
+    def canReach(maxWeight):
+        new_graph = defaultdict(list)
+        out_edges = [0] * n
+        # Create a new graph with edges that are within the max weight limit
+        for u, v, w in edges:
+            if w <= maxWeight:
+                new_graph[v].append((u, w))  # reversed direction 
+                out_edges[u] += 1
+                # Ensure we do not exceed the threshold
+                if out_edges[u] > threshold:
+                    return False
+
+        # Perform BFS to check reachability to node 0
+        visited = [False] * n
+        queue = deque([0])
+        visited[0] = True
+        while queue:
+            curr = queue.popleft()
+            for neighbor, _ in new_graph[curr]:
+                if not visited[neighbor]:
+                    visited[neighbor] = True
+                    queue.append(neighbor)
+
+        # Check if all nodes can reach node 0
+        for node in range(n):
+            if not visited[node] and out_edges[node] > 0:
+                return False
+        return True
+
+    # Binary search on the edge weights
+    low, high = 1, 10**6
+    result = -1
+    while low <= high:
+        mid = (low + high) // 2
+        if canReach(mid):
+            result = mid
+            high = mid - 1
+        else:
+            low = mid + 1
+
+    return result
+
+```
+
+## Method
+
+For EACH test function: state the inputs, trace the implementation's computation step by
+step (do the arithmetic explicitly), state the value the test expects, and conclude PASS or
+FAIL for that test. Check import/name compatibility first: if the tests cannot even import
+the implementation, every test fails.
+
+Also flag test gaming if you see it (hardcoded answers for specific inputs, input
+pattern-matching): report it in one line, but rate on predicted test outcomes only.
+
+## Output format (exactly this structure)
+
+1. One line per test, in this shape:
+   `test_canonical_example_1: PASS — computes 5 for [1,2,1,2,1,1,1], matching the assertion`
+   If you cannot trace a test's outcome from the code, mark it FAIL and say why the trace
+   is blocked — an unverifiable pass prediction is not a pass.
+2. If any FAIL: one short paragraph naming the root cause in the implementation.
+3. The last line must be exactly: `Rating: <predicted fraction of tests passing>` with two
+   decimals, e.g. `Rating: 0.83`

@@ -1,0 +1,118 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+```python
+from solution import countMentions
+
+
+def test_canonical_example_1():
+    events = [
+        ["MESSAGE", "10", "id1 id0"],
+        ["OFFLINE", "11", "0"],
+        ["MESSAGE", "71", "HERE"],
+    ]
+
+    # At 10 both users are explicitly mentioned; at 71 user 0 is back online,
+    # so HERE mentions both users: [1 + 1, 1 + 1].
+    assert countMentions(2, events) == [2, 2]
+
+
+def test_canonical_example_2():
+    events = [
+        ["MESSAGE", "10", "id1 id0"],
+        ["OFFLINE", "11", "0"],
+        ["MESSAGE", "12", "ALL"],
+    ]
+
+    # The explicit message mentions both once, and ALL mentions both once even
+    # though user 0 is offline: [1 + 1, 1 + 1].
+    assert countMentions(2, events) == [2, 2]
+
+
+def test_canonical_example_3():
+    events = [
+        ["OFFLINE", "10", "0"],
+        ["MESSAGE", "12", "HERE"],
+    ]
+
+    # User 0 remains offline at 12, so HERE mentions only online user 1.
+    assert countMentions(2, events) == [0, 1]
+
+
+def test_explicit_id_mentions_count_duplicates():
+    events = [["MESSAGE", "5", "id1 id0 id1"]]
+
+    # id0 occurs once and id1 occurs twice in the message.
+    assert countMentions(2, events) == [1, 2]
+
+
+def test_explicit_id_mention_counts_when_user_is_offline():
+    events = [
+        ["OFFLINE", "10", "0"],
+        ["MESSAGE", "12", "id0"],
+    ]
+
+    # Explicit id0 mentions count even though user 0 is offline at time 12.
+    assert countMentions(2, events) == [1, 0]
+
+
+def test_offline_status_is_processed_before_message_at_same_timestamp():
+    events = [
+        ["MESSAGE", "10", "HERE"],
+        ["OFFLINE", "10", "0"],
+    ]
+
+    # The offline change at 10 is processed before HERE at 10, so only user 1
+    # is mentioned.
+    assert countMentions(2, events) == [0, 1]
+
+
+def test_events_are_evaluated_by_timestamp_when_input_is_not_chronological():
+    events = [
+        ["MESSAGE", "12", "HERE"],
+        ["OFFLINE", "10", "0"],
+    ]
+
+    # User 0 went offline at time 10, so HERE at time 12 reaches only user 1.
+    assert countMentions(2, events) == [0, 1]
+
+
+def test_user_is_online_again_exactly_sixty_time_units_after_offline():
+    events = [
+        ["OFFLINE", "10", "0"],
+        ["MESSAGE", "70", "HERE"],
+    ]
+
+    # User 0 returns online at 10 + 60 = 70, so HERE mentions the sole user.
+    assert countMentions(1, events) == [1]
+
+
+def test_maximum_users_and_mentions_in_one_message():
+    events = [["MESSAGE", "100000", " ".join(["id0"] * 99 + ["id99"])]]
+
+    # The 100 tokens mention id0 99 times and maximum valid id99 once; all
+    # other users receive no mentions.
+    assert countMentions(100, events) == [99] + [0] * 98 + [1]
+
+
+def test_overlapping_offline_periods_track_each_user_independently():
+    events = [
+        ["OFFLINE", "10", "0"],
+        ["MESSAGE", "20", "HERE"],
+        ["OFFLINE", "30", "1"],
+        ["MESSAGE", "75", "HERE"],
+        ["MESSAGE", "90", "HERE"],
+    ]
+
+    # At 20 only users 1 and 2 are online; at 75 user 0 has returned while
+    # user 1 is offline; at 90 both have returned. Totals are [2, 2, 3].
+    assert countMentions(3, events) == [2, 2, 3]
+
+
+def test_minimum_timestamp_with_maximum_number_of_events():
+    events = [["MESSAGE", "1", "id0"] for _ in range(100)]
+
+    # Each of the 100 message events explicitly mentions the sole user once.
+    assert countMentions(1, events) == [100]
+```

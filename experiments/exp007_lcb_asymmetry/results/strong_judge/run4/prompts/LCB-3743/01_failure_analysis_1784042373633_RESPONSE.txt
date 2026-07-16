@@ -1,0 +1,10 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_reschedule_multiple_meetings — inputs `eventTime=20`, `k=2`, `startTime=[2, 5, 12]`, `endTime=[4, 7, 14]`; expected `12`, got `13`, because the implementation builds ordered gap lengths `[2, 1, 5, 6]` from intervals `(0,2)`, `(4,5)`, `(7,12)`, `(14,20)`, then `free_lengths.sort(reverse=True)` changes them to `[6, 5, 2, 1]`, and `sum(free_lengths[:k + 1])` computes `6 + 5 + 2 = 13`. Rescheduling `k=2` meetings can merge only `k+1=3` consecutive gaps in the original schedule; the valid consecutive three-gap sums are `2+1+5=8` and `1+5+6=12`. The computation diverges at `free_lengths.sort(reverse=True)` and consequently at `sum(free_lengths[:k + 1])`, which selects non-adjacent gaps.
+
+FIX DIRECTIVES:
+FIX: in `maxFreeTime`, do not sort `free_lengths`; their original order represents the only gaps that can be merged by rescheduling consecutive meetings.
+FIX: replace `sum(free_lengths[:k + 1])` with an O(n) sliding-window maximum over exactly `k + 1` consecutive entries of the ordered `free_lengths`, e.g. initialize `window = sum(free_lengths[:k + 1])`, then slide by adding `free_lengths[i]` and subtracting `free_lengths[i - (k + 1)]`.
+FIX: return the maximum consecutive-window sum, not the sum of the globally largest gap lengths.

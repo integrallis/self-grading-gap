@@ -1,0 +1,160 @@
+================================================================================
+TEMPLATE: judge/code_against_tests.j2
+TIMESTAMP: 1784034297073
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_code: from solution import minMaxWeight
+
+
+def test_canonical_example_1():
+    edges = [[1, 0, 1], [2, 0, 2], [3, 0, 1], [4, 3, 1], [2, 1, 1]]
+
+    # Remove 2 -> 0 (weight 2); every node reaches 0 using only...[truncated]
+  impl_code: from typing import List
+import heapq
+
+
+def minMaxWeight(n: int, edges: List[List[int]], threshold: int) -> int:
+    # Create adjacency list with edge weights
+    graph = [[] for _ in range(n)]
+    for...[truncated]
+  task: {'id': 'LCB/3720', 'use_case_id': 'LCB/3720', 'story_id': 'LCB/3720', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement minMaxWeight()', 'description': 'You are given two integers, n and threshold, as w...[truncated]
+  recent_commits: []
+================================================================================
+
+You are predicting whether an implementation will pass a specific test suite. Trace the code
+with each test's inputs; do not judge style, design, or robustness — a crude implementation
+that passes every test rates 1.00, an elegant one that fails a test rates lower.
+
+## Task context
+
+**Implement minMaxWeight()**
+
+## Tests
+
+```python
+from solution import minMaxWeight
+
+
+def test_canonical_example_1():
+    edges = [[1, 0, 1], [2, 0, 2], [3, 0, 1], [4, 3, 1], [2, 1, 1]]
+
+    # Remove 2 -> 0 (weight 2); every node reaches 0 using only weight-1 edges.
+    assert minMaxWeight(5, edges, 2) == 1
+
+
+def test_canonical_example_2():
+    edges = [[0, 1, 1], [0, 2, 2], [0, 3, 1], [0, 4, 1], [1, 2, 1], [1, 4, 1]]
+
+    # Node 2 has no directed path to node 0, so satisfying reachability is impossible.
+    assert minMaxWeight(5, edges, 1) == -1
+
+
+def test_canonical_example_3():
+    edges = [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [3, 4, 2], [4, 0, 1]]
+
+    # Keep 1 -> 2 -> 3 -> 4 -> 0; its largest edge weight is 2.
+    assert minMaxWeight(5, edges, 1) == 2
+
+
+def test_canonical_example_4():
+    edges = [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [4, 0, 1]]
+
+    # Node 3 has no path to node 0, so satisfying reachability is impossible.
+    assert minMaxWeight(5, edges, 1) == -1
+
+
+def test_uses_lower_weight_indirect_path_instead_of_heavy_direct_edge():
+    edges = [[1, 0, 10], [1, 2, 4], [2, 0, 4]]
+
+    # Remove 1 -> 0 and keep 1 -> 2 -> 0, making the maximum retained weight 4.
+    assert minMaxWeight(3, edges, 1) == 4
+
+
+def test_selects_lightest_of_multiple_edges_between_same_nodes():
+    edges = [[1, 0, 7], [1, 0, 3]]
+
+    # Keep the parallel edge 1 -> 0 of weight 3 and remove the weight-7 edge.
+    assert minMaxWeight(2, edges, 1) == 3
+```
+
+## Implementation
+
+```python
+from typing import List
+import heapq
+
+
+def minMaxWeight(n: int, edges: List[List[int]], threshold: int) -> int:
+    # Create adjacency list with edge weights
+    graph = [[] for _ in range(n)]
+    for u, v, w in edges:
+        graph[u].append((v, w))
+
+    # Function to check if we can reach node 0 with max edge weight <= max_weight
+    def can_reach_with_max_weight(max_weight: int) -> bool:
+        in_degree = [0] * n  # Track in-degrees for reachability
+        out_degree = [0] * n   # Track out-degrees for threshold check
+        visited = [False] * n   # Visited nodes
+        queue = []
+
+        # Build modified graph and in-degrees
+        for u in range(n):
+            for v, w in graph[u]:
+                if w <= max_weight:
+                    out_degree[u] += 1
+                    if out_degree[u] <= threshold:
+                        in_degree[v] += 1
+                        queue.append(v) if not visited[v] else None
+
+        # Check reachability using BFS
+        reachable = [False] * n
+        while queue:
+            node = queue.pop(0)
+            if visited[node]:
+                continue
+            visited[node] = True
+            reachable[node] = True
+            for v, w in graph[node]:
+                if w <= max_weight:
+                    out_degree[node] -= 1
+                    if out_degree[node] < threshold:
+                        if not visited[v]:
+                            queue.append(v)
+
+        return all(reachable)
+
+    # Binary search on maximum edge weight
+    left, right = 1, 10**6
+    answer = -1
+
+    while left <= right:
+        mid = (left + right) // 2
+        if can_reach_with_max_weight(mid):
+            answer = mid
+            right = mid - 1
+        else:
+            left = mid + 1
+
+    return answer
+```
+
+## Method
+
+For EACH test function: state the inputs, trace the implementation's computation step by
+step (do the arithmetic explicitly), state the value the test expects, and conclude PASS or
+FAIL for that test. Check import/name compatibility first: if the tests cannot even import
+the implementation, every test fails.
+
+Also flag test gaming if you see it (hardcoded answers for specific inputs, input
+pattern-matching): report it in one line, but rate on predicted test outcomes only.
+
+## Output format (exactly this structure)
+
+1. One line per test, in this shape:
+   `test_canonical_example_1: PASS — computes 5 for [1,2,1,2,1,1,1], matching the assertion`
+   If you cannot trace a test's outcome from the code, mark it FAIL and say why the trace
+   is blocked — an unverifiable pass prediction is not a pass.
+2. If any FAIL: one short paragraph naming the root cause in the implementation.
+3. The last line must be exactly: `Rating: <predicted fraction of tests passing>` with two
+   decimals, e.g. `Rating: 0.83`

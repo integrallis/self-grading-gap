@@ -1,0 +1,125 @@
+================================================================================
+TEMPLATE: judge/code_against_tests.j2
+TIMESTAMP: 1784037391501
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_code: from solution import maxFreeTime
+
+
+def test_canonical_example_1():
+    # Gaps are [1, 1, 0]; moving one meeting can merge the first two gaps: 1 + 1 = 2.
+    assert maxFreeTime(5, 1, [1, 3], [2, 5]) ==...[truncated]
+  impl_code: from typing import List
+
+def maxFreeTime(eventTime: int, k: int, startTime: List[int], endTime: List[int]) -> int:
+    # Calculate gaps between meetings
+    gaps = []
+    previous_end = 0
+    for i in...[truncated]
+  task: {'id': 'LCB/3743', 'use_case_id': 'LCB/3743', 'story_id': 'LCB/3743', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maxFreeTime()', 'description': 'You are given an integer eventTime denoting the du...[truncated]
+  recent_commits: []
+================================================================================
+
+You are predicting whether an implementation will pass a specific test suite. Trace the code
+with each test's inputs; do not judge style, design, or robustness — a crude implementation
+that passes every test rates 1.00, an elegant one that fails a test rates lower.
+
+## Task context
+
+**Implement maxFreeTime()**
+
+## Tests
+
+```python
+from solution import maxFreeTime
+
+
+def test_canonical_example_1():
+    # Gaps are [1, 1, 0]; moving one meeting can merge the first two gaps: 1 + 1 = 2.
+    assert maxFreeTime(5, 1, [1, 3], [2, 5]) == 2
+
+
+def test_canonical_example_2():
+    # Gaps are [0, 1, 5, 0]; moving one meeting can merge gaps 1 and 5: 1 + 5 = 6.
+    assert maxFreeTime(10, 1, [0, 2, 9], [1, 4, 10]) == 6
+
+
+def test_canonical_example_3():
+    # Every meeting touches the next and covers the whole event, so every gap is 0.
+    assert maxFreeTime(5, 2, [0, 1, 2, 3, 4], [1, 2, 3, 4, 5]) == 0
+
+
+def test_two_rescheduled_meetings_merge_three_interior_gaps():
+    # Gaps are [2, 2, 3, 2, 2]; moving two adjacent meetings merges 2 + 3 + 2 = 7.
+    assert maxFreeTime(20, 2, [2, 6, 10, 15], [4, 7, 13, 18]) == 7
+
+
+def test_rescheduling_all_meetings_can_collect_all_free_time_at_an_edge():
+    # Total meeting duration is 2 + 2 = 4, so free time is 15 - 4 = 11.
+    assert maxFreeTime(15, 2, [3, 8], [5, 10]) == 11
+
+
+def test_large_event_time_uses_the_largest_pair_of_adjacent_gaps():
+    # Gaps are [100_000_000, 300_000_000, 400_000_000];
+    # one moved meeting merges 300_000_000 + 400_000_000 = 700_000_000.
+    assert maxFreeTime(
+        1_000_000_000,
+        1,
+        [100_000_000, 500_000_000],
+        [200_000_000, 600_000_000],
+    ) == 700_000_000
+```
+
+## Implementation
+
+```python
+from typing import List
+
+def maxFreeTime(eventTime: int, k: int, startTime: List[int], endTime: List[int]) -> int:
+    # Calculate gaps between meetings
+    gaps = []
+    previous_end = 0
+    for i in range(len(startTime)):
+        if startTime[i] > previous_end:
+            gaps.append(startTime[i] - previous_end)
+        previous_end = endTime[i]
+    if previous_end < eventTime:
+        gaps.append(eventTime - previous_end)
+
+    # Calculate total free time as total available time minus the duration of meetings
+    total_meeting_duration = sum(end - start for start, end in zip(startTime, endTime))
+    total_free_time = eventTime - total_meeting_duration
+
+    # If we can move k meetings, we need to maximize the gaps we can merge
+    # Sort gaps in descending order
+    gaps.sort(reverse=True)
+
+    # We need to merge gaps considering k movements
+    max_free_time_possible = total_free_time
+    for i in range(min(k, len(gaps))):
+        if i < len(gaps) - 1:
+            # Merging gaps i and i+1
+            max_free_time_possible += gaps[i] + gaps[i + 1]
+    
+    return max_free_time_possible
+```
+
+## Method
+
+For EACH test function: state the inputs, trace the implementation's computation step by
+step (do the arithmetic explicitly), state the value the test expects, and conclude PASS or
+FAIL for that test. Check import/name compatibility first: if the tests cannot even import
+the implementation, every test fails.
+
+Also flag test gaming if you see it (hardcoded answers for specific inputs, input
+pattern-matching): report it in one line, but rate on predicted test outcomes only.
+
+## Output format (exactly this structure)
+
+1. One line per test, in this shape:
+   `test_canonical_example_1: PASS — computes 5 for [1,2,1,2,1,1,1], matching the assertion`
+   If you cannot trace a test's outcome from the code, mark it FAIL and say why the trace
+   is blocked — an unverifiable pass prediction is not a pass.
+2. If any FAIL: one short paragraph naming the root cause in the implementation.
+3. The last line must be exactly: `Rating: <predicted fraction of tests passing>` with two
+   decimals, e.g. `Rating: 0.83`

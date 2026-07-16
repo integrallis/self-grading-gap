@@ -1,0 +1,192 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784033966333
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from solution import numerical_letter_grade
+
+
+def test_canonical_example_1():
+    # spec: 4.0 -> A+, 3 -> B, 1.7 -> C-, 2 -> C, 3.5 -> A-
+    assert numerical_letter_grade([4.0, 3, 1.7, 2, 3.5]) == [
+...[truncated]
+  impl_code: def numerical_letter_grade(grades):
+    grade_mapping = [
+        (4.0, 'A+'),
+        (3.7, 'A'),
+        (3.3, 'A-'),
+        (3.0, 'B+'),
+        (2.7, 'B'),
+        (2.3, 'B-'),
+        (2.0, 'C+'...[truncated]
+  task: {'id': 'HumanEval/81', 'use_case_id': 'HumanEval/81', 'story_id': 'HumanEval/81', 'epic_id': 'HUMANEVAL', 'title': 'Implement numerical_letter_grade()', 'description': "It is the last week of the seme...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement numerical_letter_grade()**
+
+## Tests (the acceptance criterion)
+
+```python
+from solution import numerical_letter_grade
+
+
+def test_canonical_example_1():
+    # spec: 4.0 -> A+, 3 -> B, 1.7 -> C-, 2 -> C, 3.5 -> A-
+    assert numerical_letter_grade([4.0, 3, 1.7, 2, 3.5]) == [
+        "A+",
+        "B",
+        "C-",
+        "C",
+        "A-",
+    ]
+
+
+def test_exact_gpa_values_with_explicit_table_entries():
+    # table: 4.0 -> A+ and 0.0 -> E
+    assert numerical_letter_grade([4.0, 0.0]) == ["A+", "E"]
+
+
+def test_strict_threshold_boundaries_use_next_lower_grade():
+    # strict comparisons: 3.7 -> A-, 3.3 -> B+, 3.0 -> B,
+    # 2.7 -> B-, 2.3 -> C+, 2.0 -> C, 1.7 -> C-,
+    # 1.3 -> D+, 1.0 -> D, 0.7 -> D-, 0.0 -> E
+    assert numerical_letter_grade(
+        [3.7, 3.3, 3.0, 2.7, 2.3, 2.0, 1.7, 1.3, 1.0, 0.7, 0.0]
+    ) == ["A-", "B+", "B", "B-", "C+", "C", "C-", "D+", "D", "D-", "E"]
+
+
+def test_values_above_each_threshold_receive_corresponding_grade():
+    # values satisfy: >3.7 -> A, >3.3 -> A-, >3.0 -> B+, >2.7 -> B,
+    # >2.3 -> B-, >2.0 -> C+, >1.7 -> C, >1.3 -> C-,
+    # >1.0 -> D+, >0.7 -> D, >0.0 -> D-
+    assert numerical_letter_grade(
+        [3.8, 3.4, 3.1, 2.8, 2.4, 2.1, 1.8, 1.4, 1.1, 0.8, 0.1]
+    ) == ["A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+", "D", "D-"]
+```
+
+## Failing implementation
+
+```python
+def numerical_letter_grade(grades):
+    grade_mapping = [
+        (4.0, 'A+'),
+        (3.7, 'A'),
+        (3.3, 'A-'),
+        (3.0, 'B+'),
+        (2.7, 'B'),
+        (2.3, 'B-'),
+        (2.0, 'C+'),
+        (1.7, 'C'),
+        (1.3, 'C-'),
+        (1.0, 'D+'),
+        (0.7, 'D'),
+        (0.0, 'D-'),
+        (0.0, 'E'),
+    ]
+    result = []
+    for gpa in grades:
+        for threshold, letter in grade_mapping:
+            if gpa >= threshold:
+                result.append(letter)
+                break
+            if threshold == 0.0 and gpa == 0.0:
+                result.append('E')
+                break
+    return result
+
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /tmp/tmplehok7ce/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1
+collecting ... collected 4 items
+
+tests/test_task.py::test_canonical_example_1 FAILED                      [ 25%]
+tests/test_task.py::test_exact_gpa_values_with_explicit_table_entries FAILED [ 50%]
+tests/test_task.py::test_strict_threshold_boundaries_use_next_lower_grade FAILED [ 75%]
+tests/test_task.py::test_values_above_each_threshold_receive_corresponding_grade PASSED [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_1 ___________________________
+tests/test_task.py:6: in test_canonical_example_1
+    assert numerical_letter_grade([4.0, 3, 1.7, 2, 3.5]) == [
+E   AssertionError: assert ['A+', 'B+', 'C', 'C+', 'A-'] == ['A+', 'B', 'C-', 'C', 'A-']
+E     
+E     At index 1 diff: 'B+' != 'B'
+E     
+E     Full diff:
+E       [
+E           'A+',
+E     -     'B',...
+E     
+E     ...Full output truncated (7 lines hidden), use '-vv' to show
+______________ test_exact_gpa_values_with_explicit_table_entries _______________
+tests/test_task.py:17: in test_exact_gpa_values_with_explicit_table_entries
+    assert numerical_letter_grade([4.0, 0.0]) == ["A+", "E"]
+E   AssertionError: assert ['A+', 'D-'] == ['A+', 'E']
+E     
+E     At index 1 diff: 'D-' != 'E'
+E     
+E     Full diff:
+E       [
+E           'A+',
+E     -     'E',...
+E     
+E     ...Full output truncated (4 lines hidden), use '-vv' to show
+____________ test_strict_threshold_boundaries_use_next_lower_grade _____________
+tests/test_task.py:24: in test_strict_threshold_boundaries_use_next_lower_grade
+    assert numerical_letter_grade(
+E   AssertionError: assert ['A', 'A-', '...-', 'C+', ...] == ['A-', 'B+', ...C+', 'C', ...]
+E     
+E     At index 0 diff: 'A' != 'A-'
+E     
+E     Full diff:
+E       [
+E     +     'A',
+E           'A-',...
+E     
+E     ...Full output truncated (11 lines hidden), use '-vv' to show
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_canonical_example_1 - AssertionError: assert ...
+FAILED tests/test_task.py::test_exact_gpa_values_with_explicit_table_entries
+FAILED tests/test_task.py::test_strict_threshold_boundaries_use_next_lower_grade
+========================= 3 failed, 1 passed in 0.03s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

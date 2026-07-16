@@ -1,0 +1,12 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_does_not_wrap_across_grid_boundaries — inputs `grid = [[1, 9, 2], [8, 7, 6], [3, 5, 4]]`, `k = 2`; expected `[1, 8]`, got `[3, 5]`, because the priority queue orders candidate paths by the *last cell value* rather than by the complete path lexicographically. Initially it pushes one-cell paths including `(1, [1], 0, 0)`, `(2, [2], 0, 2)`, and `(3, [3], 2, 0)`. It first pops `(1, [1], 0, 0)` and expands valid edge-neighbors: right `(0, 1)` with value `9`, producing `(9, [1, 9], 0, 1)`, and down `(1, 0)` with value `8`, producing `(8, [1, 8], 1, 0)`. It then pops `(2, [2], 0, 2)` and expands to `(9, [2, 9], 0, 1)` and `(6, [2, 6], 1, 2)`. Next it pops `(3, [3], 2, 0)` and expands to `(5, [3, 5], 2, 1)` and `(8, [3, 8], 1, 0)`. The heap now contains a length-2 candidate `(5, [3, 5], 2, 1)`, whose first tuple field `5` is smaller than the pending `(6, [2, 6], ...)` and `(8, [1, 8], ...)`; it is popped and immediately returned because `len(path) == k`. The divergence is at `heappush(pq, (grid[nx][ny], path + [grid[nx][ny]], nx, ny))` together with `current_value, path, x, y = heappop(pq)`: using `grid[nx][ny]` as the first heap key makes the algorithm choose the path with the smallest final value, not the path beginning at the globally smallest value and repeatedly taking that cell's smallest valid edge-neighbor. There is no mechanical failure: the function imports, name, and signature all execute successfully.
+
+FIX DIRECTIVES:
+FIX: in `minPath`, remove the priority-queue search over paths; the required rule is deterministic greedy traversal, not global selection by a path’s final cell value.
+FIX: in `minPath`, find the minimum grid value and use its coordinates as the starting cell; initialize `path = [grid[start_row][start_col]]`.
+FIX: in `minPath`, while `len(path) < k`, enumerate only in-bounds orthogonal coordinates `(row, col + 1)`, `(row + 1, col)`, `(row, col - 1)`, and `(row - 1, col)`, select the neighbor whose `grid[nr][nc]` is smallest, append that value, and move to that neighbor.
+FIX: in `minPath`, do not maintain a visited set: revisiting the preceding cell is required and paths may be longer than the number of cells.
+FIX: in `minPath`, preserve separate row and column bounds for general grids: test `0 <= nr < len(grid)` and `0 <= nc < len(grid[0])`, rather than using `n` for both dimensions.

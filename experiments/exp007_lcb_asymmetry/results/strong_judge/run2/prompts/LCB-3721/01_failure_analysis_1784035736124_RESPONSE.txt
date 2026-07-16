@@ -1,0 +1,9 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_same_timestamp_offline_priority — inputs: `numberOfUsers = 2`, `events = [["MESSAGE", "10", "HERE"], ["MESSAGE", "20", "HERE"], ["OFFLINE", "20", "0"]]`; expected `[1, 2]`, got `[2, 2]`, because events with the same timestamp must process `OFFLINE` before `MESSAGE`, regardless of their input order. The implementation sorts only by timestamp with `sorted(events, key=lambda x: int(x[1]))`, which is stable, so at timestamp `20` it retains the input order: `MESSAGE` before `OFFLINE`. Trace: initially `online_status = [True, True]`, `mentions = [0, 0]`. At timestamp `10`, `"HERE"` increments both online users: `mentions = [1, 1]`. At timestamp `20`, the `"MESSAGE"` is processed first; both users still have `online_status == True`, so `"HERE"` increments both again: `mentions = [2, 2]`. Only afterward is `OFFLINE 20 0` processed, setting user `0` offline, too late to affect that message. The divergence is at `sorted_events = sorted(events, key=lambda x: int(x[1]))`: its key does not include an event-type priority that orders `"OFFLINE"` ahead of `"MESSAGE"` at equal timestamps.
+
+FIX DIRECTIVES:
+FIX: in `countMentions`, change event sorting to use a secondary priority that processes `"OFFLINE"` before `"MESSAGE"` at the same timestamp, e.g. `sorted_events = sorted(events, key=lambda e: (int(e[1]), 0 if e[0] == "OFFLINE" else 1))`.
+FIX: retain the existing `timestamp >= offline_until[user_id]` reactivation condition: an offline user returns online exactly at `offline_timestamp + 60`, but same-timestamp `OFFLINE` events must be applied before evaluating `"HERE"` messages at that timestamp.

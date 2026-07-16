@@ -1,0 +1,17 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_canonical_example_1: PASS — inputs `2, [["MESSAGE","10","id1 id0"],["OFFLINE","11","0"],["MESSAGE","71","HERE"]]`; starts mentions `[0,0]`, explicit `id1 id0` gives `[1,1]`, OFFLINE makes id0 false and schedules return at `71`, MESSAGE at `71` restores id0 then HERE adds 1 to both, computing `[2,2]`, matching the assertion
+test_canonical_example_2: PASS — inputs `2, [["MESSAGE","10","id1 id0"],["OFFLINE","11","0"],["MESSAGE","12","ALL"]]`; explicit IDs change `[0,0]` to `[1,1]`, OFFLINE schedules id0 return at `71`, ALL adds 1 to every user including offline id0, computing `[2,2]`, matching the assertion
+test_canonical_example_3: PASS — inputs `2, [["OFFLINE","10","0"],["MESSAGE","12","HERE"]]`; OFFLINE sets id0 false and schedules return at `70`, at timestamp `12` no return is processed, HERE adds 0 for offline id0 and 1 for online id1, computing `[0,1]`, matching the assertion
+test_duplicate_id_mentions: PASS — inputs `3, [["MESSAGE","1","id2 id2 id0"]]`; starts `[0,0,0]`, first `id2` gives `[0,0,1]`, second `id2` gives `[0,0,2]`, and `id0` gives `[1,0,2]`, matching the assertion
+test_offline_before_message: FAIL — inputs `2, [["MESSAGE","10","HERE"],["OFFLINE","10","0"]]`; implementation processes the MESSAGE first because it does not sort same-timestamp events, so HERE sees both users online and changes `[0,0]` to `[1,1]`; OFFLINE then changes status only, leaving computed result `[1,1]`, but the assertion expects `[0,1]`
+test_explicit_id_mentions_while_offline: PASS — inputs `2, [["OFFLINE","1","0"],["MESSAGE","2","id0"]]`; OFFLINE sets id0 false, then explicit `id0` increments its mention count regardless of online status, changing `[0,0]` to `[1,0]`, matching the assertion
+test_minimum_boundary: PASS — inputs `1, [["MESSAGE","1","id0"]]`; explicit `id0` changes `[0]` to `[1]`, matching the assertion
+test_maximum_boundary: PASS — inputs `100` and 100 identical `["MESSAGE","1","id99"]` events; each explicit id99 mention adds 1 to index 99, so after 100 events indices 0 through 98 remain 0 and index 99 is `0 + 100 = 100`, computing `[0] * 99 + [100]`, matching the assertion
+test_maximum_id_mentions: PASS — inputs `1, [["MESSAGE","100000","id0 " * 100]]`; splitting the string produces 100 `id0` tokens, each increments the sole counter by 1, so `[0]` becomes `[0 + 100] = [100]`, matching the assertion
+
+The failure is caused by processing events strictly in supplied order rather than applying the required precedence that an OFFLINE event at a timestamp takes effect before a HERE message at that same timestamp.
+
+Rating: 0.89

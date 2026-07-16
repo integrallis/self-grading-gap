@@ -1,0 +1,134 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784036226086
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from solution import max_fill
+
+def test_canonical_example_1():
+    # Input: grid : [[0,0,1,0], [0,1,0,0], [1,1,1,1]], bucket_capacity : 1
+    # Total water units: 6 (1 from (0,2), 1 from (1,1), 1 from...[truncated]
+  impl_code: def max_fill(grid, capacity):
+    total_lowerings = 0
+    for row in grid:
+        water_count = sum(row)
+        total_lowerings += -(-water_count // capacity)  # Ceiling division
+    return total_lo...[truncated]
+  task: {'id': 'HumanEval/115', 'use_case_id': 'HumanEval/115', 'story_id': 'HumanEval/115', 'epic_id': 'HUMANEVAL', 'title': 'Implement max_fill()', 'description': 'You are given a rectangular grid of wells....[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement max_fill()**
+
+## Tests (the acceptance criterion)
+
+```python
+from solution import max_fill
+
+def test_canonical_example_1():
+    # Input: grid : [[0,0,1,0], [0,1,0,0], [1,1,1,1]], bucket_capacity : 1
+    # Total water units: 6 (1 from (0,2), 1 from (1,1), 1 from (2,0), 1 from (2,1), 1 from (2,2), 1 from (2,3))
+    # Each bucket can carry 1 unit, so it takes 6 lowers
+    assert max_fill([[0,0,1,0], [0,1,0,0], [1,1,1,1]], 1) == 6
+
+def test_canonical_example_2():
+    # Input: grid : [[0,0,1,1], [0,0,0,0], [1,1,1,1], [0,1,1,1]], bucket_capacity : 2
+    # Total water units: 8 (1 from (0,2), 1 from (0,3), 1 from (2,0), 1 from (2,1), 1 from (2,2), 1 from (3,1), 1 from (3,2))
+    # Each bucket can carry 2 units, so it takes 8 / 2 = 4 lowers + 1 for the last unit
+    assert max_fill([[0,0,1,1], [0,0,0,0], [1,1,1,1], [0,1,1,1]], 2) == 5
+
+def test_canonical_example_3():
+    # Input: grid : [[0,0,0], [0,0,0]], bucket_capacity : 5
+    # Total water units: 0
+    # No water to lower the bucket for
+    assert max_fill([[0,0,0], [0,0,0]], 5) == 0
+
+def test_per_well_bucket_usage():
+    # Input: grid : [[1], [1]], bucket_capacity : 2
+    # Total water units: 2 (1 from (0,0), 1 from (1,0))
+    # Each bucket can carry 2 units, so it takes 1 lowering for both
+    assert max_fill([[1], [1]], 2) == 1
+
+def test_minimum_dimension_maximum_capacity():
+    # Input: grid : [[1]], bucket_capacity : 10
+    # Total water units: 1 (1 from (0,0))
+    # Each bucket can carry 10 units, so it takes 1 lowering
+    assert max_fill([[1]], 10) == 1
+
+def test_maximum_dimension():
+    # Input: grid : [[1]*100] * 100, bucket_capacity : 10
+    # Total water units: 10000 (100 rows of 100 units each)
+    # Each bucket can carry 10 units, so it takes 10000 / 10 = 1000 lowers
+    assert max_fill([[1]*100] * 100, 10) == 1000
+```
+
+## Failing implementation
+
+```python
+def max_fill(grid, capacity):
+    total_lowerings = 0
+    for row in grid:
+        water_count = sum(row)
+        total_lowerings += -(-water_count // capacity)  # Ceiling division
+    return total_lowerings
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /tmp/tmp78yf0v4o/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1
+collecting ... collected 6 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [ 16%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 33%]
+tests/test_task.py::test_canonical_example_3 PASSED                      [ 50%]
+tests/test_task.py::test_per_well_bucket_usage FAILED                    [ 66%]
+tests/test_task.py::test_minimum_dimension_maximum_capacity PASSED       [ 83%]
+tests/test_task.py::test_maximum_dimension PASSED                        [100%]
+
+=================================== FAILURES ===================================
+__________________________ test_per_well_bucket_usage __________________________
+tests/test_task.py:25: in test_per_well_bucket_usage
+    assert max_fill([[1], [1]], 2) == 1
+E   assert 2 == 1
+E    +  where 2 = max_fill([[1], [1]], 2)
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_per_well_bucket_usage - assert 2 == 1
+========================= 1 failed, 5 passed in 0.03s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

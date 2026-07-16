@@ -1,0 +1,136 @@
+================================================================================
+TEMPLATE: judge/code_against_tests.j2
+TIMESTAMP: 1784037126494
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_code: from solution import minCost
+
+
+def test_canonical_example_1():
+    cost = [[3, 5, 7], [6, 2, 9], [4, 8, 1], [7, 3, 5]]
+
+    # Valid colors [1, 2, 3, 2] cost 3 + 2 + 1 + 3 = 9, the specified minimum.
+ ...[truncated]
+  impl_code: from typing import List
+
+
+def minCost(n: int, cost: List[List[int]]) -> int:
+    # Possible color pairs for symmetric houses
+    min_cost = float('inf')
+
+    # Iterate over the first half of the house...[truncated]
+  task: {'id': 'LCB/3737', 'use_case_id': 'LCB/3737', 'story_id': 'LCB/3737', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement minCost()', 'description': 'You are given an even integer n representing the numbe...[truncated]
+  recent_commits: []
+================================================================================
+
+You are predicting whether an implementation will pass a specific test suite. Trace the code
+with each test's inputs; do not judge style, design, or robustness — a crude implementation
+that passes every test rates 1.00, an elegant one that fails a test rates lower.
+
+## Task context
+
+**Implement minCost()**
+
+## Tests
+
+```python
+from solution import minCost
+
+
+def test_canonical_example_1():
+    cost = [[3, 5, 7], [6, 2, 9], [4, 8, 1], [7, 3, 5]]
+
+    # Valid colors [1, 2, 3, 2] cost 3 + 2 + 1 + 3 = 9, the specified minimum.
+    assert minCost(4, cost) == 9
+
+
+def test_canonical_example_2():
+    cost = [[2, 4, 6], [5, 3, 8], [7, 1, 9], [4, 6, 2], [3, 5, 7], [8, 2, 4]]
+
+    # Valid colors [1, 3, 2, 3, 1, 2] cost 2 + 8 + 1 + 2 + 3 + 2 = 18.
+    assert minCost(6, cost) == 18
+
+
+def test_two_houses_must_use_different_colors():
+    cost = [[1, 100, 100], [1, 2, 3]]
+
+    # The two houses are adjacent and equidistant, so they differ; colors [1, 2] cost 1 + 2 = 3.
+    assert minCost(2, cost) == 3
+
+
+def test_zero_cost_valid_painting_has_zero_minimum():
+    cost = [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]
+
+    # Colors [1, 2, 1, 2] satisfy both rules and cost 0; costs cannot be negative.
+    assert minCost(4, cost) == 0
+
+
+def test_maximum_individual_cost_for_two_houses():
+    cost = [[100000, 100000, 100000], [100000, 100000, 100000]]
+
+    # Any two different colors are valid and cost 100000 + 100000 = 200000.
+    assert minCost(2, cost) == 200000
+
+
+def test_maximum_number_of_houses_with_zero_costs():
+    cost = [[0, 0, 0] for _ in range(100000)]
+
+    # A valid alternating coloring has total cost 0, and costs cannot be negative.
+    assert minCost(100000, cost) == 0
+```
+
+## Implementation
+
+```python
+from typing import List
+
+
+def minCost(n: int, cost: List[List[int]]) -> int:
+    # Possible color pairs for symmetric houses
+    min_cost = float('inf')
+
+    # Iterate over the first half of the houses
+    for left_color in range(3):  
+        for right_color in range(3):
+            if left_color == right_color:
+                continue  # Skip same color pairs
+            total_cost = cost[0][left_color] + cost[n - 1][right_color]
+
+            # Calculate cost for the remaining houses
+            for i in range(1, n // 2):
+                next_left_color = (left_color + 1) % 3
+                next_right_color = (right_color + 1) % 3
+                temp_cost = float('inf')
+                # Check valid transitions avoiding adjacent same colors
+                for new_left_color in range(3):
+                    for new_right_color in range(3):
+                        if new_left_color != left_color and new_right_color != right_color:
+                            temp_cost = min(temp_cost, cost[i][new_left_color] + cost[n - 1 - i][new_right_color])
+                total_cost += temp_cost
+                left_color = new_left_color
+                right_color = new_right_color
+
+            min_cost = min(min_cost, total_cost)
+
+    return min_cost
+```
+
+## Method
+
+For EACH test function: state the inputs, trace the implementation's computation step by
+step (do the arithmetic explicitly), state the value the test expects, and conclude PASS or
+FAIL for that test. Check import/name compatibility first: if the tests cannot even import
+the implementation, every test fails.
+
+Also flag test gaming if you see it (hardcoded answers for specific inputs, input
+pattern-matching): report it in one line, but rate on predicted test outcomes only.
+
+## Output format (exactly this structure)
+
+1. One line per test, in this shape:
+   `test_canonical_example_1: PASS — computes 5 for [1,2,1,2,1,1,1], matching the assertion`
+   If you cannot trace a test's outcome from the code, mark it FAIL and say why the trace
+   is blocked — an unverifiable pass prediction is not a pass.
+2. If any FAIL: one short paragraph naming the root cause in the implementation.
+3. The last line must be exactly: `Rating: <predicted fraction of tests passing>` with two
+   decimals, e.g. `Rating: 0.83`

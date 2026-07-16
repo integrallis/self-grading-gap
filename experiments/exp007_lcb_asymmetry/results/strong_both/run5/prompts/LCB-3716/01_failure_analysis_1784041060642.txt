@@ -1,0 +1,154 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784041060642
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from solution import longestSubsequence
+
+
+def test_canonical_example_1():
+    # [16, 6, 3] has adjacent absolute differences [10, 3], and 10 >= 3.
+    assert longestSubsequence([16, 6, 3]) == 3
+
+
+def ...[truncated]
+  impl_code: from typing import List
+
+
+def longestSubsequence(nums: List[int]) -> int:
+    n = len(nums)
+    if n == 0:
+        return 0
+
+    # dp will map last_difference to the best length of subsequence ending ...[truncated]
+  task: {'id': 'LCB/3716', 'use_case_id': 'LCB/3716', 'story_id': 'LCB/3716', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement longestSubsequence()', 'description': 'You are given an array of integers nums.\nY...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement longestSubsequence()**
+
+## Tests (the acceptance criterion)
+
+```python
+from solution import longestSubsequence
+
+
+def test_canonical_example_1():
+    # [16, 6, 3] has adjacent absolute differences [10, 3], and 10 >= 3.
+    assert longestSubsequence([16, 6, 3]) == 3
+
+
+def test_canonical_example_2():
+    # [6, 4, 2, 1] is a subsequence with differences [2, 2, 1], where 2 >= 2 >= 1.
+    assert longestSubsequence([6, 5, 3, 4, 2, 1]) == 4
+
+
+def test_canonical_example_3():
+    # [10, 20, 10, 19, 10] has differences [10, 10, 9, 9], where 10 >= 10 >= 9 >= 9.
+    assert longestSubsequence([10, 20, 10, 19, 10, 20]) == 5
+
+
+def test_two_elements_always_form_a_valid_subsequence():
+    # A two-element subsequence has only one difference, so [300, 1] has valid length 2.
+    assert longestSubsequence([300, 1]) == 2
+
+
+def test_equal_values_allow_zero_differences():
+    # [7, 7, 7, 7] has differences [0, 0, 0], and 0 >= 0 >= 0.
+    assert longestSubsequence([7, 7, 7, 7]) == 4
+
+
+def test_can_skip_elements_when_full_array_differences_increase():
+    # The full array has differences [1, 8, 1], which is not non-increasing;
+    # [1, 10, 11] has differences [9, 1], so the longest valid length is 3.
+    assert longestSubsequence([1, 2, 10, 11]) == 3
+```
+
+## Failing implementation
+
+```python
+from typing import List
+
+
+def longestSubsequence(nums: List[int]) -> int:
+    n = len(nums)
+    if n == 0:
+        return 0
+
+    # dp will map last_difference to the best length of subsequence ending at current index
+    dp = [{} for _ in range(n)]
+    max_length = 1
+
+    for i in range(n):
+        for j in range(i):
+            difference = abs(nums[i] - nums[j])
+            # Always record a length-2 subsequence for the pair (nums[j], nums[i])
+            dp[i][difference] = max(dp[i].get(difference, 1), 2)
+            # Extend the states from dp[j]
+            for prev_diff, length in dp[j].items():
+                if prev_diff >= difference:
+                    dp[i][difference] = max(dp[i][difference], length + 1)
+                    max_length = max(max_length, dp[i][difference])
+
+    return max_length
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /tmp/tmpr1y96wsr/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1
+collecting ... collected 6 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [ 16%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 33%]
+tests/test_task.py::test_canonical_example_3 PASSED                      [ 50%]
+tests/test_task.py::test_two_elements_always_form_a_valid_subsequence FAILED [ 66%]
+tests/test_task.py::test_equal_values_allow_zero_differences PASSED      [ 83%]
+tests/test_task.py::test_can_skip_elements_when_full_array_differences_increase PASSED [100%]
+
+=================================== FAILURES ===================================
+______________ test_two_elements_always_form_a_valid_subsequence _______________
+tests/test_task.py:21: in test_two_elements_always_form_a_valid_subsequence
+    assert longestSubsequence([300, 1]) == 2
+E   assert 1 == 2
+E    +  where 1 = longestSubsequence([300, 1])
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_two_elements_always_form_a_valid_subsequence
+========================= 1 failed, 5 passed in 0.02s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

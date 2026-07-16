@@ -1,0 +1,137 @@
+================================================================================
+TEMPLATE: judge/code_against_tests.j2
+TIMESTAMP: 1784037772849
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_code: from typing import List
+from solution import maximumCoins
+
+def test_canonical_example_1():
+    # spec: coins = [[8,10,1],[1,3,2],[5,6,4]], k = 4
+    # Selecting bags at positions [3, 4, 5, 6] gives 2 ...[truncated]
+  impl_code: from typing import List
+
+
+def maximumCoins(coins: List[List[int]], k: int) -> int:
+    max_coins = 0
+    n = len(coins)
+    events = []
+
+    # Create events for the start and end of each interval
+    ...[truncated]
+  task: {'id': 'LCB/3715', 'use_case_id': 'LCB/3715', 'story_id': 'LCB/3715', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maximumCoins()', 'description': 'There are an infinite amount of bags on a number ...[truncated]
+  recent_commits: []
+================================================================================
+
+You are predicting whether an implementation will pass a specific test suite. Trace the code
+with each test's inputs; do not judge style, design, or robustness — a crude implementation
+that passes every test rates 1.00, an elegant one that fails a test rates lower.
+
+## Task context
+
+**Implement maximumCoins()**
+
+## Tests
+
+```python
+from typing import List
+from solution import maximumCoins
+
+def test_canonical_example_1():
+    # spec: coins = [[8,10,1],[1,3,2],[5,6,4]], k = 4
+    # Selecting bags at positions [3, 4, 5, 6] gives 2 + 0 + 4 + 4 = 10
+    assert maximumCoins([[8,10,1],[1,3,2],[5,6,4]], 4) == 10
+
+def test_canonical_example_2():
+    # spec: coins = [[1,10,3]], k = 2
+    # Selecting bags at positions [1, 2] gives 3 + 3 = 6
+    assert maximumCoins([[1,10,3]], 2) == 6
+
+def test_k_one_chooses_highest_single_bag():
+    # Choosing the highest single bag from [[1,1,5],[3,3,9]], k = 1
+    # The maximum is 9 from the bag at position 3
+    assert maximumCoins([[1,1,5],[3,3,9]], 1) == 9
+
+def test_window_can_extend_beyond_all_segments_into_zero_bags():
+    # The window of size 5 can extend beyond the segment [[2,3,5]]
+    # The positions 1, 4, 5 will contribute 0 coins, total = 5 + 0 + 0 = 5
+    assert maximumCoins([[2,3,5]], 5) == 10
+
+def test_adjacent_non_overlapping_segments_are_combined():
+    # Adjacent non-overlapping segments [[1,2,3],[3,4,4]], k = 4
+    # Selecting bags 1, 2, 3, 4 gives 3 + 3 + 4 + 4 = 14
+    assert maximumCoins([[1,2,3],[3,4,4]], 4) == 14
+
+def test_upper_coordinate_k_and_coin_value_bounds():
+    # Testing upper bounds with [[1,1_000_000_000,1000]], k = 1_000_000_000
+    # The maximum is 1_000_000_000 * 1000 = 1_000_000_000_000
+    assert maximumCoins([[1,1_000_000_000,1000]], 1_000_000_000) == 1_000_000_000_000
+
+def test_maximum_segment_count_with_k_one():
+    # Maximum segments count k = 1 from 100,000 bags with 1 coin each
+    # Should return 1 since we can only take one bag with 1 coin
+    assert maximumCoins([[2*i + 1, 2*i + 1, 1] for i in range(100_000)], 1) == 1
+```
+
+## Implementation
+
+```python
+from typing import List
+
+
+def maximumCoins(coins: List[List[int]], k: int) -> int:
+    max_coins = 0
+    n = len(coins)
+    events = []
+
+    # Create events for the start and end of each interval
+    for l, r, c in coins:
+        events.append((l, c))  # start of interval
+        events.append((r + 1, -c))  # end of interval (r + 1 to make it exclusive)
+
+    # Sort events by coordinate
+    events.sort()
+    current_coins = 0
+    last_position = 0
+
+    # Use a two-pointer approach to calculate maximum coins in a window of size k
+    for position, change in events:
+        # Calculate the length of the current segment
+        if last_position < position:
+            segment_length = position - last_position
+            # If current segment is within the window size k
+            if segment_length + current_coins > k:
+                # Calculate how many full bags we can take
+                excess = (segment_length + current_coins) - k
+                current_coins -= excess
+            # Update the maximum coins possible
+            max_coins = max(max_coins, current_coins)
+        # Update the current number of coins
+        current_coins += change
+        last_position = position
+
+    # Final check in case the last segment contributes to the maximum
+    max_coins = max(max_coins, current_coins)
+
+    return max_coins
+```
+
+## Method
+
+For EACH test function: state the inputs, trace the implementation's computation step by
+step (do the arithmetic explicitly), state the value the test expects, and conclude PASS or
+FAIL for that test. Check import/name compatibility first: if the tests cannot even import
+the implementation, every test fails.
+
+Also flag test gaming if you see it (hardcoded answers for specific inputs, input
+pattern-matching): report it in one line, but rate on predicted test outcomes only.
+
+## Output format (exactly this structure)
+
+1. One line per test, in this shape:
+   `test_canonical_example_1: PASS — computes 5 for [1,2,1,2,1,1,1], matching the assertion`
+   If you cannot trace a test's outcome from the code, mark it FAIL and say why the trace
+   is blocked — an unverifiable pass prediction is not a pass.
+2. If any FAIL: one short paragraph naming the root cause in the implementation.
+3. The last line must be exactly: `Rating: <predicted fraction of tests passing>` with two
+   decimals, e.g. `Rating: 0.83`

@@ -1,0 +1,10 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_maximum_length — input `"a" * 50_000 + "z" * 50_000`, expected `2_500_000_000`, got no result because the test run times out. There is no mechanical failure: `calculateScore` has the correct name and signature, and it needs no imports. The implementation would produce the correct arithmetic if allowed to finish: the first `z` matches index `49_999` for `1`, the next matches `49_998` for `3`, continuing through `99_999`, so the score is `1 + 3 + ... + 99_999 = 50_000^2 = 2_500_000_000`. However, `for j in range(i - 1, -1, -1)` repeatedly rescans prior indices. The initial `50_000` `a` characters perform `1 + 2 + ... + 49_999 = 1_249_975_000` unsuccessful inner-loop iterations, and the `z` characters perform `1 + 3 + ... + 99_999 = 2_500_000_000` iterations before finding matches: about `3_749_975_000` iterations total. The performance divergence is the nested backward search at `for j in range(i - 1, -1, -1)`.
+
+FIX DIRECTIVES:
+FIX: in `calculateScore`, replace the `marked` array and nested backward `for j` search with one stack/list of unmatched indices per letter.
+FIX: for each character at index `i`, compute its mirrored letter index as `25 - (ord(s[i]) - ord("a"))`; if that mirror’s unmatched-index stack is nonempty, `pop()` its most recent index and add `i - j` to `score`; otherwise append `i` to the current character’s unmatched-index stack.
+FIX: ensure matched current indices are not appended to any stack; popping the prior index and omitting the current index replaces marking both indices and yields `O(len(s))` time.

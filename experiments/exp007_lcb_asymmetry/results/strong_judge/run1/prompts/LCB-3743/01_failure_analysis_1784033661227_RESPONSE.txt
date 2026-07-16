@@ -1,0 +1,11 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_productive_multi_meeting_rescheduling — inputs `eventTime=20`, `k=2`, `startTime=[2, 7, 12]`, `endTime=[5, 9, 14]`; expected `11`, got `13`, because the function computes and returns the sum of *all* existing gaps rather than the largest contiguous free interval obtainable after moving at most `k` consecutive meetings. There is no mechanical failure: `maxFreeTime` has the correct name/signature and required `List` import. Trace: `last_end=0`; meeting 0 gives gap `2-0=2`, so `gaps=[2]`, then `last_end=5`; meeting 1 gives gap `7-5=2`, so `gaps=[2,2]`, then `last_end=9`; meeting 2 gives gap `12-9=3`, so `gaps=[2,2,3]`, then `last_end=14`; trailing gap is `20-14=6`, so `gaps=[2,2,3,6]`. Sorting gives `[6,3,2,2]`. `sum(gaps[:k]) = sum([6,3]) = 9`; `sum(gaps[k:]) = sum([2,2]) = 4`; the return expression `max_free_time + sum(gaps[k:])` returns `9+4=13`, which is simply `sum(gaps)=13` and ignores `k`. The correct result is obtained by merging a window of `k+1=3` adjacent original gaps: the best window is the gaps around meetings 1 and 2, `2+3+6=11`. The exact divergent expression is `return max_free_time + sum(gaps[k:])`; additionally, sorting `gaps` destroys the adjacency required to model moving consecutive meetings.
+
+FIX DIRECTIVES:
+FIX: in `maxFreeTime`, do not sort the gaps; preserve gap order because moving meetings can only merge adjacent gaps.
+FIX: build exactly `n + 1` ordered gaps, including zero-length gaps: `gaps = [startTime[0]] + [startTime[i] - endTime[i-1] for i in range(1, n)] + [eventTime - endTime[-1]]` (handle `n == 0` by returning `eventTime`).
+FIX: in `maxFreeTime`, compute the maximum sum of any contiguous window of `min(k, n) + 1` gaps using a sliding window. Moving `m` consecutive meetings merges the `m+1` gaps bordering and between them.
+FIX: replace `return max_free_time + sum(gaps[k:])` with the maximum sliding-window sum; do not sum non-adjacent or leftover gaps.

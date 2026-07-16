@@ -1,0 +1,137 @@
+================================================================================
+TEMPLATE: judge/code_against_tests.j2
+TIMESTAMP: 1784033043522
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_code: from solution import maximumCoins
+
+
+def test_canonical_example_1():
+    # Bags [3, 4, 5, 6] contain 2 + 0 + 4 + 4 = 10 coins.
+    assert maximumCoins([[8, 10, 1], [1, 3, 2], [5, 6, 4]], 4) == 10
+
+
+def...[truncated]
+  impl_code: from typing import List
+
+
+def maximumCoins(coins: List[List[int]], k: int) -> int:
+    # Create a map to store the number of coins at each position
+    coin_map = {}
+
+    # Fill in the coin_map based ...[truncated]
+  task: {'id': 'LCB/3715', 'use_case_id': 'LCB/3715', 'story_id': 'LCB/3715', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maximumCoins()', 'description': 'There are an infinite amount of bags on a number ...[truncated]
+  recent_commits: []
+================================================================================
+
+You are predicting whether an implementation will pass a specific test suite. Trace the code
+with each test's inputs; do not judge style, design, or robustness — a crude implementation
+that passes every test rates 1.00, an elegant one that fails a test rates lower.
+
+## Task context
+
+**Implement maximumCoins()**
+
+## Tests
+
+```python
+from solution import maximumCoins
+
+
+def test_canonical_example_1():
+    # Bags [3, 4, 5, 6] contain 2 + 0 + 4 + 4 = 10 coins.
+    assert maximumCoins([[8, 10, 1], [1, 3, 2], [5, 6, 4]], 4) == 10
+
+
+def test_canonical_example_2():
+    # Any two bags within [1, 10] contain 3 + 3 = 6 coins.
+    assert maximumCoins([[1, 10, 3]], 2) == 6
+
+
+def test_window_can_include_a_gap_between_segments():
+    # Bags [2, 3, 4, 5] contain 5 + 0 + 0 + 5 = 10 coins.
+    assert maximumCoins([[1, 2, 5], [5, 6, 5]], 4) == 10
+
+
+def test_window_can_take_part_of_a_segment_at_its_boundary():
+    # Bags [2, 3, 4] contain 4 + 4 + 7 = 15 coins.
+    assert maximumCoins([[1, 3, 4], [4, 5, 7]], 3) == 15
+
+
+def test_unsorted_non_overlapping_segments():
+    # Bags [10, 11, 12] contain 2 + 2 + 2 = 6 coins.
+    assert maximumCoins([[10, 12, 2], [1, 2, 1]], 3) == 6
+
+
+def test_k_larger_than_all_coin_containing_span():
+    # A window containing both segments collects 2 + 2 + 3 = 7 coins.
+    assert maximumCoins([[1, 2, 1], [5, 5, 3]], 10) == 7
+
+
+def test_large_coordinates_and_coin_total():
+    # Bags [1_000_000_000 - 1, 1_000_000_000] contain 1000 + 1000 = 2000 coins.
+    assert maximumCoins([[999_999_999, 1_000_000_000, 1000]], 2) == 2000
+```
+
+## Implementation
+
+```python
+from typing import List
+
+
+def maximumCoins(coins: List[List[int]], k: int) -> int:
+    # Create a map to store the number of coins at each position
+    coin_map = {}
+
+    # Fill in the coin_map based on the provided segments
+    for l, r, c in coins:
+        for position in range(l, r + 1):
+            coin_map[position] = coin_map.get(position, 0) + c
+
+    # Sort the positions to create a list of bags
+    positions = sorted(coin_map.keys())
+    n = len(positions)
+
+    # Prepare a prefix sum array to calculate the total coins efficiently
+    prefix_sum = [0] * (n + 1)
+    for i in range(n):
+        prefix_sum[i + 1] = prefix_sum[i] + coin_map[positions[i]]
+
+    max_coins = 0
+
+    # Slide a window of size k across the positions
+    for i in range(n):
+        # Find the right-most position that is within k from the current position
+        right_bound = positions[i] + k - 1
+        # Use binary search to find the upper index
+        j = i
+        while j < n and positions[j] <= right_bound:
+            j += 1
+
+        # Calculate the total coins in the window [i, j-1]
+        total_coins = prefix_sum[j] - prefix_sum[i]
+        max_coins = max(max_coins, total_coins)
+
+    return max_coins
+
+```
+
+## Method
+
+For EACH test function: state the inputs, trace the implementation's computation step by
+step (do the arithmetic explicitly), state the value the test expects, and conclude PASS or
+FAIL for that test. Check import/name compatibility first: if the tests cannot even import
+the implementation, every test fails.
+
+Also flag test gaming if you see it (hardcoded answers for specific inputs, input
+pattern-matching): report it in one line, but rate on predicted test outcomes only.
+
+## Output format (exactly this structure)
+
+1. One line per test, in this shape:
+   `test_canonical_example_1: PASS — computes 5 for [1,2,1,2,1,1,1], matching the assertion`
+   If you cannot trace a test's outcome from the code, mark it FAIL and say why the trace
+   is blocked — an unverifiable pass prediction is not a pass.
+2. If any FAIL: one short paragraph naming the root cause in the implementation.
+3. The last line must be exactly: `Rating: <predicted fraction of tests passing>` with two
+   decimals, e.g. `Rating: 0.83`

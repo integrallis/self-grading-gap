@@ -1,0 +1,12 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_multiple_negative_elements — input `[-5, -1, -3]`, expected `-1`, got `-5`. There is no mechanical cause: `maxSum` is imported, called with the correct signature, and six tests execute successfully. Trace: initially `current_sum = 0`, `max_sum = -inf`. At `right = 0`, add `-5`: `current_sum = 0 + (-5) = -5`, so `max_sum = max(-inf, -5) = -5`. At `right = 1`, `-1` is not in `seen`, so the duplicate-removal loop does not run; add `-1`: `current_sum = -5 + (-1) = -6`, so `max_sum = max(-5, -6) = -5`. At `right = 2`, add `-3`: `current_sum = -6 + (-3) = -9`, so `max_sum = max(-5, -9) = -5`. The computation diverges at `while nums[right] in seen:` because this is the only condition that removes elements from the left; it cannot discard the harmful `-5` prefix when all values are distinct. The valid unique subarray `[-1]` is never considered as the current window.
+
+test_zero_is_best_when_no_positive_exists — input `[-2, 0, -1]`, expected `0`, got `-2`. This has the same root cause as the preceding failure: the implementation only shrinks a window for duplicate values, not to consider shorter unique subarrays after a harmful prefix. Trace: initially `current_sum = 0`, `max_sum = -inf`. At `right = 0`, add `-2`: `current_sum = 0 + (-2) = -2`, `max_sum = max(-inf, -2) = -2`. At `right = 1`, `0` is not in `seen`, so `while nums[right] in seen:` does not run; add `0`: `current_sum = -2 + 0 = -2`, `max_sum = max(-2, -2) = -2`. The valid unique subarray `[0]`, whose sum is `0`, is not evaluated. At `right = 2`, add `-1`: `current_sum = -2 + (-1) = -3`, `max_sum = max(-2, -3) = -2`. The divergence is again caused by the duplicate-only shrink condition `while nums[right] in seen:`.
+
+FIX DIRECTIVES:
+FIX: in `maxSum`, evaluate every non-empty contiguous subarray whose values are unique, rather than tracking only one duplicate-free window per right endpoint.
+FIX: replace the single sliding-window accumulation with a nested scan: for each `start`, create a fresh `seen` set and `subtotal = 0`; extend `end` from `start` onward, stop when `nums[end]` is already in `seen`, otherwise add it to `seen`, add it to `subtotal`, and update `max_sum`.
+FIX: initialize `max_sum = float("-inf")` and update it after adding every unique element so single-element negative subarrays remain valid candidates.

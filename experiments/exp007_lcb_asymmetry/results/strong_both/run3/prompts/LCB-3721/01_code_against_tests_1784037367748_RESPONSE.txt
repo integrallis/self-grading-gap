@@ -1,0 +1,21 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_canonical_example_1: FAIL — input events sort to times 10, 11, 71; t10 `id1 id0` adds 1 to each = [1, 1], t11 sets user 0 offline until 71, and t71 `HERE` sees only user 1 online, giving [1, 2] before user 0 is reactivated; expected [2, 2].
+test_canonical_example_2: PASS — t10 explicit ids gives [1, 1], t11 makes user 0 offline until 71, and t12 `ALL` includes both users; user 0 qualifies because return time 71 > 12, yielding [2, 2], matching the assertion.
+test_canonical_example_3: PASS — t10 sets user 0 offline until 70; t12 `HERE` sees only user 1 online and adds 1, computing [0, 1], matching the assertion.
+test_explicit_ids_count_duplicates_and_can_mention_offline_users: FAIL — t5 sets user 1 offline until 65; t6 parses `id1 id1 id2` into the set {1, 2}, so it adds only once for user 1 and once for user 2, computing [0, 1, 1]; expected [0, 2, 1].
+test_offline_status_change_precedes_message_at_same_timestamp: FAIL — stable timestamp sorting retains the input order, so t10 `HERE` runs first while both users are online and computes [1, 1]; the subsequent t10 offline event changes no mention count; expected [0, 1].
+test_here_uses_each_users_individual_return_time: FAIL — t1 sets user 0 offline until 61 and t2 sets user 1 offline until 62; at t61 `HERE` sees only user 2 online, yielding [0, 0, 1], then only afterward reactivates user 0; expected [1, 0, 1].
+test_events_are_processed_by_timestamp_for_online_status: FAIL — sorting gives t9 `HERE` = [1, 1], t10 makes user 0 offline until 70, and t70 `HERE` sees only user 1 online, giving [1, 2] before reactivating user 0; expected [2, 2].
+test_minimum_number_of_users_with_one_event: PASS — t1 `HERE` sees the sole online user and adds 1, computing [1], matching the assertion.
+test_maximum_number_of_users_can_mention_id99: PASS — t1 `id99` creates the set {99} and increments only index 99 once, computing [0] * 99 + [1], matching the assertion.
+test_exactly_one_explicit_id_token_counts_once: PASS — t1 `id0` creates {0} and increments user 0 once, computing [1], matching the assertion.
+test_one_hundred_duplicate_explicit_id_tokens_count_individually: FAIL — the 100 `id0` tokens are collapsed into the set {0}, so user 0 is incremented once and the result is [1]; expected [100].
+test_one_hundred_events_accumulate_mentions: PASS — each of the 100 sorted message events has the set {0} and increments user 0 by 1, so 100 × 1 = 100 and the result is [100], matching the assertion.
+test_timestamp_bounds_apply_status_changes_chronologically: FAIL — sorting processes t1 `OFFLINE` before t1 `HERE`, setting user 0 offline until 61; t1 `HERE` adds only user 1 for [0, 1], and t100000 `HERE` still sees user 0 as offline until after message processing, producing [0, 2]; expected [1, 2].
+
+The failures come from deduplicating explicit ID mentions with a set, retaining input order rather than prioritizing OFFLINE events at equal timestamps, and reactivating users only after processing a MESSAGE rather than before evaluating `HERE`.
+
+Rating: 0.46

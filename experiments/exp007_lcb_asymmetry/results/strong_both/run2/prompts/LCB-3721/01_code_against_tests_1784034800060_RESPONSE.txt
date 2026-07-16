@@ -1,0 +1,13 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_canonical_example_1: FAIL — inputs events MESSAGE(10, "id1 id0"), OFFLINE(11, 0), MESSAGE(71, "HERE"): at t=10 both boolean statuses are True, so mentions become [1, 1]; OFFLINE sets user 0’s status to integer 71; at t=71 HERE includes both users because 71 is truthy, but user 0 is not counted because `isinstance(71, bool)` is false, while user 1 is counted, producing [1, 2]. Expected [2, 2].
+test_canonical_example_2: FAIL — inputs events MESSAGE(10, "id1 id0"), OFFLINE(11, 0), MESSAGE(12, "ALL"): t=10 produces [1, 1]; OFFLINE stores integer 71 for user 0; ALL selects users 0 and 1, but only user 1 has boolean True status and is incremented, producing [1, 2]. Expected [2, 2].
+test_canonical_example_3: PASS — inputs events OFFLINE(10, 0), MESSAGE(12, "HERE"): OFFLINE stores integer 70 for user 0; HERE selects both users because 70 and True are truthy, but user 0 is not incremented since its status is not a boolean, while user 1 is incremented, producing [0, 1]. Expected [0, 1].
+test_explicit_ids_count_duplicates_and_can_mention_offline_users: FAIL — inputs events OFFLINE(5, 0), MESSAGE(6, "id0 id0 id1"): OFFLINE stores integer 65 for user 0; the message selects [0, 0, 1], but both user-0 mentions are rejected because `isinstance(65, bool)` is false, and user 1 receives one mention, producing [0, 1]. Expected [2, 1].
+test_offline_status_is_processed_before_message_at_same_timestamp: FAIL — inputs events MESSAGE(10, "HERE"), OFFLINE(10, 0): sorting is stable for equal timestamps, so MESSAGE remains first; both statuses are True and HERE produces [1, 1]; OFFLINE then stores integer 70 for user 0, with no effect on prior mentions. Expected [0, 1].
+
+The implementation stores an offline return timestamp directly in `online_status`, but later only awards mentions to users whose status is literally boolean `True`; it also does not sort same-timestamp OFFLINE events before MESSAGE events.
+
+Rating: 0.20
