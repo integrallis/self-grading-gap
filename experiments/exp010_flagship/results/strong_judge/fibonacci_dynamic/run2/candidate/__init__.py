@@ -1,0 +1,1 @@
+'''The solution package.__version__ = "0.1.0"'''\ndef fibonacci(n):\n    if n < 1:\n        raise Exception("Fibonacci sequence is not defined for negative numbers")\n    memo = {1: 0, 2: 1}\n    def fib_memo(n):\n        if n not in memo:\n            memo[n] = fib_memo(n - 1) + fib_memo(n - 2)\n        return memo[n]\n    return fib_memo(n)

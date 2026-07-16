@@ -1,0 +1,37 @@
+from solution import sort_natural
+
+def test_sort_natural_ascending_no_direction():
+    # Expected: sorted in natural ascending order
+    input_data = ["a1", "1", "3", "2", "b1", "1a", "b3", "23", "z 21", "21 1", "z22", "0"]
+    expected_output = ["0", "1", "1a", "2", "3", "23", "21 1", "a1", "b1", "b3", "z 21", "z22"]
+    assert sort_natural(input_data) == expected_output
+
+def test_sort_natural_ascending_numbers_before_letters():
+    # Expected: numbers that begin with a digit precede strings that begin with a letter
+    input_data = ["b1", "a1", "2", "1", "3"]
+    expected_output = ["1", "2", "3", "a1", "b1"]
+    assert sort_natural(input_data) == expected_output
+
+def test_sort_natural_ascending_numbers_embedded():
+    # Expected: embedded numbers compare by numeric value
+    input_data = ["item 10", "item 2", "item 1"]
+    expected_output = ["item 1", "item 2", "item 10"]
+    assert sort_natural(input_data) == expected_output
+
+def test_sort_natural_descending_order():
+    # Expected: exact reverse of the ascending order
+    input_data = ["a1", "1", "3", "2", "b1", "1a", "b3", "23", "z 21", "21 1", "z22", "0"]
+    expected_output = ["z22", "z 21", "b3", "b1", "a1", "21 1", "23", "3", "2", "1a", "1", "0"]
+    assert sort_natural(input_data, descending=True) == expected_output
+
+def test_sort_natural_descending_numbers_before_letters():
+    # Expected: numbers that begin with a digit precede strings that begin with a letter
+    input_data = ["b1", "a1", "2", "1", "3"]
+    expected_output = ["b1", "a1", "3", "2", "1"]
+    assert sort_natural(input_data, descending=True) == expected_output
+
+def test_sort_natural_descending_numbers_embedded():
+    # Expected: embedded numbers compare by numeric value
+    input_data = ["item 10", "item 2", "item 1"]
+    expected_output = ["item 10", "item 2", "item 1"]
+    assert sort_natural(input_data, descending=True) == expected_output
