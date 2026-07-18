@@ -7,6 +7,7 @@ with hatching as secondary encoding so figures survive grayscale printing. Ink i
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import matplotlib
@@ -19,6 +20,7 @@ REPO = Path(__file__).resolve().parent.parent
 FIG = REPO / "paper" / "figures"
 EXP6 = REPO / "experiments" / "exp006_model_asymmetry" / "results"
 EXP7 = REPO / "experiments" / "exp007_lcb_asymmetry" / "results"
+EXP10 = REPO / "experiments" / "exp010_flagship" / "results"
 
 BLUE = "#0072B2"   # pass / false rejects (visible failure)
 RED = "#D55E00"    # false accepts (invisible failure; always hatched for grayscale)
@@ -127,8 +129,82 @@ def fig2_asym() -> None:
     plt.close(fig)
 
 
+def _exp10() -> dict:
+    """Parse committed exp010 ANALYSIS.md for per-tier and headline conditional FA rates."""
+    txt = (EXP10 / "ANALYSIS.md").read_text()
+    ctrl_sec = txt.split("## control:")[1].split("## strong_judge:")[0]
+    strong_sec = txt.split("## strong_judge:")[1]
+
+    def tiers(sec: str) -> list[float]:
+        return [float(re.search(rf"H-D4 {t} FA:.*?= ([\d.]+)", sec).group(1))
+                for t in ("beginner", "intermediate", "advanced")]
+
+    def hd1(sec: str) -> tuple[float, float, float]:
+        m = re.search(r"H-D1 conditional FA of claims: ([\d.]+) \[([\d.]+), ([\d.]+)\]", sec)
+        return float(m.group(1)), float(m.group(2)), float(m.group(3))
+
+    return {"control": {"tiers": tiers(ctrl_sec), "hd1": hd1(ctrl_sec)},
+            "strong": {"tiers": tiers(strong_sec), "hd1": hd1(strong_sec)}}
+
+
+def fig3_complexity() -> None:
+    """Conditional false accepts rise monotonically with difficulty tier (RGRBench, H-D4)."""
+    d = _exp10()
+    fig, ax = plt.subplots(figsize=(3.5, 2.6))
+    x = [0, 1, 2]
+    ax.plot(x, d["control"]["tiers"], "-o", color=RED, lw=1.8, ms=6,
+            label="control (weak everywhere)")
+    ax.plot(x, d["strong"]["tiers"], "--s", color=INK, lw=1.3, ms=5, mfc="white",
+            label="strong judge")
+    ax.set_xticks(x); ax.set_xticklabels(["beginner", "intermediate", "advanced"], fontsize=8)
+    ax.set_yticks([0, 0.25, 0.5, 0.75, 1.0])
+    ax.set_yticklabels(["0", "25%", "50%", "75%", "100%"])
+    ax.set_ylabel("false accepts / claimed successes", fontsize=8)
+    ax.set_ylim(0, 1.0); ax.set_xlim(-0.25, 2.25)
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.legend(frameon=False, fontsize=7.5, loc="upper left")
+    fig.tight_layout()
+    fig.savefig(FIG / "fig3_complexity.pdf", bbox_inches="tight")
+    plt.close(fig)
+
+
+def fig4_convergence() -> None:
+    """The false-accept rate is a constant across three instruments and the external literature.
+    RGRBench point + Wilson CI parsed from committed ANALYSIS.md; HumanEval+/LCB are the control
+    conditional-FA headlines (exp006/exp007, 18%/29%); the external range is the cited
+    SWE-bench overfitting literature (20-33%)."""
+    rgr, rgr_lo, rgr_hi = _exp10()["control"]["hd1"]      # 0.415 [0.304, 0.537]
+    rows = [
+        ("SWE-bench overfitting (external)", None, 0.20, 0.33, MUTED),
+        ("RGRBench (this work)", rgr, rgr_lo, rgr_hi, RED),
+        ("LiveCodeBench (this work)", 0.29, None, None, RED),
+        ("HumanEval+ (this work)", 0.18, None, None, RED),
+    ]
+    fig, ax = plt.subplots(figsize=(4.5, 2.3))
+    ax.axvspan(0.18, 0.42, color=RED, alpha=0.06, lw=0)
+    for y, (_, pt, lo, hi, col) in enumerate(rows):
+        if pt is not None and lo is not None:
+            ax.errorbar(pt, y, xerr=[[pt - lo], [hi - pt]], fmt="o", color=col, ms=6,
+                        capsize=3, lw=1.3, zorder=3)
+        elif pt is not None:
+            ax.plot(pt, y, "o", color=col, ms=6, zorder=3)
+        else:
+            ax.plot([lo, hi], [y, y], "-", color=col, lw=5, solid_capstyle="round", alpha=0.65)
+    ax.set_yticks(range(len(rows))); ax.set_yticklabels([r[0] for r in rows], fontsize=7.5)
+    ax.set_ylim(-0.6, len(rows) - 0.4); ax.set_xlim(0, 0.6)
+    ax.set_xticks([0, 0.15, 0.30, 0.45, 0.60])
+    ax.set_xticklabels(["0", "15%", "30%", "45%", "60%"])
+    ax.set_xlabel("false-accept rate (fraction of claimed successes)", fontsize=8)
+    ax.spines[["top", "right"]].set_visible(False)
+    fig.tight_layout()
+    fig.savefig(FIG / "fig4_convergence.pdf", bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     FIG.mkdir(exist_ok=True)
     fig1_loop()
     fig2_asym()
+    fig3_complexity()
+    fig4_convergence()
     print(f"figures regenerated under {FIG}")
