@@ -166,8 +166,10 @@ effects in either experiment) (Sec.~\ref{sec:results-asym}).
 coach rather than a gatekeeper, tripling demanded test volume and driving generation quality
 while accepting the same self-consistent failures (Sec.~\ref{sec:discussion}).
 (5)~A reviewed instrument with documented prompt contracts and defect register, plus all
-runners, raw results, analyses, and a runbook; every experiment pre-registered, nulls
-reported as results.
+runners, raw results, analyses, pre-registrations, and a runbook; every experiment
+pre-registered, nulls reported as results.\footnote{Instruments, prompts, pre-registrations,
+raw results, and analyses: \url{https://github.com/integrallis/self-grading-gap} (public on
+publication). \textsc{RGRBench}: \url{https://github.com/integrallis/rgrbench}.}
 (6)~An application-scale replication on \textsc{RGRBench}, a released 89-package TDD corpus
 with mutation-measured oracle error bars: the gap widens to $\sim$$42\%$, scales with task
 complexity, worsens under refinement, and stays invariant to a frontier judge. An automated
@@ -440,7 +442,10 @@ strength survive the move from single-function algorithms to application-scale, 
 programs, and how does the gap respond to task complexity and to the loop's own refinement?
 
 \paragraph{Experiments.} Two experiments share one design with four conditions
-(\emph{cells}): weak model W (gpt-4o-mini) generates code in every cell; a frontier model S
+(\emph{cells}): weak model W (gpt-4o-mini)\footnote{\texttt{gpt-4o-mini} is OpenAI's GPT-4o mini;
+\texttt{gpt-5.6-terra} is the mid-tier model of OpenAI's GPT-5.6 family, released 2026-07-09
+(model card: \url{https://developers.openai.com/api/docs/models/gpt-5.6-terra}). Both are accessed
+through the OpenAI API via a LiteLLM shim.} generates code in every cell; a frontier model S
 (gpt-5.6-terra) replaces W in the test-author role, the judge role (all three judge duties),
 or both; the control is W everywhere. $N{=}5$ runs per cell, $30$ problems per run,
 escalation off, judge threshold and retries fixed across cells. Both experiments were
@@ -480,7 +485,33 @@ as per-run totals, never as single runs. Null results are reported as results.
 \paragraph{Telemetry.} Every LLM call is logged with token counts, cost, and a
 problem/cell/run tag. This telemetry is what makes the mechanism analysis of
 Sec.~\ref{sec:results-mech} possible, and it ships with the artifact.
+Table~\ref{tab:config} lists the configuration held fixed across all cells and the
+per-experiment spend.
 % trace: per-run usage.jsonl files; totals in each asym_summary.json
+
+\begin{table}[t]
+\centering
+\small
+\caption{Pipeline configuration held fixed across all cells, and per-experiment API spend.
+The frontier model is called at its provider-default temperature; \texttt{max\_tokens},
+\texttt{top\_p}, and seed are left unset (provider defaults).}
+\label{tab:config}
+\begin{tabular}{ll}
+\toprule
+Setting & Value \\
+\midrule
+Code-generation temperature & $0.7$ \\
+Test-generation temperature & $0.7$ (weak author) / $1.0$ (frontier author) \\
+Judge temperature & $1.0$ \\
+Judge acceptance threshold $\tau$ & $0.70$ \\
+Retries $R$ (RED and GREEN) & $3$ \\
+Test-execution timeout & $30$\,s \\
+Oracle-execution timeout & $120$\,s \\
+\midrule
+API spend: exp006 / exp007 / exp010 & \$14.72 / \$37.32 / \$50.78 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \paragraph{Threats owned by design.} HumanEval is the field's most familiar benchmark and
 predates every current model's training data, so we treat it as within-distribution; the
@@ -674,14 +705,15 @@ now at application scale on a third independent instrument. Across HumanEval\tex
 ($18\%$), a post-cutoff LiveCodeBench window ($29\%$), and RGRBench ($42\%$), and alongside
 the external SWE-bench overfitting measurements
 ($\sim$$20$–$33\%$~\cite{ahmed2025overfitting,yu2026sweabs}), the false-accept rate of a
-self-testing loop reads as a stable, oracle-independent constant (Figure~\ref{fig:convergence})
-that verifier strength does not touch.
+self-testing loop reads as a stable, oracle-independent regularity across the settings we test
+(Figure~\ref{fig:convergence}), one that verifier strength does not touch. We report this as a
+recurring pattern under three oracles and one pipeline family, not as a constant of nature.
 % trace: exp010 results/ANALYSIS.md (H-D1/H-D3); exp006/exp007 ANALYSIS.md (conditional FA)
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.66\linewidth]{figures/fig4_convergence.pdf}
-\caption{The false-accept rate of a self-testing loop is a stable, oracle-independent constant.
+\caption{The false-accept rate of a self-testing loop is a stable, oracle-independent pattern across the settings we test.
 Three independent instruments (HumanEval\texttt{+}, a post-cutoff LiveCodeBench window, and
 RGRBench with its $95\%$ Wilson interval) land in the same band as the external SWE-bench
 overfitting literature~\cite{ahmed2025overfitting,yu2026sweabs}.}
@@ -806,6 +838,23 @@ regardless of $p$-value. $N{=}5$ runs per cell bounds power: effects smaller tha
 would not be detected, which is why the invariance claim is stated as ``within pre-registered
 noise,'' not as a proof of zero effect.
 
+\paragraph{Execution safety.} The pipeline runs model-generated tests and code as ordinary
+subprocesses, each in an ephemeral per-run working directory with a pinned interpreter and
+\texttt{PYTHONPATH} scoped to that directory, under wall-clock timeouts ($30$\,s per test run,
+$120$\,s per oracle run). This bounds runaway execution but is not a hardened sandbox: there is
+no container, no memory or CPU limit, and no network isolation. Running untrusted model output
+at larger scale should add OS-level isolation.
+
+\paragraph{Anchoring.} The RED prompts anchor one test per canonical example
+(App.~\ref{app:prompts}); we ablated this across four variants (both sides, generator-only,
+judge-only, neither) on three generator models, committed in the artifact. Across variants the
+aggregate pass and self-verdict rates move only marginally. The case studies of
+App.~\ref{app:cases} show why anchoring cannot close the gap: it makes the specification's
+worked examples covered, but example coverage is not specification coverage, and every false
+accept we inspected passes the anchored examples and fails only on inputs beyond them. A
+false-accept-instrumented anchoring ablation across models is left as released-benchmark future
+work.
+
 \section{Conclusion}
 \label{sec:conclusion}
 
@@ -909,5 +958,49 @@ specification? [...]
            last line exactly `Final score: <x.xx>`
 \end{verbatim}
 \end{small}
+
+\section{False-accept case studies}
+\label{app:cases}
+
+Every false accept has the same shape: the self-authored suite pins the specification's worked
+examples (the anchoring block of App.~\ref{app:prompts} forces one
+\texttt{test\_canonical\_example} per example), the implementation passes them, and both miss a
+behaviour the held-out oracle exercises. Three HumanEval false accepts make the shape
+concrete---two from the all-weak control and one from the cell with a frontier judge, each
+accepted with a top GREEN-judge score. Code and tests are verbatim from the committed run logs.
+
+\paragraph{HumanEval/32 (\texttt{find\_zero}, control cell).} The spec asks for a root of an
+arbitrary even-degree polynomial. The self-suite tests only the two docstring examples
+(\texttt{find\_zero([1,2])} $\rightarrow -0.5$, \texttt{find\_zero([-6,11,-6,1])} $\rightarrow
+1.0$). The implementation runs Newton's method from a fixed start \texttt{x=0.0} for $100$
+iterations. Newton-from-zero converges on both example polynomials, so the suite passes, but it
+is not a general root-finder: where the iteration stalls (\texttt{dfx==0}, and it breaks) or
+diverges it returns a non-root. HumanEval\texttt{+}'s additional polynomials trigger exactly
+that, and the oracle rejects. The tests certify the two points the code was shaped around, not
+the specification.
+
+\paragraph{HumanEval/74 (\texttt{total\_match}, control cell).} The spec returns the list with
+the smaller total character count, \emph{and returns the first list when the totals are equal}.
+The implementation gets the tie wrong: \texttt{if total1 < total2: return lst1} else
+\texttt{return lst2}, so equal totals fall through to \texttt{lst2}. None of the five generated
+example tests has a distinguishable tie---the only equal-total case is \texttt{([],[])}, where
+both answers are \texttt{[]}---so the tie branch is never exercised. HumanEval\texttt{+} includes
+an equal-total pair with different contents; the code returns the second list where the spec
+demands the first, and the oracle rejects.
+
+\paragraph{HumanEval/153 (\texttt{Strongest\_Extension}, frontier-judge cell).} Strength is
+(uppercase count) minus (lowercase count); the strongest extension wins, ties to the earliest.
+The implementation seeds the running maximum at \texttt{0} and updates only on \texttt{strength >
+strongest\_strength}, so when every extension has non-positive strength and the strongest is not
+the first, the loop never updates and it returns \texttt{extensions[0]}. The two generated tests
+do not reach this state---example~1 is all-negative but its first element is already the
+strongest, masking the bug---so the suite passes, and the frontier judge scored it $1.0$.
+HumanEval\texttt{+} supplies an all-negative case whose maximum is not first, and the oracle
+rejects.
+
+\paragraph{At application scale.} The same signature recurs on RGRBench. The
+\texttt{strong\_judge} run on \texttt{numbers\_to\_words} self-certifies, yet the held-out oracle
+passes only $20$ of its $22$ tests. The per-package artifacts (self-authored tests, generated
+package, and oracle outcome) are committed for all $534$ runs.
 
 \end{document}
