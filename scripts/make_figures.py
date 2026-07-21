@@ -21,6 +21,7 @@ FIG = REPO / "paper" / "figures"
 EXP6 = REPO / "experiments" / "exp006_model_asymmetry" / "results"
 EXP7 = REPO / "experiments" / "exp007_lcb_asymmetry" / "results"
 EXP10 = REPO / "experiments" / "exp010_flagship" / "results"
+EXP = REPO / "experiments"
 
 BLUE = "#0072B2"   # pass / false rejects (visible failure)
 RED = "#D55E00"    # false accepts (invisible failure; always hatched for grayscale)
@@ -201,10 +202,65 @@ def fig4_convergence() -> None:
     plt.close(fig)
 
 
+# (benchmark, verifier, ANALYSIS.md, fa_is_plus): terra = exp006/exp007, others = exp011
+VERIFIER_ARMS = [
+    ("HumanEval+", "GPT-5.6 Terra", EXP / "exp006_model_asymmetry/results/ANALYSIS.md", True),
+    ("HumanEval+", "Gemini-2.5-Pro", EXP / "exp011_verifier_generalization/results/he_gemini/ANALYSIS.md", True),
+    ("HumanEval+", "Claude-4.5-Sonnet", EXP / "exp011_verifier_generalization/results/he_claude/ANALYSIS.md", True),
+    ("LiveCodeBench", "GPT-5.6 Terra", EXP / "exp007_lcb_asymmetry/results/ANALYSIS.md", False),
+    ("LiveCodeBench", "Gemini-2.5-Pro", EXP / "exp011_verifier_generalization/results/lcb_gemini/ANALYSIS.md", False),
+    ("LiveCodeBench", "Claude-4.5-Sonnet", EXP / "exp011_verifier_generalization/results/lcb_claude/ANALYSIS.md", False),
+]
+
+
+def _parse_fa(path: Path, fa_is_plus: bool) -> dict[str, float]:
+    """Per-cell false-accept mean from an ANALYSIS.md (HumanEval reports base/plus; LCB one number)."""
+    out = {}
+    for m in re.finditer(r"^##\s+(\S+)\s*\n(.*?)(?=^##\s|\Z)", path.read_text(), re.M | re.S):
+        cell = m.group(1).replace("control_rerun", "control")
+        if cell not in ("control", "strong_testgen", "strong_judge", "strong_both"):
+            continue
+        pat = r"false accepts base/plus:\s*[\d.]+\s*/\s*([\d.]+)" if fa_is_plus \
+            else r"false accepts:\s*([\d.]+)"
+        fm = re.search(pat, m.group(2))
+        if fm:
+            out[cell] = float(fm.group(1))
+    return out
+
+
+def fig5_verifiers() -> None:
+    """False accepts stay flat across cells for all three verifiers, on both benchmarks."""
+    cells = ["control", "strong_testgen", "strong_judge", "strong_both"]
+    xlabels = ["control", "S tests", "S judge", "S both"]
+    benches = ["HumanEval+", "LiveCodeBench"]
+    style = {"GPT-5.6 Terra": (MUTED, "o", MUTED),
+             "Gemini-2.5-Pro": (BLUE, "s", "white"),
+             "Claude-4.5-Sonnet": (RED, "^", "white")}
+    data: dict = {}
+    for bench, ver, path, isplus in VERIFIER_ARMS:
+        data.setdefault(bench, {})[ver] = _parse_fa(path, isplus)
+    fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.7), sharey=True)
+    for ax, bench in zip(axes, benches):
+        for ver, (col, mk, mfc) in style.items():
+            ys = [data[bench][ver][c] for c in cells]
+            ax.plot(range(4), ys, marker=mk, color=col, lw=1.3, ms=5, mfc=mfc, label=ver)
+        ax.set_xticks(range(4))
+        ax.set_xticklabels(xlabels, fontsize=8)
+        ax.set_title(bench, fontsize=9)
+        ax.set_ylim(0, 6)
+        ax.spines[["top", "right"]].set_visible(False)
+    axes[0].set_ylabel("false accepts / 30-problem run", fontsize=8)
+    axes[1].legend(frameon=False, fontsize=7.5, loc="upper right")
+    fig.tight_layout()
+    fig.savefig(FIG / "fig5_verifiers.pdf", bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     FIG.mkdir(exist_ok=True)
     fig1_loop()
     fig2_asym()
     fig3_complexity()
     fig4_convergence()
+    fig5_verifiers()
     print(f"figures regenerated under {FIG}")

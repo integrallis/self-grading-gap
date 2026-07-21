@@ -49,8 +49,8 @@ the same signature: tests and code that agree with each other but not with the s
 We then test the remedy builders reach for: a frontier model as the test author or the
 LLM-as-a-judge reviewer. The upgrade drives the efficiency of the loop. Wrongly rejected correct
 solutions go to zero and on the unseen problems the frontier reviewer's feedback improves true
-success rates by a third. The rate of false success claims, however, does not change in any
-configuration we test.
+success rates by a third. The rate of false success claims, however, does not move---not under a
+frontier test author or judge, and not across three frontier verifiers spanning three providers.
 
 Model strength inside the loop buys completeness, not soundness. The recipe and its caveat are
 both concrete for builders: a cheap generator coached by a frontier reviewer is an efficient
@@ -156,10 +156,12 @@ separating false accepts from false rejects and visible-adjacent from held-out o
 (2)~Fresh, instrumented measurements on two benchmarks, one of them contamination-controlled,
 showing the gap is systematic: roughly one claimed success in four is wrong, in every
 configuration, including all-frontier verification (Sec.~\ref{sec:results}).
-(3)~Two model-asymmetry experiments, pre-registered (hypotheses, decision rules, and budget
-fixed before any data), with every contrast required to clear both a minimum effect size and
-statistical significance: the \emph{soundness-invariance} result (the false-success rate
-unchanged under a frontier test author, judge, or both) and the \emph{completeness} result
+(3)~Model-asymmetry experiments across three frontier verifiers spanning three providers
+(GPT-5.6 Terra, Gemini-2.5-Pro, Claude-4.5-Sonnet), all pre-registered (hypotheses, decision
+rules, and budget fixed before any data), with every contrast required to clear both a minimum
+effect size and statistical significance: the \emph{soundness-invariance} result (the
+false-success rate unchanged under a frontier test author, judge, or both---for every verifier,
+on both benchmarks) and the \emph{completeness} result
 (false rejects $\to 0$; off-distribution success rate $+5$--$6/30$, the only significant
 effects in either experiment) (Sec.~\ref{sec:results-asym}).
 (4)~A mechanism account from the pipeline's own telemetry: the frontier judge behaves as a
@@ -594,6 +596,56 @@ weak-model sloppiness that a stronger verifier would catch; they are the structu
 built into the loop.
 % trace: exp006 ANALYSIS.md contrasts; exp007 ANALYSIS.md contrasts (FA rows)
 
+\paragraph{The invariance does not depend on which frontier model verifies.} A skeptic can grant
+the null for one just-released model of unpublished verification skill and still suspect it of that
+model in particular. We pre-registered and reran the entire asymmetry design with two more frontier
+verifiers, chosen for the opposite property: Gemini-2.5-Pro, the top-ranked code judge on an
+execution-grounded judge benchmark~\cite{jiang2025codejudgebench}, and Claude-4.5-Sonnet, the current
+release of the second-ranked Sonnet line. Holding the weak generator fixed and swapping only the
+strong role, across both benchmarks and all twelve strong cells not one false-accept contrast clears
+the decision bar (Table~\ref{tab:verifiers}, Figure~\ref{fig:verifiers}): the best-evidenced code judges available leave the
+false-success rate where the weak model left it, while false rejects again fall under the strong
+judge (both LiveCodeBench judge cells and both HumanEval judge cells reduce them). Soundness
+invariance now holds across three frontier verifiers spanning three providers---OpenAI, Anthropic,
+and Google---and unknown, first-, and second-ranked judging pedigree.
+% trace: exp011 {he,lcb}_{claude,gemini}/ANALYSIS.md (FA and FR rows)
+
+\begin{table}[t]
+\centering
+\small
+\caption{False accepts per 30-problem run (mean, $N{=}5$) under three frontier verifiers, each
+swapped into the test-author (\emph{S tests}), judge (\emph{S judge}), or both roles against the
+fixed weak generator. For every verifier, on both benchmarks, no strong-cell contrast clears the
+decision bar---the false-accept rate is statistically indistinguishable from the all-weak control.
+GPT-5.6 Terra is exp006/exp007; Gemini-2.5-Pro and Claude-4.5-Sonnet are the pre-registered exp011
+replication (Sec.~\ref{sec:results-asym}). HumanEval is scored with HumanEval\texttt{+}.}
+\label{tab:verifiers}
+\begin{tabular}{lrrrr}
+\toprule
+Frontier verifier S & control & S tests & S judge & S both \\
+\midrule
+\multicolumn{5}{l}{\emph{HumanEval}\texttt{+}} \\
+\quad GPT-5.6 Terra     & $4.0$ & $3.2$ & $4.4$ & $3.4$ \\
+\quad Gemini-2.5-Pro    & $4.8$ & $3.2$ & $4.0$ & $4.8$ \\
+\quad Claude-4.5-Sonnet & $3.8$ & $2.8$ & $3.4$ & $4.2$ \\
+\midrule
+\multicolumn{5}{l}{\emph{LiveCodeBench} (hidden, post-cutoff oracle)} \\
+\quad GPT-5.6 Terra     & $4.8$ & $2.8$ & $2.4$ & $3.0$ \\
+\quad Gemini-2.5-Pro    & $3.8$ & $1.8$ & $3.4$ & $2.6$ \\
+\quad Claude-4.5-Sonnet & $3.6$ & $2.0$ & $3.4$ & $3.6$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.82\linewidth]{figures/fig5_verifiers.pdf}
+\caption{False accepts stay flat across the role assignments, for every verifier. Each line is one
+frontier verifier swapped into the verification roles; none falls with verifier strength on either
+benchmark (same data as Table~\ref{tab:verifiers}).}
+\label{fig:verifiers}
+\end{figure}
+
 \paragraph{False rejects collapse under the frontier judge.} On LiveCodeBench both
 frontier-judge cells record \emph{zero} false rejects in all ten runs (control: $3.4$); on
 HumanEval they fall from $5.4$ to $2.4$ (judge) and $1.6$ (both), every one of these
@@ -818,16 +870,18 @@ plumbing artifact.
 and the defect register from a line-by-line review of the pipeline) ships with the artifact, and
 every reported number comes from that instrument.
 
-\paragraph{External.} Three benchmarks now, two single-function algorithmic and RGRBench's
-$89$ multi-concern packages, but a single weak/strong model pair. The move to
-application-scale, test-first-built corpora with hand-verified oracles was the designated
-robustness check, and it strengthened rather than softened the finding
-(Sec.~\ref{sec:results-scale}); what remains open is model diversity: the asymmetry cells
-rest on one weak/strong pair, and a public leaderboard over many systems on RGRBench is left
-as released-benchmark future work. The frontier model's training cutoff is not public, so its exposure to the LCB
-window is unknown; the design is robust in the direction that matters, since judge-side
-memorization of solutions could only \emph{reduce} false accepts, and the finding is that
-they did not move. The pass-rate lift, however, could in principle be flattered by exposure;
+\paragraph{External.} Three benchmarks and three frontier verifiers now: two single-function
+algorithmic benchmarks and RGRBench's $89$ multi-concern packages, with the strong role filled in
+turn by GPT-5.6 Terra, Gemini-2.5-Pro, and Claude-4.5-Sonnet across three providers
+(Table~\ref{tab:verifiers}). Two designated robustness checks, both pre-registered: the move to
+application-scale, test-first-built corpora with hand-verified oracles strengthened rather than
+softened the finding (Sec.~\ref{sec:results-scale}), and the verifier replication reproduced the
+soundness null on every benchmark. What remains is generator diversity---the generator is held at
+one weak model \emph{by design}, to isolate the verifier's effect---and a public leaderboard over
+many generator/verifier systems on RGRBench, left as released-benchmark future work. The verifiers'
+training cutoffs vary, and some exposure to the LCB window is possible for the later two; the design
+is robust in the direction that matters, since judge-side memorization of solutions could only
+\emph{reduce} false accepts, and across all three verifiers they did not move. The pass-rate lift, however, could in principle be flattered by exposure;
 its mechanism (test volume, feedback, completions) is measured, not assumed. One pipeline is
 studied; the protocol is portable, the constants are not.
 
@@ -864,7 +918,8 @@ measurable, measured it on three benchmarks (one whose problems the generator ha
 seen and whose tests no prompt ever contained, and one built at application scale with
 hand-verified, error-barred oracles), then paid for the obvious remedy: a frontier model in
 the verification roles. The report card is wrong about roughly one claimed success in four,
-and it stays wrong under a frontier test author, a frontier judge, and both at once. What the
+and it stays wrong under a frontier test author, a frontier judge, and both at once---and under
+all three frontier verifiers we tried, across three providers. What the
 frontier judge buys is real and worth buying: false rejects vanish, and on unseen problems its
 feedback lifts true pass rates by a third. But it is a better coach, not a better gatekeeper,
 and every gain arrives through the feedback channel while the accept verdicts stay blind.
