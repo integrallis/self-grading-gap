@@ -1,0 +1,133 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+# Test Suite Review
+
+## Check 0 — MANDATORY Canonical Example Coverage
+
+**Example 1:** `coins = [[0,1,-1],[1,-2,3],[2,-3,4]]` → `8`
+- Present in `test_canonical_example_1()` ✓
+
+**Example 2:** `coins = [[10,10,10],[10,10,10]]` → `40`
+- Present in `test_canonical_example_2()` ✓
+
+Both canonical examples are present with exact inputs and outputs. ✓
+
+## Check 1 — Fidelity
+
+### test_canonical_example_1
+Expected: 8 ✓ (from specification)
+
+### test_canonical_example_2
+Expected: 40 ✓ (from specification)
+
+### test_single_cell_grid
+Input: `[[5]]`
+- Grid 1x1, robot starts and ends at (0,0)
+- Collects 5 coins
+- Expected: 5 ✓
+
+### test_using_two_neutralizations
+Input: `[[1, -1, -1], [1, -1, 1], [1, 1, 1]]`
+Comment claims path includes "(2,1) -> (2,0)" which moves UP/LEFT — **impossible** per spec (robot can only move right or down).
+
+Let me compute the actual maximum:
+- Valid paths from (0,0) to (2,2) moving only right/down
+- Robot can neutralize at most 2 negative cells
+- The test expects 6
+
+Best strategy: neutralize the two worst robbers (-1 cells) on optimal path.
+Path (0,0)→(0,1)→(0,2)→(1,2)→(2,2): coins = 1 + (-1) + (-1) + 1 + 1 = 1
+If neutralize (0,1) and (0,2): 1 + 0 + 0 + 1 + 1 = 3
+
+Path (0,0)→(1,0)→(1,1)→(1,2)→(2,2): coins = 1 + 1 + (-1) + 1 + 1 = 3
+If neutralize (1,1): 1 + 1 + 0 + 1 + 1 = 4
+
+Path (0,0)→(1,0)→(2,0)→(2,1)→(2,2): coins = 1 + 1 + 1 + 1 + 1 = 5 (no robbers!)
+
+Path (0,0)→(0,1)→(1,1)→(2,1)→(2,2): coins = 1 + (-1) + (-1) + 1 + 1 = 1
+If neutralize both: 1 + 0 + 0 + 1 + 1 = 3
+
+The maximum appears to be **5**, not 6. **Cannot verify 6 as correct.**
+
+### test_negative_final_total
+Input: `[[1, -2], [-2, -1]]`
+Path (0,0)→(0,1)→(1,1): 1 + (-2) + (-1) = -2
+Path (0,0)→(1,0)→(1,1): 1 + (-2) + (-1) = -2
+With neutralizations on path 1: 1 + 0 + 0 = 1
+Expected: -4 but I compute better outcomes. **Cannot verify -4 as correct.**
+
+### test_all_negative_values
+Input: `[[-1, -2], [-3, -4]]`
+Path (0,0)→(0,1)→(1,1): -1 + (-2) + (-4) = -7, neutralize 2 worst → -1
+Path (0,0)→(1,0)→(1,1): -1 + (-3) + (-4) = -8, neutralize 2 worst → -1
+Expected: -4. **Cannot verify -4 as correct.**
+
+### test_boundary_coin_values
+Input: `[[1000, -1000], [-1000, 1000]]`
+Path (0,0)→(0,1)→(1,1): 1000 + (-1000) + 1000 = 1000, neutralize middle → 2000
+Path (0,0)→(1,0)→(1,1): 1000 + (-1000) + 1000 = 1000, neutralize middle → 2000
+Expected: 0. **Cannot verify 0 as correct.**
+
+### test_large_grid
+Input: 500×500 grid of all 1s
+- Path length from (0,0) to (499,499): 499 right + 499 down + 1 start = 999 cells
+- Total coins: 999 × 1 = 999
+Expected: 250000. **Wrong — should be 999.**
+
+## Check 2 — No Invented Constraints
+
+No tests add validation, error handling, or constraints beyond the specification. ✓
+
+## Check 3 — Coverage
+
+Specified behaviors:
+- ✓ Robot moves from (0,0) to (m-1, n-1)
+- ✓ Robot moves only right or down
+- ✓ Positive coins are gained
+- ✓ Negative coins mean robbery
+- ✓ Can neutralize at most 2 robbers
+- ✓ Total can be negative
+- ✓ Grid dimensions 1 ≤ m, n ≤ 500
+- ✓ Coin values -1000 ≤ coins[i][j] ≤ 1000
+- ✓ Both canonical examples
+
+Coverage is comprehensive in scope, though correctness is questionable.
+
+## Check 4 — Sanity
+
+- Imports from `solution` ✓
+- Function name `maximumAmount` matches signature ✓
+- Syntax is valid pytest ✓
+
+# Findings Summary
+
+Multiple tests have **incorrect expected values** that cannot be verified against the specification's logic:
+- `test_using_two_neutralizations`: expects 6, likely incorrect
+- `test_negative_final_total`: expects -4, likely incorrect
+- `test_all_negative_values`: expects -4, likely incorrect
+- `test_boundary_coin_values`: expects 0, likely incorrect
+- `test_large_grid`: expects 250000, **definitively wrong** (should be 999)
+
+The suite has good coverage of behaviors but severely compromised by wrong expected values.
+
+---
+
+## Directives
+
+FIX: test_using_two_neutralizations expects 6 but path computation suggests maximum should be 5 (path through (0,0)→(1,0)→(2,0)→(2,1)→(2,2) with no robbers)
+
+FIX: test_negative_final_total expects -4 but neutralizing the two robbers on any path yields better results (at minimum 1)
+
+FIX: test_all_negative_values expects -4 but neutralizing the two worst robbers yields -1 on optimal paths
+
+FIX: test_boundary_coin_values expects 0 but neutralizing one -1000 robber on either path yields 2000
+
+FIX: test_large_grid expects 250000 but a 500×500 grid traversed from (0,0) to (499,499) visits exactly 999 cells, so with all 1s the answer is 999
+
+---
+
+**Final score: 0.00**
+
+(5 assertions with wrong expected values × 0.30 = 1.50 deduction, floored at 0.00)

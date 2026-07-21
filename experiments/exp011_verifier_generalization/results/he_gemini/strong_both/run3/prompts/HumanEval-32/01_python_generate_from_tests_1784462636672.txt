@@ -1,0 +1,225 @@
+================================================================================
+TEMPLATE: agents/code/python_generate_from_tests.j2
+TIMESTAMP: 1784462636672
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  task: {'id': 'HumanEval/32', 'use_case_id': 'HumanEval/32', 'story_id': 'HumanEval/32', 'epic_id': 'HUMANEVAL', 'title': 'Implement find_zero()', 'description': 'xs are coefficients of a polynomial.\n    fi...[truncated]
+  test_code: import math
+import pytest
+from solution import poly, find_zero
+
+# The `poly` function is provided in the specification and is used for verification.
+# We trust it will be implemented correctly in the ...[truncated]
+  existing_impl_files: {'src/solution/__init__.py': '"""The solution package."""\n\n__version__ = "0.1.0"\n'}
+  existing_implementation: 
+  project_name: solution
+  project_brief: 
+HumanEval Problem: HumanEval/32
+
+Function: find_zero
+Signature: def find_zero(xs: list):
+
+Task: xs are coefficients of a polynomial.
+    find_zero find x such that poly(x) = 0.
+    find_zero returns ...[truncated]
+  recent_commits: []
+  judge_feedback: ### Check 0 — MANDATORY Canonical Example Coverage
+The specification's docstring includes two canonical examples:
+1.  `round(find_zero([1, 2]), 2) # ... -> -0.5`
+2.  `round(find_zero([-6, 11, -6, 1]),...[truncated]
+  previous_attempt: 
+  rag_patterns: 
+  json_error_feedback: 
+================================================================================
+
+You are implementing Python code whose only acceptance criterion is the test suite below
+(test-driven development, GREEN phase). Write the simplest correct, general implementation
+that passes every test.
+
+## Task
+
+**Implement find_zero()**
+
+Implement every function below with its exact signature:
+- def poly(xs: list, x: float)
+- def find_zero(xs: list)
+
+Implement a general algorithm. Do not hardcode results for specific inputs or pattern-match
+test cases; every line must serve the general solution. Do not add constraints, validation,
+or edge-case behavior the specification does not state.
+
+Full specification:
+
+import math
+
+
+def poly(xs: list, x: float):
+    """
+    Evaluates polynomial with coefficients xs at point x.
+    return xs[0] + xs[1] * x + xs[1] * x^2 + .... xs[n] * x^n
+    """
+    return sum([coeff * math.pow(x, i) for i, coeff in enumerate(xs)])
+
+
+def find_zero(xs: list):
+    """ xs are coefficients of a polynomial.
+    find_zero find x such that poly(x) = 0.
+    find_zero returns only only zero point, even if there are many.
+    Moreover, find_zero only takes list xs having even number of coefficients
+    and largest non zero coefficient as it guarantees
+    a solution.
+    >>> round(find_zero([1, 2]), 2) # f(x) = 1 + 2x
+    -0.5
+    >>> round(find_zero([-6, 11, -6, 1]), 2) # (x - 1) * (x - 2) * (x - 3) = -6 + 11x - 6x^2 + x^3
+    1.0
+    """
+
+
+## Tests to satisfy
+
+```python
+import math
+import pytest
+from solution import poly, find_zero
+
+# The `poly` function is provided in the specification and is used for verification.
+# We trust it will be implemented correctly in the `solution` module as per the spec.
+#
+# def poly(xs: list, x: float):
+#     """
+#     Evaluates polynomial with coefficients xs at point x.
+#     return xs[0] + xs[1] * x + xs[1] * x^2 + .... xs[n] * x^n
+#     """
+#     return sum([coeff * math.pow(x, i) for i, coeff in enumerate(xs)])
+
+
+def test_canonical_example_1():
+    """
+    Tests the first canonical example from the specification's docstring.
+    spec: round(find_zero([1, 2]), 2) # f(x) = 1 + 2x -> -0.5
+    """
+    # For f(x) = 1 + 2x, the zero is at x = -0.5.
+    # 1 + 2*(-0.5) = 1 - 1 = 0
+    # The specification requires the result, when rounded to 2 decimal places, to be -0.5.
+    assert round(find_zero([1, 2]), 2) == -0.5
+
+
+def test_canonical_example_2():
+    """
+    Tests the second canonical example from the specification's docstring.
+    spec: round(find_zero([-6, 11, -6, 1]), 2) # (x-1)*(x-2)*(x-3) -> 1.0
+    """
+    # For f(x) = x^3 - 6x^2 + 11x - 6, the roots are 1.0, 2.0, and 3.0.
+    # The specification states that for this input, the function returns a zero
+    # that rounds to 1.0.
+    # poly([-6, 11, -6, 1], 1.0) = -6 + 11(1) - 6(1)^2 + 1(1)^3 = -6 + 11 - 6 + 1 = 0
+    assert round(find_zero([-6, 11, -6, 1]), 2) == 1.0
+
+
+@pytest.mark.parametrize("coeffs", [
+    # Case from canonical example 1: 1 + 2x = 0
+    pytest.param([1, 2], id="linear_canonical"),
+
+    # Case from canonical example 2: x^3 - 6x^2 + 11x - 6 = 0
+    pytest.param([-6, 11, -6, 1], id="cubic_canonical"),
+
+    # Another simple linear case: -10 + x = 0
+    pytest.param([-10, 1], id="linear_positive_root"),
+
+    # A cubic polynomial with one real root: x^3 + 1 = 0 -> x = -1
+    pytest.param([1, 0, 0, 1], id="cubic_single_real_root"),
+])
+def test_result_is_a_zero_of_the_polynomial(coeffs):
+    """
+    Verify that the returned value `z` from `find_zero(xs)` is indeed a zero,
+    meaning `poly(xs, z)` should be approximately 0. This tests the fundamental
+    requirement of the function across various valid inputs.
+    """
+    # The input list `coeffs` must have an even number of elements as per the spec.
+    assert len(coeffs) % 2 == 0
+
+    # Find a zero for the polynomial.
+    zero = find_zero(coeffs)
+
+    # Verify that evaluating the polynomial at the found zero results in a value
+    # very close to 0. We use a small tolerance for floating point inaccuracies.
+    assert poly(coeffs, zero) == pytest.approx(0.0, abs=1e-6)
+```
+
+## Existing implementation files (preserve working code; extend, don't clobber)
+
+`src/solution/__init__.py`:
+```python
+"""The solution package."""
+
+__version__ = "0.1.0"
+
+```
+
+## Rules
+
+1. Implement a GENERAL algorithm. Never special-case specific test inputs or hardcode
+   expected outputs — that is test memorization, not implementation.
+2. Implement every function with the exact specified signature.
+3. Keep it minimal: no features, validation, or error handling beyond what the tests and
+   specification require.
+4. The tests import from the `solution` package; place code accordingly.
+
+## Feedback on your previous attempt
+
+### Check 0 — MANDATORY Canonical Example Coverage
+The specification's docstring includes two canonical examples:
+1.  `round(find_zero([1, 2]), 2) # ... -> -0.5`
+2.  `round(find_zero([-6, 11, -6, 1]), 2) # ... -> 1.0`
+
+`test_canonical_example_1` correctly asserts `round(find_zero([1, 2]), 2) == -0.5`.
+`test_canonical_example_2` correctly asserts `round(find_zero([-6, 11, -6, 1]), 2) == 1.0`.
+Both examples are present with exact inputs and outputs. The suite passes this check.
+
+### Check 1 — Fidelity
+- **`test_canonical_example_1`**: The expected value `-0.5` is taken directly from the specification's example. Correct.
+- **`test_canonical_example_2`**: The expected value `1.0` is taken directly from the specification's example. Correct.
+- **`test_result_is_a_zero_of_the_polynomial`**: This test asserts that `poly(coeffs, find_zero(coeffs))` is approximately zero. This is correct by the definition of a polynomial zero, which is the core requirement of `find_zero`. The use of `pytest.approx(0.0, abs=1e-6)` is an appropriate way to handle floating-point comparisons for this verification. The expected value is correct.
+
+### Check 2 — No invented constraints
+The specification states that `find_zero` only takes lists with an "even number of coefficients". The test suite respects this by only providing test cases with lists of length 2 or 4. It does not invent requirements for how the function should behave with odd-length lists (e.g., raising an error), which is the correct approach as such behavior is unspecified.
+
+### Check 3 — Coverage
+The specification defines the following behaviors and constraints:
+- **Find a zero:** The fundamental requirement that the returned value `x` makes `poly(xs, x) == 0` is tested by `test_result_is_a_zero_of_the_polynomial`. **Tested.**
+- **Return only one zero:** The function signature and its usage in tests imply a single return value. This is implicitly tested. **Tested.**
+- **Handle multiple roots:** The example `[-6, 11, -6, 1]` has roots 1, 2, and 3. The spec requires the function to return a value that rounds to 1.0 in this case. `test_canonical_example_2` verifies this specific outcome. **Tested.**
+- **Input domain (even number of coefficients):** All test cases (`[1, 2]`, `[-6, 11, -6, 1]`, `[-10, 1]`, `[1, 0, 0, 1]`) use lists with an even number of coefficients. The suite adheres to the specified domain. **Tested.**
+- **Canonical examples:** Both docstring examples are fully tested in `test_canonical_example_1` and `test_canonical_example_2`. **Tested.**
+
+The suite provides excellent coverage of all aspects of the specification.
+
+### Check 4 — Sanity
+The test suite correctly imports `poly` and `find_zero` from a `solution` module. Test function names follow pytest conventions. The code is syntactically valid Python and uses pytest features (`@pytest.mark.parametrize`, `pytest.approx`) correctly. No sanity defects were found.
+
+## Final Review
+
+1.  **Findings**
+    -   Check 0: All canonical examples are present with exact inputs and outputs.
+    -   Check 1 (Fidelity): All assertions have correct expected values derived directly from the specification.
+    -   Check 2 (No invented constraints): The suite correctly restricts itself to the specified input domain (lists with an even number of coefficients) and does not add any requirements.
+    -   Check 3 (Coverage): All specified behaviors, including the handling of a multi-root case and the core property of finding a zero, are thoroughly tested.
+    -   Check 4 (Sanity): The suite is a syntactically correct and well-structured pytest file.
+2.  **Directives**
+    (none)
+3.  **Final score**
+    Final score: 1.00
+
+## Output
+
+Return exactly one JSON object in a fenced block and nothing else. Escape the code string
+correctly (newlines as \n, quotes as \").
+
+```json
+{
+  "impl_file_path": "src/solution/__init__.py",
+  "action": "update",
+  "content": "<the complete implementation file as one JSON string>",
+  "reasoning": "<one sentence>"
+}
+```

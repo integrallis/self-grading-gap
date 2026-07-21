@@ -1,0 +1,267 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784402641302
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: import pytest
+from solution import max_fill
+
+
+def test_canonical_example_1():
+    # spec: grid=[[0,0,1,0], [0,1,0,0], [1,1,1,1]], capacity=1 -> 6
+    # Well 1: 1 unit, needs 1 lowering
+    # Well 2: 1...[truncated]
+  impl_code: def max_fill(grid, capacity):
+    total_lowerings = 0
+    for well in grid:
+        water_units = sum(well)
+        if water_units > 0:
+            total_lowerings += math.ceil(water_units / capacity)...[truncated]
+  task: {'id': 'HumanEval/115', 'use_case_id': 'HumanEval/115', 'story_id': 'HumanEval/115', 'epic_id': 'HUMANEVAL', 'title': 'Implement max_fill()', 'description': 'You are given a rectangular grid of wells....[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement max_fill()**
+
+## Tests (the acceptance criterion)
+
+```python
+import pytest
+from solution import max_fill
+
+
+def test_canonical_example_1():
+    # spec: grid=[[0,0,1,0], [0,1,0,0], [1,1,1,1]], capacity=1 -> 6
+    # Well 1: 1 unit, needs 1 lowering
+    # Well 2: 1 unit, needs 1 lowering
+    # Well 3: 4 units, needs 4 lowerings
+    # Total: 1 + 1 + 4 = 6
+    assert max_fill([[0,0,1,0], [0,1,0,0], [1,1,1,1]], 1) == 6
+
+
+def test_canonical_example_2():
+    # spec: grid=[[0,0,1,1], [0,0,0,0], [1,1,1,1], [0,1,1,1]], capacity=2 -> 5
+    # Well 1: 2 units, needs ceil(2/2) = 1 lowering
+    # Well 2: 0 units, needs 0 lowerings
+    # Well 3: 4 units, needs ceil(4/2) = 2 lowerings
+    # Well 4: 3 units, needs ceil(3/2) = 2 lowerings
+    # Total: 1 + 0 + 2 + 2 = 5
+    assert max_fill([[0,0,1,1], [0,0,0,0], [1,1,1,1], [0,1,1,1]], 2) == 5
+
+
+def test_canonical_example_3():
+    # spec: grid=[[0,0,0], [0,0,0]], capacity=5 -> 0
+    # Well 1: 0 units, needs 0 lowerings
+    # Well 2: 0 units, needs 0 lowerings
+    # Total: 0 + 0 = 0
+    assert max_fill([[0,0,0], [0,0,0]], 5) == 0
+
+
+def test_single_well_single_unit():
+    # Single well with 1 unit, capacity 1: needs 1 lowering
+    assert max_fill([[1]], 1) == 1
+
+
+def test_single_well_no_water():
+    # Single well with no water: needs 0 lowerings
+    assert max_fill([[0]], 1) == 0
+
+
+def test_single_well_multiple_units():
+    # Single well with 5 units, capacity 2: needs ceil(5/2) = 3 lowerings
+    assert max_fill([[1,1,1,1,1]], 2) == 3
+
+
+def test_multiple_wells_exact_capacity():
+    # Two wells with 3 units each, capacity 3: needs 1+1 = 2 lowerings
+    assert max_fill([[1,1,1], [1,1,1]], 3) == 2
+
+
+def test_capacity_larger_than_water():
+    # Well with 2 units, capacity 5: needs ceil(2/5) = 1 lowering
+    assert max_fill([[1,1,0,0,0]], 5) == 1
+
+
+def test_multiple_wells_different_water_amounts():
+    # Well 1: 1 unit, capacity 3 -> ceil(1/3) = 1
+    # Well 2: 3 units, capacity 3 -> ceil(3/3) = 1
+    # Well 3: 5 units, capacity 3 -> ceil(5/3) = 2
+    # Total: 1 + 1 + 2 = 4
+    assert max_fill([[1,0,0], [1,1,1], [1,1,1,1,1]], 3) == 4
+
+
+def test_all_wells_empty():
+    # Multiple empty wells: needs 0 lowerings
+    assert max_fill([[0,0], [0,0], [0,0]], 1) == 0
+
+
+def test_capacity_one_multiple_units():
+    # Each unit requires one lowering when capacity is 1
+    # Well 1: 3 units -> 3 lowerings
+    # Well 2: 2 units -> 2 lowerings
+    # Total: 3 + 2 = 5
+    assert max_fill([[1,1,1], [1,1,0]], 1) == 5
+
+
+def test_large_capacity():
+    # Capacity 10 with smaller amounts of water
+    # Well 1: 5 units, capacity 10 -> ceil(5/10) = 1
+    # Well 2: 8 units, capacity 10 -> ceil(8/10) = 1
+    # Well 3: 0 units -> 0
+    # Total: 1 + 1 + 0 = 2
+    assert max_fill([[1,1,1,1,1], [1,1,1,1,1,1,1,1], [0,0,0]], 10) == 2
+```
+
+## Failing implementation
+
+```python
+def max_fill(grid, capacity):
+    total_lowerings = 0
+    for well in grid:
+        water_units = sum(well)
+        if water_units > 0:
+            total_lowerings += math.ceil(water_units / capacity)
+    return total_lowerings
+
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpmmbn8hd_/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 12 items
+
+tests/test_task.py::test_canonical_example_1 FAILED                      [  8%]
+tests/test_task.py::test_canonical_example_2 FAILED                      [ 16%]
+tests/test_task.py::test_canonical_example_3 PASSED                      [ 25%]
+tests/test_task.py::test_single_well_single_unit FAILED                  [ 33%]
+tests/test_task.py::test_single_well_no_water PASSED                     [ 41%]
+tests/test_task.py::test_single_well_multiple_units FAILED               [ 50%]
+tests/test_task.py::test_multiple_wells_exact_capacity FAILED            [ 58%]
+tests/test_task.py::test_capacity_larger_than_water FAILED               [ 66%]
+tests/test_task.py::test_multiple_wells_different_water_amounts FAILED   [ 75%]
+tests/test_task.py::test_all_wells_empty PASSED                          [ 83%]
+tests/test_task.py::test_capacity_one_multiple_units FAILED              [ 91%]
+tests/test_task.py::test_large_capacity FAILED                           [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_1 ___________________________
+tests/test_task.py:11: in test_canonical_example_1
+    assert max_fill([[0,0,1,0], [0,1,0,0], [1,1,1,1]], 1) == 6
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:6: in max_fill
+    total_lowerings += math.ceil(water_units / capacity)
+                       ^^^^
+E   NameError: name 'math' is not defined. Did you forget to import 'math'
+___________________________ test_canonical_example_2 ___________________________
+tests/test_task.py:21: in test_canonical_example_2
+    assert max_fill([[0,0,1,1], [0,0,0,0], [1,1,1,1], [0,1,1,1]], 2) == 5
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:6: in max_fill
+    total_lowerings += math.ceil(water_units / capacity)
+                       ^^^^
+E   NameError: name 'math' is not defined. Did you forget to import 'math'
+_________________________ test_single_well_single_unit _________________________
+tests/test_task.py:34: in test_single_well_single_unit
+    assert max_fill([[1]], 1) == 1
+           ^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:6: in max_fill
+    total_lowerings += math.ceil(water_units / capacity)
+                       ^^^^
+E   NameError: name 'math' is not defined. Did you forget to import 'math'
+_______________________ test_single_well_multiple_units ________________________
+tests/test_task.py:44: in test_single_well_multiple_units
+    assert max_fill([[1,1,1,1,1]], 2) == 3
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:6: in max_fill
+    total_lowerings += math.ceil(water_units / capacity)
+                       ^^^^
+E   NameError: name 'math' is not defined. Did you forget to import 'math'
+______________________ test_multiple_wells_exact_capacity ______________________
+tests/test_task.py:49: in test_multiple_wells_exact_capacity
+    assert max_fill([[1,1,1], [1,1,1]], 3) == 2
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:6: in max_fill
+    total_lowerings += math.ceil(water_units / capacity)
+                       ^^^^
+E   NameError: name 'math' is not defined. Did you forget to import 'math'
+_______________________ test_capacity_larger_than_water ________________________
+tests/test_task.py:54: in test_capacity_larger_than_water
+    assert max_fill([[1,1,0,0,0]], 5) == 1
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:6: in max_fill
+    total_lowerings += math.ceil(water_units / capacity)
+                       ^^^^
+E   NameError: name 'math' is not defined. Did you forget to import 'math'
+_________________ test_multiple_wells_different_water_amounts __________________
+tests/test_task.py:62: in test_multiple_wells_different_water_amounts
+    assert max_fill([[1,0,0], [1,1,1], [1,1,1,1,1]], 3) == 4
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:6: in max_fill
+    total_lowerings += math.ceil(water_units / capacity)
+                       ^^^^
+E   NameError: name 'math' is not defined. Did you forget to import 'math'
+_______________________ test_capacity_one_multiple_units _______________________
+tests/test_task.py:75: in test_capacity_one_multiple_units
+    assert max_fill([[1,1,1], [1,1,0]], 1) == 5
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:6: in max_fill
+    total_lowerings += math.ceil(water_units / capacity)
+                       ^^^^
+E   NameError: name 'math' is not defined. Did you forget to import 'math'
+_____________________________ test_large_capacity ______________________________
+tests/test_task.py:84: in test_large_capacity
+    assert max_fill([[1,1,1,1,1], [1,1,1,1,1,1,1,1], [0,0,0]], 10) == 2
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:6: in max_fill
+    total_lowerings += math.ceil(water_units / capacity)
+                       ^^^^
+E   NameError: name 'math' is not defined. Did you forget to import 'math'
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_canonical_example_1 - NameError: name 'math' ...
+FAILED tests/test_task.py::test_canonical_example_2 - NameError: name 'math' ...
+FAILED tests/test_task.py::test_single_well_single_unit - NameError: name 'ma...
+FAILED tests/test_task.py::test_single_well_multiple_units - NameError: name ...
+FAILED tests/test_task.py::test_multiple_wells_exact_capacity - NameError: na...
+FAILED tests/test_task.py::test_capacity_larger_than_water - NameError: name ...
+FAILED tests/test_task.py::test_multiple_wells_different_water_amounts - Name...
+FAILED tests/test_task.py::test_capacity_one_multiple_units - NameError: name...
+FAILED tests/test_task.py::test_large_capacity - NameError: name 'math' is no...
+========================= 9 failed, 3 passed in 0.05s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

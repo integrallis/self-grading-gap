@@ -1,0 +1,221 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784478767347
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: import pytest
+from solution import order_by_points
+
+def test_canonical_example_1():
+    """Tests the first canonical example from the specification."""
+    # spec: order_by_points([1, 11, -1, -11, -12...[truncated]
+  impl_code: def order_by_points(nums):
+    from functools import cmp_to_key
+    
+    def digit_sum(n):
+        return sum(int(d) for d in str(abs(n)))
+    
+    def custom_compare(a, b):
+        sum_a = digit_sum(...[truncated]
+  task: {'id': 'HumanEval/145', 'use_case_id': 'HumanEval/145', 'story_id': 'HumanEval/145', 'epic_id': 'HUMANEVAL', 'title': 'Implement order_by_points()', 'description': 'Write a function which sorts the gi...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement order_by_points()**
+
+## Tests (the acceptance criterion)
+
+```python
+import pytest
+from solution import order_by_points
+
+def test_canonical_example_1():
+    """Tests the first canonical example from the specification."""
+    # spec: order_by_points([1, 11, -1, -11, -12]) == [-1, -11, 1, -12, 11]
+    assert order_by_points([1, 11, -1, -11, -12]) == [-1, -11, 1, -12, 11]
+
+def test_canonical_example_2():
+    """Tests the second canonical example from the specification."""
+    # spec: order_by_points([]) == []
+    assert order_by_points([]) == []
+
+def test_empty_list():
+    """Tests that an empty list is handled correctly."""
+    # An empty list sorted is an empty list.
+    assert order_by_points([]) == []
+
+def test_single_element_list():
+    """Tests a list with a single element."""
+    # A single element list is already sorted.
+    assert order_by_points([100]) == [100]
+
+def test_all_positive_integers():
+    """Tests sorting with only positive integers."""
+    # Input: [15, 8, 30]
+    # Points: 15 -> 1+5=6, 8 -> 8, 30 -> 3+0=3
+    # Sorted by points: 3, 6, 8
+    # Expected output: [30, 15, 8]
+    assert order_by_points([15, 8, 30]) == [30, 15, 8]
+
+def test_all_negative_integers():
+    """Tests sorting with only negative integers."""
+    # Input: [-15, -8, -30]
+    # Points: -15 -> 1+5=6, -8 -> 8, -30 -> 3+0=3
+    # Sorted by points: 3, 6, 8
+    # Expected output: [-30, -15, -8]
+    assert order_by_points([-15, -8, -30]) == [-30, -15, -8]
+
+def test_stability_with_same_points():
+    """Tests that the sort is stable for items with the same point value."""
+    # Input: [8, 17, 9]
+    # Points: 8 -> 8, 17 -> 1+7=8, 9 -> 9
+    # Both 8 and 17 have 8 points.
+    # Stability requires preserving original order: 8 (index 0) must come before 17 (index 1).
+    # Expected output: [8, 17, 9]
+    assert order_by_points([8, 17, 9]) == [8, 17, 9]
+
+def test_mixed_sign_and_zero():
+    """Tests a list with positive, negative, and zero values."""
+    # Input: [10, 0, -1]
+    # Points: 10 -> 1+0=1, 0 -> 0, -1 -> 1
+    # Sorted by points: 0, 1, 1
+    # Items with 1 point: 10 (index 0) and -1 (index 2).
+    # Stability requires 10 to come before -1.
+    # Expected output: [0, 10, -1]
+    assert order_by_points([10, 0, -1]) == [0, 10, -1]
+    
+def test_large_numbers():
+    """Tests sorting with larger numbers."""
+    # Input: [99, 101, 1000]
+    # Points: 99 -> 9+9=18, 101 -> 1+0+1=2, 1000 -> 1+0+0+0=1
+    # Sorted by points: 1, 2, 18
+    # Expected output: [1000, 101, 99]
+    assert order_by_points([99, 101, 1000]) == [1000, 101, 99]
+
+def test_duplicate_numbers():
+    """Tests a list containing duplicate numbers, checking for stability."""
+    # Input: [5, 4, 5]
+    # Points: 5 (idx 0) -> 5, 4 (idx 1) -> 4, 5 (idx 2) -> 5
+    # Sorted by points: 4, 5, 5
+    # Stability means the first 5 (index 0) must come before the second 5 (index 2).
+    # Expected output: [4, 5, 5]
+    assert order_by_points([5, 4, 5]) == [4, 5, 5]
+
+def test_already_sorted_by_points():
+    """Tests a list that is already sorted according to the specified criteria."""
+    # Input: [100, 21, 3]
+    # Points: 100 -> 1, 21 -> 3, 3 -> 3
+    # Items with 3 points: 21 (index 1) and 3 (index 2). Stability keeps their order.
+    # Expected output: [100, 21, 3]
+    assert order_by_points([100, 21, 3]) == [100, 21, 3]
+```
+
+## Failing implementation
+
+```python
+def order_by_points(nums):
+    from functools import cmp_to_key
+    
+    def digit_sum(n):
+        return sum(int(d) for d in str(abs(n)))
+    
+    def custom_compare(a, b):
+        sum_a = digit_sum(a[1])
+        sum_b = digit_sum(b[1])
+        if sum_a == sum_b:
+            if a[1] * b[1] < 0:
+                return -1 if a[1] < 0 else 1
+            return a[0] - b[0]  # Preserve original order by index
+        return sum_a - sum_b
+    
+    indexed_nums = list(enumerate(nums))
+    sorted_nums = sorted(indexed_nums, key=cmp_to_key(custom_compare))
+    return [item[1] for item in sorted_nums]
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpbdpmzou2/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 11 items
+
+tests/test_task.py::test_canonical_example_1 FAILED                      [  9%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 18%]
+tests/test_task.py::test_empty_list PASSED                               [ 27%]
+tests/test_task.py::test_single_element_list PASSED                      [ 36%]
+tests/test_task.py::test_all_positive_integers PASSED                    [ 45%]
+tests/test_task.py::test_all_negative_integers PASSED                    [ 54%]
+tests/test_task.py::test_stability_with_same_points PASSED               [ 63%]
+tests/test_task.py::test_mixed_sign_and_zero FAILED                      [ 72%]
+tests/test_task.py::test_large_numbers PASSED                            [ 81%]
+tests/test_task.py::test_duplicate_numbers PASSED                        [ 90%]
+tests/test_task.py::test_already_sorted_by_points PASSED                 [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_1 ___________________________
+tests/test_task.py:7: in test_canonical_example_1
+    assert order_by_points([1, 11, -1, -11, -12]) == [-1, -11, 1, -12, 11]
+E   AssertionError: assert [-1, 1, -11, 11, -12] == [-1, -11, 1, -12, 11]
+E     
+E     At index 1 diff: 1 != -11
+E     
+E     Full diff:
+E       [
+E           -1,
+E     +     1,...
+E     
+E     ...Full output truncated (7 lines hidden), use '-vv' to show
+___________________________ test_mixed_sign_and_zero ___________________________
+tests/test_task.py:57: in test_mixed_sign_and_zero
+    assert order_by_points([10, 0, -1]) == [0, 10, -1]
+E   AssertionError: assert [0, -1, 10] == [0, 10, -1]
+E     
+E     At index 1 diff: -1 != 10
+E     
+E     Full diff:
+E       [
+E           0,
+E     +     -1,...
+E     
+E     ...Full output truncated (3 lines hidden), use '-vv' to show
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_canonical_example_1 - AssertionError: assert ...
+FAILED tests/test_task.py::test_mixed_sign_and_zero - AssertionError: assert ...
+========================= 2 failed, 9 passed in 0.02s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

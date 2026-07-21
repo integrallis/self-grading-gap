@@ -1,0 +1,45 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+Both failing tests stem from a single root cause in the `custom_compare` function. The logic attempts to introduce a special tie-breaking rule for numbers with different signs, but this rule conflicts with the stability requirement expected by the test suite.
+
+### `test_canonical_example_1`
+*   **Analysis**: This test fails because the implementation's sorting logic, while flawed, produces an output that is correctly sorted by points, whereas the test's expected output is not.
+*   **Input**: `[1, 11, -1, -11, -12]`
+*   **Points**: `1` (1), `11` (2), `-1` (1), `-11` (2), `-12` (3)
+*   **Implementation Trace**:
+    1.  The code sorts primarily by points, so it groups numbers with 1 point, then 2 points, then 3 points.
+    2.  For ties (e.g., `1` and `-1` both have 1 point), the flawed logic `if a[1] * b[1] < 0:` places the negative number first. This results in the order `[-1, 1]` for the 1-point group and `[-11, 11]` for the 2-point group.
+    3.  Combining these sorted groups results in the actual output: `[-1, 1, -11, 11, -12]`. The points for this list are `1, 1, 2, 2, 3`, which is correctly ordered.
+*   **Divergence**: The test expects `[-1, -11, 1, -12, 11]`. The points for this expected list are `1, 2, 1, 3, 2`. This sequence is not sorted, as the element `-11` (2 points) appears before `1` (1 point). The implementation correctly follows the primary sort rule (order by points), but the test's expectation violates it. The failure is due to this fundamental contradiction.
+
+### `test_mixed_sign_and_zero`
+*   **Analysis**: This test fails because the implementation's tie-breaking logic violates the required sort stability.
+*   **Input**: `[10, 0, -1]`
+*   **Expected**: `[0, 10, -1]`
+*   **Implementation Trace**:
+    1.  The implementation calculates points: `10` (1), `0` (0), `-1` (1).
+    2.  It correctly places `0` (0 points) first.
+    3.  It then compares `10` and `-1` to resolve the tie for 1-point numbers. In `custom_compare`, `sum_a == sum_b` is true.
+    4.  The code enters the `if a[1] * b[1] < 0:` block because `10 * -1` is negative.
+    5.  The expression `return -1 if a[1] < 0 else 1` is evaluated. When comparing `10` and `-1`, if `a` is `(0, 10)` and `b` is `(2, -1)`, `a[1]` is positive, so the function returns `1`, sorting `10` *after* `-1`.
+*   **Divergence**: The implementation produces `[0, -1, 10]`. The test expects `[0, 10, -1]`. The stability requirement dictates that for items with the same point value (`10` and `-1`), their original relative order must be preserved. Since `10` came before `-1` in the input, it must come first in the output group. The special logic for different signs in `custom_compare` incorrectly reverses this order.
+
+### FIX DIRECTIVES:
+The custom tie-breaking rule for numbers with different signs is incorrect and violates the stability required by multiple tests. The logic should be simplified to use only the original index for all tie-breaking cases.
+
+*   **FIX**: In the `custom_compare` function, remove the conditional block that handles tie-breaking for numbers with different signs. The tie-breaking logic should only compare the original indices.
+
+    Change this:
+    ```python
+    if sum_a == sum_b:
+        if a[1] * b[1] < 0:
+            return -1 if a[1] < 0 else 1
+        return a[0] - b[0]  # Preserve original order by index
+    ```
+    to this:
+    ```python
+    if sum_a == sum_b:
+        return a[0] - b[0]  # Preserve original order by index
+    ```

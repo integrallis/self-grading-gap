@@ -1,0 +1,172 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+```python
+# Test suite for maximumAmount function
+#
+# This file is part of a test-driven development process. It defines the
+# behavior of the `maximumAmount` function through a series of tests.
+# The tests are the specification that the implementer will use.
+
+from typing import List
+from solution import maximumAmount
+
+#
+# Canonical Examples from Specification
+# These tests are required and must match the examples in the spec exactly.
+#
+
+def test_canonical_example_1():
+    """
+    Test with the first example from the specification.
+    An optimal path uses one neutralization.
+    """
+    coins = [[0, 1, -1], [1, -2, 3], [2, -3, 4]]
+    # Path: (0,0)->(0,1)->(1,1)->(1,2)->(2,2). Values: 0, 1, -2, 3, 4.
+    # Neutralize the robber at (1,1) (value -2).
+    # Total = 0 + 1 + 0 + 3 + 4 = 8.
+    # Another optimal path: (0,0)->(0,1)->(0,2)->(1,2)->(2,2). Values: 0, 1, -1, 3, 4.
+    # Neutralize the robber at (0,2) (value -1).
+    # Total = 0 + 1 + 0 + 3 + 4 = 8.
+    assert maximumAmount(coins) == 8
+
+def test_canonical_example_2():
+    """
+    Test with the second example from the specification.
+    This grid contains no robbers, so no neutralizations are needed.
+    """
+    coins = [[10, 10, 10], [10, 10, 10]]
+    # Any path from (0,0) to (1,2) has a length of 4 cells.
+    # Example path: (0,0)->(0,1)->(0,2)->(1,2).
+    # All cells are 10, so total = 10 + 10 + 10 + 10 = 40.
+    assert maximumAmount(coins) == 40
+
+#
+# Additional Test Scenarios
+# These tests cover edge cases and other behaviors implied by the spec.
+#
+
+def test_single_cell_positive():
+    """
+    Test a 1x1 grid with a positive value.
+    """
+    coins = [[10]]
+    # The path is just the single cell. Total = 10.
+    assert maximumAmount(coins) == 10
+
+def test_single_cell_negative_can_neutralize():
+    """
+    Test a 1x1 grid with a negative value, which can be neutralized.
+    """
+    coins = [[-10]]
+    # The path is just the single cell with a robber.
+    # Neutralize the robber. Total = 0.
+    assert maximumAmount(coins) == 0
+
+def test_single_row_no_robbers():
+    """
+    Test a single-row grid with only positive values.
+    """
+    coins = [[1, 2, 3, 4]]
+    # The only path is across the row. Total = 1 + 2 + 3 + 4 = 10.
+    assert maximumAmount(coins) == 10
+
+def test_single_row_one_robber_can_neutralize():
+    """
+    Test a single-row grid with one robber, which can be neutralized.
+    """
+    coins = [[1, 2, -10, 4]]
+    # Path is fixed. Neutralize the robber.
+    # Total = 1 + 2 + 0 + 4 = 7.
+    assert maximumAmount(coins) == 7
+
+def test_single_row_two_robbers_can_neutralize():
+    """
+    Test a single-row grid with two robbers, which can both be neutralized.
+    """
+    coins = [[1, -20, -10, 4]]
+    # Path is fixed. Neutralize both robbers.
+    # Total = 1 + 0 + 0 + 4 = 5.
+    assert maximumAmount(coins) == 5
+
+def test_single_row_three_robbers_must_choose():
+    """
+    Test a single-row grid with three robbers, forcing a choice of which two to neutralize.
+    """
+    coins = [[1, -20, -10, -30]]
+    # Path is fixed. Robbers: -20, -10, -30.
+    # Neutralize the two largest losses (-20 and -30) to maximize profit.
+    # Total = 1 + 0 + (-10) + 0 = -9.
+    assert maximumAmount(coins) == -9
+
+def test_single_column_three_robbers_must_choose():
+    """
+    Test a single-column grid, which is symmetric to a single row.
+    """
+    coins = [[1], [-20], [-10], [-30]]
+    # Path is fixed. Robbers: -20, -10, -30.
+    # Neutralize the two largest losses (-20 and -30).
+    # Total = 1 + 0 + (-10) + 0 = -9.
+    assert maximumAmount(coins) == -9
+
+def test_optimal_path_avoids_robbers():
+    """
+    Test a case where the optimal path is one that avoids robbers entirely.
+    """
+    coins = [[1, -100], [10, 1]]
+    # Path R,D: 1, -100, 1. Neutralize -100 -> 1 + 0 + 1 = 2.
+    # Path D,R: 1, 10, 1. No robbers -> 1 + 10 + 1 = 12.
+    # The optimal path is D,R for a total of 12.
+    assert maximumAmount(coins) == 12
+
+def test_start_cell_is_robber():
+    """
+    Test a grid where the starting cell contains a robber.
+    """
+    coins = [[-10, 1], [1, 1]]
+    # Any path must start at (0,0).
+    # Neutralize the starting robber.
+    # Path D,R: 0 (neutralized) + 1 + 1 = 2.
+    # Path R,D: 0 (neutralized) + 1 + 1 = 2.
+    assert maximumAmount(coins) == 2
+
+def test_end_cell_is_robber():
+    """
+    Test a grid where the ending cell contains a robber.
+    """
+    coins = [[1, 1], [1, -10]]
+    # Any path must end at (1,1).
+    # Neutralize the ending robber.
+    # Path D,R: 1 + 1 + 0 (neutralized) = 2.
+    # Path R,D: 1 + 1 + 0 (neutralized) = 2.
+    assert maximumAmount(coins) == 2
+
+def test_all_negative_cells_must_take_some_loss():
+    """
+    Test a grid of all negative values where some loss is unavoidable.
+    """
+    coins = [[-1, -2], [-3, -4]]
+    # Path D,R: values -1, -3, -4. Neutralize -3 and -4. Total = -1.
+    # Path R,D: values -1, -2, -4. Neutralize -2 and -4. Total = -1.
+    # The initial -1 cannot be avoided while also neutralizing the other two robbers.
+    assert maximumAmount(coins) == -1
+
+def test_negative_total_is_possible():
+    """
+    Test a case where the maximum possible amount is negative.
+    """
+    coins = [[-100, -100], [-100, -100]]
+    # Any path consists of 3 cells, all with value -100.
+    # With 2 neutralizations, one loss of 100 is unavoidable.
+    # Total = -100 + 0 + 0 = -100.
+    assert maximumAmount(coins) == -100
+
+def test_zero_coin_values():
+    """
+    Test a grid where all values are zero.
+    """
+    coins = [[0, 0, 0], [0, 0, 0]]
+    # Any path will sum to 0.
+    assert maximumAmount(coins) == 0
+```

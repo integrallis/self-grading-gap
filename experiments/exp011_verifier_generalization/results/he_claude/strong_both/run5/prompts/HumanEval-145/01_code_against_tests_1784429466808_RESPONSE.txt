@@ -1,0 +1,141 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+Let me trace through each test with the implementation.
+
+First, checking import compatibility: Tests import `order_by_points` from `solution`, and the implementation defines `order_by_points`. ✓
+
+Now tracing each test:
+
+**test_canonical_example_1:** 
+Input: [1, 11, -1, -11, -12]
+- digit_sum(1) = sum([1]) - 0 = 1
+- digit_sum(11) = sum([1,1]) - 0 = 2
+- digit_sum(-1) = sum([1]) - 1 = 0 (WRONG! Should be -1)
+- digit_sum(-11) = sum([1,1]) - 1 = 1 (WRONG! Should be 0)
+- digit_sum(-12) = sum([1,2]) - 1 = 2 (WRONG! Should be 1)
+
+The implementation does `sum(int(d) for d in str(abs(n)))` which loses the sign information for negative numbers. For -1, str(abs(-1)) = "1", so it sums to 1, then subtracts 1 = 0. But the spec requires only the FIRST digit to be negative, so -1 should sum to -1, -11 should be -1+1=0, -12 should be -1+2=1.
+
+Sorted with wrong sums: -1(0), 1(1), -11(1), 11(2), -12(2)
+With stable sort by index: -1(0), 1(1), -11(1), -12(2), 11(2)
+Expected: [-1, -11, 1, -12, 11]
+FAIL
+
+**test_canonical_example_2:**
+Input: []
+Output: []
+Expected: []
+PASS — empty list returns empty list
+
+**test_single_element:**
+Input: [5]
+digit_sum(5) = 5
+Output: [5]
+Expected: [5]
+PASS — single element returns same
+
+**test_all_same_digit_sum:**
+Input: [10, 100, 1000]
+- digit_sum(10) = 1+0 = 1
+- digit_sum(100) = 1+0+0 = 1
+- digit_sum(1000) = 1+0+0+0 = 1
+All same sum, stable sort preserves order: [10, 100, 1000]
+Expected: [10, 100, 1000]
+PASS — stable sort preserves order
+
+**test_positive_numbers_ascending:**
+Input: [3, 2, 1]
+- digit_sum(3) = 3
+- digit_sum(2) = 2
+- digit_sum(1) = 1
+Sorted: [1, 2, 3]
+Expected: [1, 2, 3]
+PASS — correct ascending order
+
+**test_positive_numbers_multi_digit:**
+Input: [23, 12, 99]
+- digit_sum(23) = 2+3 = 5
+- digit_sum(12) = 1+2 = 3
+- digit_sum(99) = 9+9 = 18
+Sorted: [12, 23, 99]
+Expected: [12, 23, 99]
+PASS — correct order by digit sum
+
+**test_negative_single_digit:**
+Input: [-3, -5, -7]
+- digit_sum(-3) = 3 - 1 = 2 (WRONG! Should be -3)
+- digit_sum(-5) = 5 - 1 = 4 (WRONG! Should be -5)
+- digit_sum(-7) = 7 - 1 = 6 (WRONG! Should be -7)
+Sorted: [-3(2), -5(4), -7(6)]
+Output: [-3, -5, -7]
+Expected: [-7, -5, -3]
+FAIL — wrong digit sum calculation for negatives
+
+**test_negative_multi_digit:**
+Input: [-23, -99, -45]
+- digit_sum(-23) = (2+3) - 1 = 4 (WRONG! Should be -2+3=1)
+- digit_sum(-99) = (9+9) - 1 = 17 (WRONG! Should be -9+9=0)
+- digit_sum(-45) = (4+5) - 1 = 8 (WRONG! Should be -4+5=1)
+Sorted: [-23(4), -45(8), -99(17)]
+Output: [-23, -45, -99]
+Expected: [-99, -23, -45]
+FAIL — wrong digit sum for negatives
+
+**test_mixed_positive_negative:**
+Input: [5, -5, 10, -10]
+- digit_sum(5) = 5
+- digit_sum(-5) = 5 - 1 = 4 (WRONG! Should be -5)
+- digit_sum(10) = 1+0 = 1
+- digit_sum(-10) = (1+0) - 1 = 0 (WRONG! Should be -1)
+Sorted: [-10(0), 10(1), -5(4), 5(5)]
+Output: [-10, 10, -5, 5]
+Expected: [-5, -10, 10, 5]
+FAIL — wrong digit sum for negatives
+
+**test_same_sum_preserves_order:**
+Input: [13, 22, 31]
+- digit_sum(13) = 1+3 = 4
+- digit_sum(22) = 2+2 = 4
+- digit_sum(31) = 3+1 = 4
+All same, stable sort: [13, 22, 31]
+Expected: [13, 22, 31]
+PASS — stable sort works
+
+**test_zero:**
+Input: [0]
+digit_sum(0) = 0
+Output: [0]
+Expected: [0]
+PASS — zero handled correctly
+
+**test_zero_with_others:**
+Input: [1, 0, -1]
+- digit_sum(1) = 1
+- digit_sum(0) = 0
+- digit_sum(-1) = 1 - 1 = 0 (WRONG! Should be -1)
+Sorted: 0(0), -1(0), 1(1)
+With stable sort by index: 0(0), -1(0), 1(1)
+Output: [0, -1, 1]
+Expected: [-1, 0, 1]
+FAIL — wrong digit sum for -1
+
+**Root cause:** The implementation incorrectly computes digit sums for negative numbers. It takes the absolute value, sums all digits as positive, then subtracts 1. The correct behavior is to make only the FIRST digit negative, keeping remaining digits positive. For example, -12 should be -1+2=1, but the implementation computes (1+2)-1=2.
+
+test_canonical_example_1: FAIL — computes wrong digit sums for negatives
+test_canonical_example_2: PASS — empty list returns empty
+test_single_element: PASS — single element unchanged
+test_all_same_digit_sum: PASS — stable sort preserves order
+test_positive_numbers_ascending: PASS — correct ascending order
+test_positive_numbers_multi_digit: PASS — correct order by sum
+test_negative_single_digit: FAIL — wrong digit sum for negatives
+test_negative_multi_digit: FAIL — wrong digit sum for negatives
+test_mixed_positive_negative: FAIL — wrong digit sum for negatives
+test_same_sum_preserves_order: PASS — stable sort works
+test_zero: PASS — zero handled correctly
+test_zero_with_others: FAIL — wrong digit sum for -1
+
+The implementation fails to correctly compute digit sums for negative numbers. It subtracts 1 from the sum of all absolute-value digits, but the specification requires only the first (leftmost) digit to be negative while remaining digits stay positive.
+
+Rating: 0.50

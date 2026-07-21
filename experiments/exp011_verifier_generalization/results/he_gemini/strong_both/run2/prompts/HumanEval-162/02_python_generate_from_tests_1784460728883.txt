@@ -1,0 +1,191 @@
+================================================================================
+TEMPLATE: agents/code/python_generate_from_tests.j2
+TIMESTAMP: 1784460728883
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  task: {'id': 'HumanEval/162', 'use_case_id': 'HumanEval/162', 'story_id': 'HumanEval/162', 'epic_id': 'HUMANEVAL', 'title': 'Implement string_to_md5()', 'description': "Given a string 'text', return its md5...[truncated]
+  test_code: import pytest
+from solution import string_to_md5
+import hashlib
+
+
+# MANDATORY: Canonical Examples from Specification
+def test_canonical_example_1():
+    """
+    Tests the canonical example from the sp...[truncated]
+  existing_impl_files: {'src/solution/__init__.py': "import hashlib\n\ndef string_to_md5(text):\n    if text == '':\n        return None\n    return hashlib.md5(text.encode('utf-8')).hexdigest()"}
+  existing_implementation: 
+  project_name: solution
+  project_brief: 
+HumanEval Problem: HumanEval/162
+
+Function: string_to_md5
+Signature: def string_to_md5(text):
+
+Task: Given a string 'text', return its md5 hash equivalent string.
+    If 'text' is an empty string, re...[truncated]
+  recent_commits: []
+  judge_feedback: The analysis of the failing tests indicates a single root cause: the MD5 hash calculation is stateful. Instead of calculating the hash for just the input of a given call, it appears to be accumulating...[truncated]
+  previous_attempt: import hashlib
+
+def string_to_md5(text):
+    if text == '':
+        return None
+    return hashlib.md5(text.encode('utf-8')).hexdigest()
+  rag_patterns: 
+  json_error_feedback: 
+================================================================================
+
+You are implementing Python code whose only acceptance criterion is the test suite below
+(test-driven development, GREEN phase). Write the simplest correct, general implementation
+that passes every test.
+
+## Task
+
+**Implement string_to_md5()**
+
+Implement every function below with its exact signature:
+- def string_to_md5(text)
+
+Implement a general algorithm. Do not hardcode results for specific inputs or pattern-match
+test cases; every line must serve the general solution. Do not add constraints, validation,
+or edge-case behavior the specification does not state.
+
+Full specification:
+
+
+def string_to_md5(text):
+    """
+    Given a string 'text', return its md5 hash equivalent string.
+    If 'text' is an empty string, return None.
+
+    >>> string_to_md5('Hello world') == '3e25960a79dbc69b674cd4ec67a72c62'
+    """
+
+
+## Tests to satisfy
+
+```python
+import pytest
+from solution import string_to_md5
+import hashlib
+
+
+# MANDATORY: Canonical Examples from Specification
+def test_canonical_example_1():
+    """
+    Tests the canonical example from the specification.
+    spec: string_to_md5('Hello world') == '3e25960a79dbc69b674cd4ec67a72c62'
+    """
+    assert string_to_md5('Hello world') == '3e25960a79dbc69b674cd4ec67a72c62'
+
+
+# Scenarios to cover
+def test_empty_string_returns_none():
+    """
+    Tests that an empty string returns None as per the specification.
+    """
+    assert string_to_md5('') is None
+
+
+def test_another_non_empty_string():
+    """
+    Tests another non-empty string to ensure the implementation is general.
+    """
+    text = "pytest"
+    # Expected: hashlib.md5("pytest".encode('utf-8')).hexdigest()
+    expected_hash = "6755239922c1591143c4c96e38258287"
+    assert string_to_md5(text) == expected_hash
+
+
+def test_string_with_numbers_and_symbols():
+    """
+    Tests a string containing numbers and symbols.
+    """
+    text = "123!@#$%"
+    # Expected: hashlib.md5("123!@#$%".encode('utf-8')).hexdigest()
+    expected_hash = "e519e59d5a49e6f1f63c8b7b5182054a"
+    assert string_to_md5(text) == expected_hash
+
+
+def test_long_string():
+    """
+    Tests a longer string to ensure it's handled correctly.
+    """
+    text = "This is a much longer string to test the MD5 hashing function. It contains multiple words, spaces, and punctuation."
+    # Expected: hashlib.md5(text.encode('utf-8')).hexdigest()
+    expected_hash = "4e6503c4a29a518335898d5a0c356157"
+    assert string_to_md5(text) == expected_hash
+
+
+def test_unicode_string():
+    """
+    Tests a string with unicode characters.
+    """
+    text = "你好世界" # "Hello world" in Chinese
+    # Expected: hashlib.md5("你好世界".encode('utf-8')).hexdigest()
+    expected_hash = "86b71d9b350d514574933939e6c46927"
+    assert string_to_md5(text) == expected_hash
+```
+
+## Existing implementation files (preserve working code; extend, don't clobber)
+
+`src/solution/__init__.py`:
+```python
+import hashlib
+
+def string_to_md5(text):
+    if text == '':
+        return None
+    return hashlib.md5(text.encode('utf-8')).hexdigest()
+```
+
+## Rules
+
+1. Implement a GENERAL algorithm. Never special-case specific test inputs or hardcode
+   expected outputs — that is test memorization, not implementation.
+2. Implement every function with the exact specified signature.
+3. Keep it minimal: no features, validation, or error handling beyond what the tests and
+   specification require.
+4. The tests import from the `solution` package; place code accordingly.
+
+## Feedback on your previous attempt
+
+The analysis of the failing tests indicates a single root cause: the MD5 hash calculation is stateful. Instead of calculating the hash for just the input of a given call, it appears to be accumulating the inputs from all previous calls. This is a common bug when a single hash object is instantiated at the module level and then reused for subsequent hashing operations, rather than creating a new hash object for each call.
+
+`test_another_non_empty_string` — expected the hash of `'pytest'`, but got the hash of `'Hello worldpytest'`, because the hash calculation incorrectly included the data from the preceding `test_canonical_example_1`.
+
+`test_string_with_numbers_and_symbols` — expected the hash of `'123!@#$%'`, but got the hash of `'Hello worldpytest123!@#$%'`, because the hash calculation incorrectly accumulated data from all previous test calls.
+
+`test_long_string` — failed for the same root cause. The hash calculation included the string data from all three previous non-empty test cases, leading to an incorrect result.
+
+`test_unicode_string` — failed for the same root cause. The hash object state was carried over from all prior tests, causing the final hash to be computed on a concatenation of all test strings so far.
+
+### FIX DIRECTIVES:
+- In `string_to_md5`, the MD5 hash object must be created, updated, and digested within the scope of a single function call. Do not use a persistent, module-level hash object. The implementation for a non-empty string should create a new hash object for that specific string.
+- In `string_to_md5`, replace the stateful hashing logic with the following expression to ensure each call is independent: `return hashlib.md5(text.encode('utf-8')).hexdigest()`
+
+## Your previous attempt
+
+```python
+import hashlib
+
+def string_to_md5(text):
+    if text == '':
+        return None
+    return hashlib.md5(text.encode('utf-8')).hexdigest()
+```
+
+## Output
+
+Return exactly one JSON object in a fenced block and nothing else. Escape the code string
+correctly (newlines as \n, quotes as \").
+
+```json
+{
+  "impl_file_path": "src/solution/__init__.py",
+  "action": "update",
+  "content": "<the complete implementation file as one JSON string>",
+  "reasoning": "<one sentence>"
+}
+```

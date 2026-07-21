@@ -1,0 +1,306 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784476935355
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: import math
+import pytest
+from solution import max_fill
+
+
+def test_canonical_example_1():
+    """Tests the first example from the specification."""
+    grid = [[0, 0, 1, 0], [0, 1, 0, 0], [1, 1, 1, 1]...[truncated]
+  impl_code: def max_fill(grid, capacity):
+    total_trips = 0
+    for row in grid:
+        water_count = sum(row)
+        total_trips += math.ceil(water_count / capacity)
+    return total_trips
+
+  task: {'id': 'HumanEval/115', 'use_case_id': 'HumanEval/115', 'story_id': 'HumanEval/115', 'epic_id': 'HUMANEVAL', 'title': 'Implement max_fill()', 'description': 'You are given a rectangular grid of wells....[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement max_fill()**
+
+## Tests (the acceptance criterion)
+
+```python
+import math
+import pytest
+from solution import max_fill
+
+
+def test_canonical_example_1():
+    """Tests the first example from the specification."""
+    grid = [[0, 0, 1, 0], [0, 1, 0, 0], [1, 1, 1, 1]]
+    capacity = 1
+    # spec:
+    # Well 1: 1 water, capacity 1 -> math.ceil(1/1) = 1 trip
+    # Well 2: 1 water, capacity 1 -> math.ceil(1/1) = 1 trip
+    # Well 3: 4 water, capacity 1 -> math.ceil(4/1) = 4 trips
+    # Total = 1 + 1 + 4 = 6
+    assert max_fill(grid, capacity) == 6
+
+
+def test_canonical_example_2():
+    """Tests the second example from the specification."""
+    grid = [[0, 0, 1, 1], [0, 0, 0, 0], [1, 1, 1, 1], [0, 1, 1, 1]]
+    capacity = 2
+    # spec:
+    # Well 1: 2 water, capacity 2 -> math.ceil(2/2) = 1 trip
+    # Well 2: 0 water, capacity 2 -> math.ceil(0/2) = 0 trips
+    # Well 3: 4 water, capacity 2 -> math.ceil(4/2) = 2 trips
+    # Well 4: 3 water, capacity 2 -> math.ceil(3/2) = 2 trips
+    # Total = 1 + 0 + 2 + 2 = 5
+    assert max_fill(grid, capacity) == 5
+
+
+def test_canonical_example_3():
+    """Tests the third example from the specification."""
+    grid = [[0, 0, 0], [0, 0, 0]]
+    capacity = 5
+    # spec:
+    # Well 1: 0 water, capacity 5 -> math.ceil(0/5) = 0 trips
+    # Well 2: 0 water, capacity 5 -> math.ceil(0/5) = 0 trips
+    # Total = 0 + 0 = 0
+    assert max_fill(grid, capacity) == 0
+
+
+def test_single_well_requires_rounding():
+    """Tests a single well where water is not a multiple of capacity."""
+    grid = [[1, 1, 1, 1, 1]]
+    capacity = 3
+    # spec:
+    # Well 1: 5 water, capacity 3 -> math.ceil(5/3) = 2 trips
+    # Total = 2
+    assert max_fill(grid, capacity) == 2
+
+
+def test_capacity_larger_than_water_in_any_well():
+    """Tests when capacity is large, requiring one trip per non-empty well."""
+    grid = [[1, 1, 0], [1, 0, 1], [1, 0, 0]]
+    capacity = 10
+    # spec:
+    # Well 1: 2 water, capacity 10 -> math.ceil(2/10) = 1 trip
+    # Well 2: 2 water, capacity 10 -> math.ceil(2/10) = 1 trip
+    # Well 3: 1 water, capacity 10 -> math.ceil(1/10) = 1 trip
+    # Total = 1 + 1 + 1 = 3
+    assert max_fill(grid, capacity) == 3
+
+
+def test_water_is_exact_multiple_of_capacity():
+    """Tests wells where water is an exact multiple of capacity."""
+    grid = [[1, 1, 1, 1, 0, 0], [1, 1, 1, 1, 1, 1]]
+    capacity = 2
+    # spec:
+    # Well 1: 4 water, capacity 2 -> math.ceil(4/2) = 2 trips
+    # Well 2: 6 water, capacity 2 -> math.ceil(6/2) = 3 trips
+    # Total = 2 + 3 = 5
+    assert max_fill(grid, capacity) == 5
+
+
+def test_minimum_size_grid_and_capacity():
+    """Tests a grid with one well of one unit, and capacity of one."""
+    grid = [[1]]
+    capacity = 1
+    # spec:
+    # Well 1: 1 water, capacity 1 -> math.ceil(1/1) = 1 trip
+    # Total = 1
+    assert max_fill(grid, capacity) == 1
+
+
+def test_all_wells_are_completely_full():
+    """Tests a grid where every cell contains water."""
+    grid = [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
+    capacity = 2
+    # spec:
+    # Well 1: 3 water, capacity 2 -> math.ceil(3/2) = 2 trips
+    # Well 2: 3 water, capacity 2 -> math.ceil(3/2) = 2 trips
+    # Well 3: 3 water, capacity 2 -> math.ceil(3/2) = 2 trips
+    # Total = 2 + 2 + 2 = 6
+    assert max_fill(grid, capacity) == 6
+
+
+def test_long_wells_with_max_capacity():
+    """Tests with long wells and the maximum capacity from constraints."""
+    grid = [[1] * 100, [1] * 50 + [0] * 50]
+    capacity = 10
+    # spec:
+    # Well 1: 100 water, capacity 10 -> math.ceil(100/10) = 10 trips
+    # Well 2: 50 water, capacity 10 -> math.ceil(50/10) = 5 trips
+    # Total = 10 + 5 = 15
+    assert max_fill(grid, capacity) == 15
+
+
+def test_many_wells_with_minimal_water_and_capacity():
+    """Tests with the maximum number of wells, each with minimal water."""
+    grid = [[1]] * 100
+    capacity = 1
+    # spec:
+    # 100 wells, each with 1 water and capacity 1.
+    # Each well needs math.ceil(1/1) = 1 trip.
+    # Total = 100 * 1 = 100
+    assert max_fill(grid, capacity) == 100
+```
+
+## Failing implementation
+
+```python
+def max_fill(grid, capacity):
+    total_trips = 0
+    for row in grid:
+        water_count = sum(row)
+        total_trips += math.ceil(water_count / capacity)
+    return total_trips
+
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpuznb5arq/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 10 items
+
+tests/test_task.py::test_canonical_example_1 FAILED                      [ 10%]
+tests/test_task.py::test_canonical_example_2 FAILED                      [ 20%]
+tests/test_task.py::test_canonical_example_3 FAILED                      [ 30%]
+tests/test_task.py::test_single_well_requires_rounding FAILED            [ 40%]
+tests/test_task.py::test_capacity_larger_than_water_in_any_well FAILED   [ 50%]
+tests/test_task.py::test_water_is_exact_multiple_of_capacity FAILED      [ 60%]
+tests/test_task.py::test_minimum_size_grid_and_capacity FAILED           [ 70%]
+tests/test_task.py::test_all_wells_are_completely_full FAILED            [ 80%]
+tests/test_task.py::test_long_wells_with_max_capacity FAILED             [ 90%]
+tests/test_task.py::test_many_wells_with_minimal_water_and_capacity FAILED [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_1 ___________________________
+tests/test_task.py:15: in test_canonical_example_1
+    assert max_fill(grid, capacity) == 6
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:5: in max_fill
+    total_trips += math.ceil(water_count / capacity)
+                   ^^^^
+E   NameError: name 'math' is not defined. Did you forget to import 'math'
+___________________________ test_canonical_example_2 ___________________________
+tests/test_task.py:28: in test_canonical_example_2
+    assert max_fill(grid, capacity) == 5
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:5: in max_fill
+    total_trips += math.ceil(water_count / capacity)
+                   ^^^^
+E   NameError: name 'math' is not defined. Did you forget to import 'math'
+___________________________ test_canonical_example_3 ___________________________
+tests/test_task.py:39: in test_canonical_example_3
+    assert max_fill(grid, capacity) == 0
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:5: in max_fill
+    total_trips += math.ceil(water_count / capacity)
+                   ^^^^
+E   NameError: name 'math' is not defined. Did you forget to import 'math'
+______________________ test_single_well_requires_rounding ______________________
+tests/test_task.py:49: in test_single_well_requires_rounding
+    assert max_fill(grid, capacity) == 2
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:5: in max_fill
+    total_trips += math.ceil(water_count / capacity)
+                   ^^^^
+E   NameError: name 'math' is not defined. Did you forget to import 'math'
+_________________ test_capacity_larger_than_water_in_any_well __________________
+tests/test_task.py:61: in test_capacity_larger_than_water_in_any_well
+    assert max_fill(grid, capacity) == 3
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:5: in max_fill
+    total_trips += math.ceil(water_count / capacity)
+                   ^^^^
+E   NameError: name 'math' is not defined. Did you forget to import 'math'
+___________________ test_water_is_exact_multiple_of_capacity ___________________
+tests/test_task.py:72: in test_water_is_exact_multiple_of_capacity
+    assert max_fill(grid, capacity) == 5
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:5: in max_fill
+    total_trips += math.ceil(water_count / capacity)
+                   ^^^^
+E   NameError: name 'math' is not defined. Did you forget to import 'math'
+_____________________ test_minimum_size_grid_and_capacity ______________________
+tests/test_task.py:82: in test_minimum_size_grid_and_capacity
+    assert max_fill(grid, capacity) == 1
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:5: in max_fill
+    total_trips += math.ceil(water_count / capacity)
+                   ^^^^
+E   NameError: name 'math' is not defined. Did you forget to import 'math'
+______________________ test_all_wells_are_completely_full ______________________
+tests/test_task.py:94: in test_all_wells_are_completely_full
+    assert max_fill(grid, capacity) == 6
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:5: in max_fill
+    total_trips += math.ceil(water_count / capacity)
+                   ^^^^
+E   NameError: name 'math' is not defined. Did you forget to import 'math'
+______________________ test_long_wells_with_max_capacity _______________________
+tests/test_task.py:105: in test_long_wells_with_max_capacity
+    assert max_fill(grid, capacity) == 15
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:5: in max_fill
+    total_trips += math.ceil(water_count / capacity)
+                   ^^^^
+E   NameError: name 'math' is not defined. Did you forget to import 'math'
+_______________ test_many_wells_with_minimal_water_and_capacity ________________
+tests/test_task.py:116: in test_many_wells_with_minimal_water_and_capacity
+    assert max_fill(grid, capacity) == 100
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:5: in max_fill
+    total_trips += math.ceil(water_count / capacity)
+                   ^^^^
+E   NameError: name 'math' is not defined. Did you forget to import 'math'
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_canonical_example_1 - NameError: name 'math' ...
+FAILED tests/test_task.py::test_canonical_example_2 - NameError: name 'math' ...
+FAILED tests/test_task.py::test_canonical_example_3 - NameError: name 'math' ...
+FAILED tests/test_task.py::test_single_well_requires_rounding - NameError: na...
+FAILED tests/test_task.py::test_capacity_larger_than_water_in_any_well - Name...
+FAILED tests/test_task.py::test_water_is_exact_multiple_of_capacity - NameErr...
+FAILED tests/test_task.py::test_minimum_size_grid_and_capacity - NameError: n...
+FAILED tests/test_task.py::test_all_wells_are_completely_full - NameError: na...
+FAILED tests/test_task.py::test_long_wells_with_max_capacity - NameError: nam...
+FAILED tests/test_task.py::test_many_wells_with_minimal_water_and_capacity - ...
+============================== 10 failed in 0.03s ==============================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

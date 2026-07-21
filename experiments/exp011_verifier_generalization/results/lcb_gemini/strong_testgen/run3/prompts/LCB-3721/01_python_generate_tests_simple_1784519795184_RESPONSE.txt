@@ -1,0 +1,168 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+```python
+from typing import List
+from solution import countMentions
+
+# MANDATORY: Canonical Examples from Specification
+
+def test_canonical_example_1():
+    """
+    Tests the first example from the specification.
+    """
+    numberOfUsers = 2
+    events = [["MESSAGE", "10", "id1 id0"], ["OFFLINE", "11", "0"], ["MESSAGE", "71", "HERE"]]
+    # t=10: "id1 id0" mentions both users. mentions = [1, 1].
+    # t=11: User 0 goes offline, scheduled to be back at t=71.
+    # t=71: User 0 comes back online. Then "HERE" message mentions all online users (0 and 1).
+    # Final mentions: [1+1, 1+1] = [2, 2].
+    assert countMentions(numberOfUsers, events) == [2, 2]
+
+def test_canonical_example_2():
+    """
+    Tests the second example from the specification.
+    """
+    numberOfUsers = 2
+    events = [["MESSAGE", "10", "id1 id0"], ["OFFLINE", "11", "0"], ["MESSAGE", "12", "ALL"]]
+    # t=10: "id1 id0" mentions both users. mentions = [1, 1].
+    # t=11: User 0 goes offline.
+    # t=12: "ALL" message mentions all users (0 and 1), regardless of status.
+    # Final mentions: [1+1, 1+1] = [2, 2].
+    assert countMentions(numberOfUsers, events) == [2, 2]
+
+def test_canonical_example_3():
+    """
+    Tests the third example from the specification.
+    """
+    numberOfUsers = 2
+    events = [["OFFLINE", "10", "0"], ["MESSAGE", "12", "HERE"]]
+    # t=10: User 0 goes offline.
+    # t=12: "HERE" message. User 0 is still offline. Only user 1 (online) is mentioned.
+    # Final mentions: [0, 1].
+    assert countMentions(numberOfUsers, events) == [0, 1]
+
+# Additional tests for various scenarios
+
+def test_no_events():
+    """
+    Tests the behavior when the events list is empty.
+    """
+    # No events mean no mentions.
+    assert countMentions(5, []) == [0, 0, 0, 0, 0]
+
+def test_no_message_events():
+    """
+    Tests behavior with only OFFLINE events.
+    """
+    numberOfUsers = 3
+    events = [["OFFLINE", "10", "0"], ["OFFLINE", "20", "1"]]
+    # Only OFFLINE events occur, no MESSAGE events, so no mentions are counted.
+    assert countMentions(numberOfUsers, events) == [0, 0, 0]
+
+def test_all_users_always_online():
+    """
+    Tests mentions when all users are always online.
+    """
+    numberOfUsers = 3
+    events = [
+        ["MESSAGE", "10", "id0"],
+        ["MESSAGE", "20", "ALL"],
+        ["MESSAGE", "30", "HERE"]
+    ]
+    # t=10: id0 mentioned. mentions=[1,0,0]
+    # t=20: ALL (0,1,2) mentioned. mentions=[1+1, 0+1, 0+1] = [2,1,1]
+    # t=30: HERE (0,1,2 are all online) mentioned. mentions=[2+1, 1+1, 1+1] = [3,2,2]
+    assert countMentions(numberOfUsers, events) == [3, 2, 2]
+
+def test_duplicate_mentions_in_single_message():
+    """
+    Tests that duplicate mentions in one message string are counted separately.
+    """
+    numberOfUsers = 2
+    events = [["MESSAGE", "5", "id0 id1 id0"]]
+    # The string "id0 id1 id0" mentions user 0 twice and user 1 once.
+    assert countMentions(numberOfUsers, events) == [2, 1]
+
+def test_specific_id_mention_while_offline():
+    """
+    Tests that a specific user ID mention counts even if the user is offline.
+    """
+    numberOfUsers = 2
+    events = [["OFFLINE", "10", "0"], ["MESSAGE", "15", "id0"]]
+    # t=10: User 0 goes offline.
+    # t=15: "id0" is mentioned. This counts even though user 0 is offline.
+    # Final mentions: [1, 0].
+    assert countMentions(numberOfUsers, events) == [1, 0]
+
+def test_events_not_sorted_by_timestamp():
+    """
+    Tests that events are processed in chronological order, not their order in the input array.
+    """
+    numberOfUsers = 2
+    events = [["OFFLINE", "50", "1"], ["MESSAGE", "20", "HERE"]]
+    # Events must be processed by timestamp.
+    # t=20: Both users are online. "HERE" mentions both. mentions=[1,1].
+    # t=50: User 1 goes offline. No message.
+    # Final mentions: [1, 1].
+    assert countMentions(numberOfUsers, events) == [1, 1]
+
+def test_simultaneous_offline_and_message_events():
+    """
+    Tests that status changes are processed before messages at the same timestamp.
+    """
+    numberOfUsers = 2
+    events = [["MESSAGE", "10", "HERE"], ["OFFLINE", "10", "0"]]
+    # At t=10, the OFFLINE event is processed first. User 0 becomes offline.
+    # Then, the MESSAGE event is processed. "HERE" mentions only online users (user 1).
+    # Final mentions: [0, 1].
+    assert countMentions(numberOfUsers, events) == [0, 1]
+
+def test_here_message_just_before_coming_online():
+    """
+    Tests a HERE mention at the timestamp right before a user comes back online.
+    """
+    numberOfUsers = 2
+    events = [["OFFLINE", "10", "0"], ["MESSAGE", "69", "HERE"]]
+    # t=10: User 0 goes offline. Will be back at t=70.
+    # t=69: User 0 is still offline. "HERE" message mentions only user 1.
+    # Final mentions: [0, 1].
+    assert countMentions(numberOfUsers, events) == [0, 1]
+
+def test_multiple_offline_periods_for_one_user():
+    """
+    Tests a user going offline more than once.
+    """
+    numberOfUsers = 1
+    events = [
+        ["OFFLINE", "10", "0"],     # User 0 offline until t=70
+        ["MESSAGE", "50", "HERE"],    # User 0 is offline, no mention
+        ["OFFLINE", "80", "0"],     # User 0 back online at t=70, goes offline again until t=140
+        ["MESSAGE", "100", "HERE"]    # User 0 is offline, no mention
+    ]
+    # In both MESSAGE events, user 0 is offline, so "HERE" does not mention them.
+    assert countMentions(numberOfUsers, events) == [0]
+
+def test_single_user_and_basic_mentions():
+    """
+    Tests with a single user and different mention types.
+    """
+    numberOfUsers = 1
+    events = [
+        ["MESSAGE", "10", "ALL"],
+        ["MESSAGE", "20", "id0"],
+        ["MESSAGE", "30", "HERE"],
+        ["OFFLINE", "35", "0"],       # Offline until t=95
+        ["MESSAGE", "40", "HERE"],    # No mention
+        ["MESSAGE", "50", "id0"]      # Mentioned
+    ]
+    # t=10: "ALL" mentions user 0. mentions=[1].
+    # t=20: "id0" mentions user 0. mentions=[2].
+    # t=30: "HERE" mentions user 0. mentions=[3].
+    # t=35: user 0 goes offline.
+    # t=40: "HERE" is sent, user 0 is offline, no mention.
+    # t=50: "id0" mentions user 0. mentions=[4].
+    assert countMentions(numberOfUsers, events) == [4]
+
+```

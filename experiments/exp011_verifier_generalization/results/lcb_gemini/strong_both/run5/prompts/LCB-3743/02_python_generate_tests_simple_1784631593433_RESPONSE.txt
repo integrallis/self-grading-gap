@@ -1,0 +1,133 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+```python
+import pytest
+from typing import List
+
+from solution import maxFreeTime
+
+
+def test_canonical_example_1():
+    # spec: Example 1
+    # Input: eventTime = 5, k = 1, startTime = [1,3], endTime = [2,5]
+    # Gaps are [0,1] (1), [2,3] (1), [5,5] (0). Initial max free time is 1.
+    # With k=1, we can move one meeting. Move [1,2] to be adjacent to [3,5].
+    # New position for [1,2] would be [2,3]. Meetings: [2,3], [3,5].
+    # This creates a free period [0,2] of duration 2.
+    assert maxFreeTime(eventTime=5, k=1, startTime=[1, 3], endTime=[2, 5]) == 2
+
+
+def test_canonical_example_2():
+    # spec: Example 2
+    # Input: eventTime = 10, k = 1, startTime = [0,2,9], endTime = [1,4,10]
+    # Gaps: [1,2] (1), [4,9] (5). Initial max free time is 5.
+    # With k=1, move meeting [2,4] to be adjacent to [0,1]. New position: [1,3].
+    # Meetings: [0,1], [1,3], [9,10].
+    # New large gap is [3,9], duration 6.
+    assert maxFreeTime(eventTime=10, k=1, startTime=[0, 2, 9], endTime=[1, 4, 10]) == 6
+
+
+def test_canonical_example_3():
+    # spec: Example 3
+    # Input: eventTime = 5, k = 2, startTime = [0,1,2,3,4], endTime = [1,2,3,4,5]
+    # The meetings cover the entire event time [0,5].
+    # Total duration of meetings is 5, eventTime is 5. No free time can be created.
+    assert maxFreeTime(eventTime=5, k=2, startTime=[0, 1, 2, 3, 4], endTime=[1, 2, 3, 4, 5]) == 0
+
+
+def test_all_meetings_movable():
+    # When k >= n-1, all meetings can be made contiguous.
+    # The maximum free time is the total event time minus the total duration of all meetings.
+    # Meetings: [2,5] (d=3), [8,10] (d=2), [15,18] (d=3). Total duration = 3+2+3 = 8.
+    # Max free time = eventTime - total duration = 20 - 8 = 12.
+    assert maxFreeTime(eventTime=20, k=3, startTime=[2, 8, 15], endTime=[5, 10, 18]) == 12
+
+
+def test_almost_all_meetings_movable():
+    # When k >= n-1, as in this case with n=3, k=2.
+    # All meetings can be made contiguous.
+    # Meetings: [2,5] (d=3), [8,10] (d=2), [15,18] (d=3). Total duration = 8.
+    # Max free time = eventTime - total duration = 20 - 8 = 12.
+    assert maxFreeTime(eventTime=20, k=2, startTime=[2, 8, 15], endTime=[5, 10, 18]) == 12
+
+
+def test_middle_gap_maximization():
+    # Create a large gap in the middle.
+    # Meetings: [0,1] (d=1), [10,15] (d=5), [29,30] (d=1). k=1.
+    # Initial gaps: before is 0, between are [1,10] (9) and [15,29] (14), after is 0. Max initial is 14.
+    # Move meeting [10,15] adjacent to [0,1] (new pos: [1,6]), creating gap [6,29] of duration 23.
+    # Or move it adjacent to [29,30] (new pos: [24,29]), creating gap [1,24] of duration 23.
+    assert maxFreeTime(eventTime=30, k=1, startTime=[0, 10, 29], endTime=[1, 15, 30]) == 23
+
+
+def test_start_gap_maximization():
+    # Create a large gap at the beginning.
+    # Meetings: [10,12] (d=2), [16,18] (d=2). k=1.
+    # Initial gaps: before is [0,10] (10), between is [12,16] (4), after is [18,20] (2). Max initial is 10.
+    # Move meeting [10,12] adjacent to [16,18] (new pos: [14,16]).
+    # Meetings become [14,16], [16,18]. New gap at start is [0, 14], duration 14.
+    assert maxFreeTime(eventTime=20, k=1, startTime=[10, 16], endTime=[12, 18]) == 14
+
+
+def test_end_gap_maximization():
+    # Create a large gap at the end.
+    # Meetings: [2,4] (d=2), [8,10] (d=2). k=1.
+    # Initial gaps: before is [0,2] (2), between is [4,8] (4), after is [10,20] (10). Max initial is 10.
+    # Move meeting [8,10] adjacent to [2,4] (new pos: [4,6]).
+    # Meetings become [2,4], [4,6]. New gap at end is [6, 20], duration 14.
+    assert maxFreeTime(eventTime=20, k=1, startTime=[2, 8], endTime=[4, 10]) == 14
+
+
+def test_no_improvement_with_moves():
+    # Moving meetings does not always improve the maximum free time.
+    # Meetings: [0,1] (d=1), [18,20] (d=2). k=1.
+    # Initial gaps: before is 0, between is [1,18] (17), after is 0. Max initial is 17.
+    # Moving a meeting just re-creates a gap of the same size elsewhere.
+    # E.g., move [18,20] to [1,3]. Gap becomes [3,20], duration 17.
+    assert maxFreeTime(eventTime=20, k=1, startTime=[0, 18], endTime=[1, 20]) == 17
+
+def test_minimal_meetings_and_k():
+    # Test with minimum n=2 and k=1.
+    # Meetings: [5,10] (d=5), [15,20] (d=5). k=1.
+    # Initial gaps: before is [0,5] (5), between is [10,15] (5), after is [20,30] (10). Max initial is 10.
+    # Move [15,20] to [10,15]. Gap at end becomes [15,30], duration 15.
+    assert maxFreeTime(eventTime=30, k=1, startTime=[5, 15], endTime=[10, 20]) == 15
+
+def test_large_event_time():
+    # Test with eventTime up to 10^9 to ensure algorithm is not dependent on time magnitude.
+    # eventTime=10^9, k=1, n=2.
+    # Meetings: [1e8, 2e8], [8e8, 9e8].
+    # Gaps:
+    #   - Start: startTime[0] - 0 = 10^8.
+    #   - Inner: startTime[1] - endTime[0] = 8e8 - 2e8 = 6e8.
+    #   - End: eventTime - endTime[1] = 10e8 - 9e8 = 10^8.
+    # Max initial gap is 6e8.
+    # With k=1, we can collapse the inner gap.
+    # Add inner gap to start gap: 1e8 + 6e8 = 7e8.
+    # Add inner gap to end gap: 1e8 + 6e8 = 7e8.
+    # The maximum free time becomes 7e8.
+    event_time = 10**9
+    start_time = [10**8, 8 * 10**8]
+    end_time = [2 * 10**8, 9 * 10**8]
+    expected = 7 * 10**8
+    assert maxFreeTime(eventTime=event_time, k=1, startTime=start_time, endTime=end_time) == expected
+
+def test_large_number_of_meetings():
+    # Test with n up to 10^5 to ensure algorithm is efficient (e.g., O(n) or O(n log n)).
+    # We use n=5000 and k=100.
+    n = 5000
+    k = 100
+    event_time = 10**7
+    # Meetings [0,1], [2,3], [4,5], ...
+    start_time = [2 * i for i in range(n)]
+    end_time = [2 * i + 1 for i in range(n)]
+    # All internal gaps are 1. The start gap is 0. The end gap is largest.
+    # end_gap = eventTime - endTime[n-1] = 10^7 - (2*(5000-1)+1) = 10^7 - 9999.
+    # We can collapse k=100 consecutive internal gaps (sum=100).
+    # To maximize, add this sum to the largest adjacent gap, which is the end gap.
+    # New end gap = (10^7 - 9999) + 100 = 10^7 - 9899 = 9990101.
+    expected = 9990101
+    assert maxFreeTime(eventTime=event_time, k=k, startTime=start_time, endTime=end_time) == expected
+```

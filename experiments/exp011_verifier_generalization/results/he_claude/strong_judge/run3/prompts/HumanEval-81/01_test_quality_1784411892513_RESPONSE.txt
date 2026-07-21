@@ -1,0 +1,154 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+# Test Quality Evaluation
+
+## Check 0 — Canonical Example Coverage
+
+The specification provides one worked example:
+- Input: `[4.0, 3, 1.7, 2, 3.5]`
+- Expected: `['A+', 'B', 'C-', 'C', 'A-']`
+
+**Verification:** `test_canonical_example_1` contains exactly this example with matching inputs and outputs.
+
+✓ The canonical example is present and correct. Proceeding with detailed checks.
+
+## Check 1 — Fidelity
+
+Recomputing expected values from the specification's grading table:
+
+**test_canonical_example_1:** `[4.0, 3, 1.7, 2, 3.5]`
+- 4.0 = 4.0 → A+
+- 3.0: 3.0 < 3.3, 3.0 = 3.0 → B+ (not > 3.0, exactly 3.0, so next bracket down which is > 2.7 → B... wait, let me re-read)
+  
+Looking at the table more carefully:
+- 4.0 → A+
+- > 3.7 → A
+- > 3.3 → A-
+- > 3.0 → B+
+- > 2.7 → B
+
+For 3.0: it's not > 3.0, so it doesn't qualify for B+. Is 3.0 > 2.7? Yes. So 3.0 → B ✓
+
+- 1.7: is 1.7 = 1.7? Not > 1.7, so check next: is 1.7 > 1.3? Yes → C- ✓
+- 2.0: is 2.0 = 2.0? Not > 2.0, so check: is 2.0 > 1.7? Yes → C ✓
+- 3.5: is 3.5 > 3.7? No. Is 3.5 > 3.3? Yes → A- ✓
+
+Expected: `['A+', 'B', 'C-', 'C', 'A-']` ✓ Matches test
+
+**test_canonical_example_2:** `[4.0, 3.8, 3.4, 3.1, 2.9]`
+- 4.0 = 4.0 → A+ ✓
+- 3.8 > 3.7 → A ✓
+- 3.4 > 3.3 → A- ✓
+- 3.1 > 3.0 → B+ ✓
+- 2.9: is 2.9 > 3.0? No. Is 2.9 > 2.7? Yes → B ✓
+
+Expected: `['A+', 'A', 'A-', 'B+', 'B']` ✓ Matches test
+
+**test_canonical_example_3:** `[2.5, 1.5, 0.5, 0.0]`
+- 2.5: is 2.5 > 2.7? No. Is 2.5 > 2.3? Yes → B-... wait, let me check the table again.
+  
+Re-reading table:
+- > 2.7 → B
+- > 2.3 → B-
+- > 2.0 → C+
+- > 1.7 → C
+
+For 2.5: is 2.5 > 2.7? No. Is 2.5 > 2.3? Yes → B-
+
+But the test expects 'C'. Let me recalculate:
+- 2.5 > 2.3? Yes, so it should be B-. But test says C.
+
+Actually, I need to read the grading logic more carefully. Looking at 1.7 in example 1, which gave C-:
+- 1.7 is not > 1.7, so it goes to the next bracket
+- 1.7 > 1.3? Yes → C-
+
+So the logic seems to be: find the first threshold where the GPA is **greater than** the threshold.
+
+For 2.5:
+- 2.5 > 2.7? No
+- 2.5 > 2.3? Yes → B-
+
+The test expects 'C' which would require 2.5 to only satisfy > 1.7. This appears incorrect.
+
+Wait, let me check 1.5:
+- 1.5 > 1.7? No
+- 1.5 > 1.3? Yes → C-
+
+Test expects D+. For D+: > 1.0. So test expects 1.5 to fail > 1.3 and satisfy > 1.0.
+
+Hmm, 1.5 > 1.3 is true (1.5 = 1.5 is false, but 1.5 > 1.3 = true). So should be C-.
+
+I think there's an error in test_canonical_example_3.
+
+**Actually, let me reconsider the exact GPA value matching:**
+
+Looking at the example: 1.7 → C-. But > 1.7 → C. So 1.7 exactly doesn't satisfy > 1.7.
+
+For 2.5: test expects 'C'. 
+- > 2.0 gives C+
+- > 1.7 gives C
+
+Is 2.5 > 2.0? Yes, so should be C+, not C.
+
+This test appears to have incorrect expected values.
+
+## Check 2 — No Invented Constraints
+
+The tests only check conversion of GPA lists to letter grades. No additional constraints or validations are tested beyond what the specification describes. ✓
+
+## Check 3 — Coverage
+
+Specified behaviors and boundaries:
+- [x] GPA = 4.0 → A+ (tested in examples 1 & 2)
+- [x] GPA > 3.7 → A (tested in example 2: 3.8)
+- [x] GPA > 3.3 → A- (tested in examples 1 & 2)
+- [x] GPA > 3.0 → B+ (tested in example 2: 3.1)
+- [x] GPA > 2.7 → B (tested in examples 1 & 2)
+- [ ] GPA > 2.3 → B- (not tested with clear example)
+- [ ] GPA > 2.0 → C+ (2.0 exactly tested, but boundary not clear)
+- [x] GPA > 1.7 → C (tested in example 1: 2.0, though 2.0 > 1.7)
+- [x] GPA > 1.3 → C- (tested in example 1: 1.7)
+- [ ] GPA > 1.0 → D+ (not tested)
+- [ ] GPA > 0.7 → D (not tested)
+- [x] GPA > 0.0 → D- (tested in example 3: 0.5)
+- [x] GPA = 0.0 → E (tested in example 3)
+
+Missing boundary tests for B-, C+, D+, D grades.
+
+## Check 4 — Sanity
+
+- Import statement: `from solution import numerical_letter_grade` ✓
+- Function name matches specification: `numerical_letter_grade` ✓
+- Syntactically valid pytest ✓
+
+## Findings Summary
+
+1. **Fidelity issues:** test_canonical_example_2 and test_canonical_example_3 are NOT from the specification (only one example given) but appear to have calculation errors. For test_canonical_example_3, the expected values don't match the grading table computation.
+
+2. **No invented constraints:** None detected.
+
+3. **Coverage gaps:** Several grade boundaries untested (B-, proper C+ boundary, D+, D).
+
+4. **Sanity:** No issues.
+
+## Directives
+
+FIX: test_canonical_example_3 expects ['C', 'D+', 'D-', 'E'] but per the grading table: 2.5 > 2.3 → B- (not C); 1.5 > 1.3 → C- (not D+)
+
+REMOVE: test_canonical_example_2 (not from specification; creates extra invented test cases)
+
+REMOVE: test_canonical_example_3 (not from specification; has incorrect expected values)
+
+ADD: test for GPA exactly at boundary 3.7 to verify > 3.7 logic
+
+ADD: test for grades in B- range (e.g., 2.4 or 2.5)
+
+ADD: test for grades in D+ range (e.g., 1.2 or 1.1)
+
+ADD: test for grades in D range (e.g., 0.8 or 0.9)
+
+ADD: test for empty list input: [] → []
+
+## Final score: 0.10

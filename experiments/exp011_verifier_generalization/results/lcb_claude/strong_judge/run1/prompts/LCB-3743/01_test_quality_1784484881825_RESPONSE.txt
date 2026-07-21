@@ -1,0 +1,115 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+# Evaluation
+
+## Check 0 — MANDATORY Canonical Example Coverage
+
+The specification provides three worked examples:
+
+1. **Example 1**: `eventTime=5, k=1, startTime=[1,3], endTime=[2,5]` → `2`
+   - Found in `test_canonical_example_1()` ✓
+
+2. **Example 2**: `eventTime=10, k=1, startTime=[0,2,9], endTime=[1,4,10]` → `6`
+   - Found in `test_canonical_example_2()` ✓
+
+3. **Example 3**: `eventTime=5, k=2, startTime=[0,1,2,3,4], endTime=[1,2,3,4,5]` → `0`
+   - Found in `test_canonical_example_3()` ✓
+
+All canonical examples are present with exact inputs and outputs. ✓
+
+## Check 1 — Fidelity
+
+Let me verify each assertion:
+
+**test_canonical_example_1**: Already verified (example 1) ✓
+
+**test_canonical_example_2**: Already verified (example 2) ✓
+
+**test_canonical_example_3**: Already verified (example 3) ✓
+
+**test_minimal_case**: `eventTime=5, k=1, startTime=[1,3], endTime=[2,4]`
+- Initial gaps: [0,1) = 1, [2,3) = 1, [4,5) = 1
+- Can reschedule 1 meeting. Move meeting [1,2) to [0,1). Now: [0,1), [3,4) with gap [1,3) = 2. Or move [3,4) to [2,3). Now: [1,2), [2,3) with gaps [0,1)=1, [3,5)=2. Max = 2 ✓
+
+**test_reschedule_all_meetings**: `eventTime=10, k=3, startTime=[0,2,5], endTime=[1,4,8]`
+- Meetings: [0,1) duration 1, [2,4) duration 2, [5,8) duration 3
+- Can reschedule all 3 meetings
+- Comment claims rescheduling to [1,2], [3,5], [6,9] leaving gap [2,3) of 1? That's wrong.
+- Actually, to maximize a single gap, pack meetings at one end: [0,1), [1,3), [3,6) leaves [6,10) = 4. Or pack at the other end: [7,8), [5,7), [2,5) leaves [0,2) = 2. Or try: [0,1), [1,3), [7,10) gives gap [3,7) = 4.
+- Better: [5,6), [6,8), [8,10) leaves [0,5) = 5. Or [0,1), [1,3), [5,8) (only last fixed) leaves [3,5)=2, [8,10)=2.
+- Try packing at start: [0,1), [1,3), [3,6) leaves [6,10)=4.
+- Try packing at end: [7,8), [5,7), [2,5) leaves [0,2)=2.
+- Try creating gap in middle: [0,1), [1,3), [8,11)... wait, can't go past 10.
+- Try: [0,1), [5,7), [7,10) leaves [1,5)=4.
+- Try: [0,1), [1,3), [5,8) leaves [3,5)=2, [8,10)=2. Max=2.
+- Wait, let me think systematically: we want to maximize one contiguous free period. Pack meetings tightly elsewhere.
+- Pack at start: [0,1), [1,3), [3,6) → free [6,10) = 4
+- Pack at end: [4,5), [5,7), [7,10) → free [0,4) = 4
+- Can we do better? Middle packing: [0,1), [4,6), [6,9) → free [1,4)=3, [9,10)=1. Max=3.
+- Or [0,1), [1,3), [7,10) → free [3,7)=4, max=4.
+- Or [5,6), [6,8), [8,10) → free [0,5)=5! ✓
+
+**test_multiple_equal_gaps**: `eventTime=10, k=1, startTime=[0,3,6], endTime=[2,5,8]`
+- Initial: [0,2), [3,5), [6,8) with gaps [2,3)=1, [5,6)=1, [8,10)=2. Max gap = 2.
+- Reschedule 1 meeting. Comment says move [3,5) to [2,4) leaving gap [4,6)=2? No, that's still at [2,4), meeting at [6,8), so gap [4,6)=2, [8,10)=2.
+- Better: Move [3,5) to [5,7). Now [0,2), [5,7), [6,8)... wait, [6,8) must come after [5,7) but they overlap. Invalid.
+- Move [0,2) to [2,4). Now [2,4), [3,5), [6,8)... [2,4) and [3,5) overlap. Invalid.
+- Move [6,8) to [8,10). Now [0,2), [3,5), [8,10) with gaps [2,3)=1, [5,8)=3, max=3.
+- Move [3,5) to [2,4). Now [0,2), [2,4), [6,8) with gaps [4,6)=2, [8,10)=2, max=2.
+- Move [0,2) to [5,7). Invalid, order must be preserved.
+- Actually the comment says "Reschedule meeting [3,5] to [2,4], free time: [4,10]" which is wrong because [6,8) is still there.
+- Comment likely meant moving [3,5) to [2,4) gives continuous gaps but forgot about [6,8).
+- The expected answer is 4. Let's compute: move [6,8) to [8,10). Gaps: [2,3)=1, [5,8)=3. Max=3.
+- Or move [0,2) to... wait, can't change order.
+- Move [3,5) to [5,7). Then [0,2), [5,7), [6,8)... overlap!
+- Maybe move [3,5) to [8,10)? No, order.
+- Let me reconsider. Move middle meeting [3,5) to [2,4). Result: [0,2), [2,4), [6,8). Gaps: none before [0,2), [4,6)=2, [8,10)=2. Max=2.
+- Move last meeting [6,8) to [2,4)? No, order must be preserved.
+- Actually I need to re-read. Can we move [3,5) to immediately after [0,2), i.e., [2,4)? Yes. Gaps become [4,6)=2, [8,10)=2. Max gap = 2.
+- Can we move [6,8) to [8,10)? Yes. Gaps: [2,3)=1, [5,6)=1, [8,10) now occupied. Wait no, if [6,8) moves to [8,10), gaps are [2,3)=1, [5,8)=3. Max=3.
+- Wait, test expects 4. Let me recalculate: If we move [3,5) to [2,4), we get [0,2), [2,4), [6,8). Free: [4,6)=2, [8,10)=2. Max=2.
+- If we move [6,8) to [3,5), we get [0,2), [3,5), [3,5)... wait, that's the original position for middle meeting. Can't have two meetings at same time.
+- Hmm, maybe move [0,2) somewhere? To [5,7)? That violates order.
+- I think the expected value of 4 is incorrect based on my analysis. Max should be 3 (by moving last meeting to [8,10)).
+
+Cannot fully verify `test_multiple_equal_gaps` - the computation suggests max=3, not 4.
+
+## Check 2 — No Invented Constraints
+
+All tests use inputs within the specified constraints. No additional validation or error handling is tested. ✓
+
+## Check 3 — Coverage
+
+Specified behaviors:
+- **Canonical examples 1, 2, 3**: Tested ✓
+- **Rescheduling k meetings**: Tested in multiple cases ✓
+- **Maintaining relative order**: Implicitly tested ✓
+- **Non-overlapping constraint after rescheduling**: Implicitly tested ✓
+- **Meetings cannot go outside [0, eventTime]**: Implicitly tested ✓
+- **Edge case: k = n (reschedule all)**: Tested in `test_reschedule_all_meetings` ✓
+- **Boundary: meetings at event boundaries**: Tested (meetings at 0 and eventTime) ✓
+- **Multiple gaps of equal size**: Tested in `test_multiple_equal_gaps` ✓
+
+Coverage appears comprehensive for the specified behaviors.
+
+## Check 4 — Sanity
+
+- Imports from `solution` module ✓
+- Function name matches specification exactly ✓
+- Syntactically valid pytest ✓
+
+## Findings Summary
+
+- One assertion (`test_multiple_equal_gaps`) has a suspect expected value (expects 4, computation suggests 3 or less)
+- All canonical examples present and correct
+- Good coverage of specified behaviors
+- No invented constraints
+- Sanity checks pass
+
+## Directives
+
+FIX: `test_multiple_equal_gaps` expects 4 but manual computation suggests the maximum free time is 3 (by moving the last meeting [6,8) to [8,10), creating gaps [2,3)=1 and [5,8)=3)
+
+## Final score: 0.70

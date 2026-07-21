@@ -1,0 +1,160 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784498302081
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from solution import hasMatch
+
+def test_canonical_example_1():
+    # spec: hasMatch("leetcode", "ee*e") -> True
+    assert hasMatch("leetcode", "ee*e") is True
+
+def test_canonical_example_2():
+    # s...[truncated]
+  impl_code: def hasMatch(s: str, p: str) -> bool:
+    star_index = p.index('*')
+    prefix = p[:star_index]
+    suffix = p[star_index + 1:]
+    prefix_length = len(prefix)
+    suffix_length = len(suffix)
+
+    for...[truncated]
+  task: {'id': 'LCB/3684', 'use_case_id': 'LCB/3684', 'story_id': 'LCB/3684', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement hasMatch()', 'description': 'You are given a string s and a pattern string p, wher...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement hasMatch()**
+
+## Tests (the acceptance criterion)
+
+```python
+from solution import hasMatch
+
+def test_canonical_example_1():
+    # spec: hasMatch("leetcode", "ee*e") -> True
+    assert hasMatch("leetcode", "ee*e") is True
+
+def test_canonical_example_2():
+    # spec: hasMatch("car", "c*v") -> False
+    assert hasMatch("car", "c*v") is False
+
+def test_canonical_example_3():
+    # spec: hasMatch("luck", "u*") -> True
+    assert hasMatch("luck", "u*") is True
+
+def test_pattern_starts_with_star():
+    # spec: hasMatch("abc", "*c") -> True
+    assert hasMatch("abc", "*c") is True
+
+def test_pattern_is_star():
+    # spec: hasMatch("x", "*") -> True
+    assert hasMatch("x", "*") is True
+
+def test_wildcard_matching_zero_characters():
+    # spec: hasMatch("ab", "a*b") -> True
+    assert hasMatch("ab", "a*b") is True
+
+def test_minimum_length_strings():
+    # spec: hasMatch("a", "a*") -> True
+    assert hasMatch("a", "a*") is True
+
+def test_pattern_matches_entire_string():
+    # spec: hasMatch("cat", "c*t") -> True
+    assert hasMatch("cat", "c*t") is True
+
+def test_pattern_at_start_of_s():
+    # spec: hasMatch("start", "st*") -> True
+    assert hasMatch("start", "st*") is True
+
+def test_prefix_suffix_separate_no_match():
+    # Need substring starting with "a" and ending with "d"
+    # spec: hasMatch("aXcYd", "a*d") -> False
+    assert hasMatch("aXcYd", "a*d") is False
+
+def test_overlapping_prefix_suffix():
+    # Need substring starting with "a" and ending with "a"
+    # spec: hasMatch("aba", "a*a") -> True
+    assert hasMatch("aba", "a*a") is True
+```
+
+## Failing implementation
+
+```python
+def hasMatch(s: str, p: str) -> bool:
+    star_index = p.index('*')
+    prefix = p[:star_index]
+    suffix = p[star_index + 1:]
+    prefix_length = len(prefix)
+    suffix_length = len(suffix)
+
+    for i in range(len(s) - prefix_length - suffix_length + 2):
+        if s[i:i + prefix_length] == prefix:
+            if s[i + prefix_length:].endswith(suffix):
+                return True
+    return False
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpk8dlchml/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 11 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [  9%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 18%]
+tests/test_task.py::test_canonical_example_3 PASSED                      [ 27%]
+tests/test_task.py::test_pattern_starts_with_star PASSED                 [ 36%]
+tests/test_task.py::test_pattern_is_star PASSED                          [ 45%]
+tests/test_task.py::test_wildcard_matching_zero_characters PASSED        [ 54%]
+tests/test_task.py::test_minimum_length_strings PASSED                   [ 63%]
+tests/test_task.py::test_pattern_matches_entire_string PASSED            [ 72%]
+tests/test_task.py::test_pattern_at_start_of_s PASSED                    [ 81%]
+tests/test_task.py::test_prefix_suffix_separate_no_match FAILED          [ 90%]
+tests/test_task.py::test_overlapping_prefix_suffix PASSED                [100%]
+
+=================================== FAILURES ===================================
+_____________________ test_prefix_suffix_separate_no_match _____________________
+tests/test_task.py:42: in test_prefix_suffix_separate_no_match
+    assert hasMatch("aXcYd", "a*d") is False
+E   AssertionError: assert True is False
+E    +  where True = hasMatch('aXcYd', 'a*d')
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_prefix_suffix_separate_no_match - AssertionEr...
+========================= 1 failed, 10 passed in 0.02s =========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

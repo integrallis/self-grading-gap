@@ -1,0 +1,62 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+## Analysis of failing tests
+
+**test_all_negative** — expected -1, got -5
+- Input: `[-5, -3, -1, -4]`
+- Expected: `-1` (select only the element `-1`, which is the maximum single element)
+- Trace:
+  - right=0: add -5, current_sum=-5, max_sum=-5
+  - right=1: add -3, current_sum=-8, max_sum=-5
+  - right=2: add -1, current_sum=-9, max_sum=-5
+  - right=3: add -4, current_sum=-13, max_sum=-5
+  - Returns: -5
+- The implementation uses a sliding window that only removes elements when duplicates are encountered. It never resets or considers starting fresh from a later position. It accumulates all unique elements into one contiguous window, so it gets `-5 + -3 + -1 + -4 = -13` at some point and tracks max_sum=-5. The algorithm never considers taking just `-1` alone.
+
+**test_mixed_with_zero** — expected 6, got 5
+- Input: `[1, 0, 2, 0, 3]`
+- Expected: `6` (select `[1, 2, 3]` by deleting both zeros)
+- Trace:
+  - right=0: add 1, current_sum=1, max_sum=1
+  - right=1: add 0, current_sum=1, max_sum=1
+  - right=2: add 2, current_sum=3, max_sum=3
+  - right=3: 0 is already in unique_nums, so remove from left:
+    - Remove nums[0]=1, current_sum=2, left=1
+    - Remove nums[1]=0, current_sum=2, left=2
+    - Now add 0, current_sum=2, max_sum=3
+  - right=4: add 3, current_sum=5, max_sum=5
+  - Returns: 5
+- The window ends up containing `[2, 0, 3]` with sum 5. The algorithm never considers restarting to form `[1, 2, 3]` or skipping the zeros entirely.
+
+**test_negative_followed_by_positive** — expected 30, got 25
+- Input: `[-5, 10, 20]`
+- Expected: `30` (select `[10, 20]`, excluding the negative)
+- Trace:
+  - right=0: add -5, current_sum=-5, max_sum=-5
+  - right=1: add 10, current_sum=5, max_sum=5
+  - right=2: add 20, current_sum=25, max_sum=25
+  - Returns: 25
+- The window contains `[-5, 10, 20]` with sum 25. The algorithm never considers starting fresh from index 1 to get just `[10, 20]` with sum 30.
+
+**test_subarray_in_middle** — expected 11, got 10
+- Input: `[-1, 5, 6, -2]`
+- Expected: `11` (select `[5, 6]`)
+- Trace:
+  - right=0: add -1, current_sum=-1, max_sum=-1
+  - right=1: add 5, current_sum=4, max_sum=4
+  - right=2: add 6, current_sum=10, max_sum=10
+  - right=3: add -2, current_sum=8, max_sum=10
+  - Returns: 10
+- The best window the algorithm finds is `[-1, 5, 6]` with sum 10. It never considers excluding the leading -1 to get `[5, 6]` with sum 11.
+
+## Root cause
+
+All four failures share the same root cause: **the implementation uses a sliding window approach that only shrinks from the left when duplicates are encountered, but never considers starting a new window from scratch at any position**. The problem requires finding the maximum sum of a contiguous subarray with all unique elements, which means we need to consider **all possible starting positions**, not just maintain one continuous window from the beginning. When negative or zero values appear, the optimal solution may exclude them entirely by starting the subarray later, but the current implementation always includes all elements from position 0 up to some point.
+
+## FIX DIRECTIVES:
+
+FIX: The current sliding window approach is fundamentally incorrect for this problem. Replace it with an algorithm that considers all possible contiguous subarrays with unique elements. One correct approach: for each starting position `i`, use a sliding window from that position, maintaining a set of unique elements and tracking the maximum sum found across all starting positions. Alternatively, modify the existing approach to allow the window to "reset" (move `left` forward without being triggered by duplicates) when `current_sum` becomes negative or when starting fresh would yield a better result, and ensure `left` can jump to any position, not just incrementally.
+
+FIX: Specifically, change the outer loop structure to iterate over all possible starting positions `left` from 0 to len(nums)-1, and for each starting position, use an inner loop with `right` extending from `left` onwards, maintaining unique elements in a set and tracking the maximum sum found.

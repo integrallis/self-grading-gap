@@ -1,0 +1,163 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784508180106
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from typing import List
+from solution import minMaxWeight
+
+def test_canonical_example_1():
+    # spec: minMaxWeight(5, [[1, 0, 1], [2, 0, 2], [3, 0, 1], [4, 3, 1], [2, 1, 1]], 2) -> 1
+    assert minMa...[truncated]
+  impl_code: from typing import List
+import sys
+from collections import defaultdict, deque
+
+
+def minMaxWeight(n: int, edges: List[List[int]], threshold: int) -> int:
+    # Step 1: Sort edges by weight
+    edges.so...[truncated]
+  task: {'id': 'LCB/3720', 'use_case_id': 'LCB/3720', 'story_id': 'LCB/3720', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement minMaxWeight()', 'description': 'You are given two integers, n and threshold, as w...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement minMaxWeight()**
+
+## Tests (the acceptance criterion)
+
+```python
+from typing import List
+from solution import minMaxWeight
+
+def test_canonical_example_1():
+    # spec: minMaxWeight(5, [[1, 0, 1], [2, 0, 2], [3, 0, 1], [4, 3, 1], [2, 1, 1]], 2) -> 1
+    assert minMaxWeight(5, [[1, 0, 1], [2, 0, 2], [3, 0, 1], [4, 3, 1], [2, 1, 1]], 2) == 1
+
+def test_canonical_example_2():
+    # spec: minMaxWeight(5, [[0, 1, 1], [0, 2, 2], [0, 3, 1], [0, 4, 1], [1, 2, 1], [1, 4, 1]], 1) -> -1
+    assert minMaxWeight(5, [[0, 1, 1], [0, 2, 2], [0, 3, 1], [0, 4, 1], [1, 2, 1], [1, 4, 1]], 1) == -1
+
+def test_canonical_example_3():
+    # spec: minMaxWeight(5, [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [3, 4, 2], [4, 0, 1]], 1) -> 2
+    assert minMaxWeight(5, [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [3, 4, 2], [4, 0, 1]], 1) == 2
+
+def test_canonical_example_4():
+    # spec: minMaxWeight(5, [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [4, 0, 1]], 1) -> -1
+    assert minMaxWeight(5, [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [4, 0, 1]], 1) == -1
+```
+
+## Failing implementation
+
+```python
+from typing import List
+import sys
+from collections import defaultdict, deque
+
+
+def minMaxWeight(n: int, edges: List[List[int]], threshold: int) -> int:
+    # Step 1: Sort edges by weight
+    edges.sort(key=lambda x: x[2])
+
+    def can_reach_with_max_weight(max_weight: int) -> bool:
+        graph = defaultdict(list)
+        outgoing_count = [0] * n
+
+        # Build graph with edges <= max_weight
+        for u, v, w in edges:
+            if w <= max_weight and outgoing_count[u] < threshold:
+                graph[u].append(v)
+                outgoing_count[u] += 1
+
+        # BFS to check if all nodes can reach 0
+        reached = [False] * n
+        queue = deque([0])
+        reached[0] = True
+
+        while queue:
+            node = queue.popleft()
+            for neighbor in graph[node]:
+                if not reached[neighbor]:
+                    reached[neighbor] = True
+                    queue.append(neighbor)
+
+        return all(reached)
+
+    # Step 2: Binary search over edge weights
+    left, right = 1, 10**6
+    answer = -1
+
+    while left <= right:
+        mid = (left + right) // 2
+        if can_reach_with_max_weight(mid):
+            answer = mid
+            right = mid - 1
+        else:
+            left = mid + 1
+
+    return answer
+
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmp6rlgpu43/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 4 items
+
+tests/test_task.py::test_canonical_example_1 FAILED                      [ 25%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 50%]
+tests/test_task.py::test_canonical_example_3 FAILED                      [ 75%]
+tests/test_task.py::test_canonical_example_4 PASSED                      [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_1 ___________________________
+tests/test_task.py:6: in test_canonical_example_1
+    assert minMaxWeight(5, [[1, 0, 1], [2, 0, 2], [3, 0, 1], [4, 3, 1], [2, 1, 1]], 2) == 1
+E   assert -1 == 1
+E    +  where -1 = minMaxWeight(5, [[1, 0, 1], [3, 0, 1], [4, 3, 1], [2, 1, 1], [2, 0, 2]], 2)
+___________________________ test_canonical_example_3 ___________________________
+tests/test_task.py:14: in test_canonical_example_3
+    assert minMaxWeight(5, [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [3, 4, 2], [4, 0, 1]], 1) == 2
+E   assert -1 == 2
+E    +  where -1 = minMaxWeight(5, [[1, 2, 1], [4, 0, 1], [2, 3, 2], [3, 4, 2], [1, 3, 3], [1, 4, 5]], 1)
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_canonical_example_1 - assert -1 == 1
+FAILED tests/test_task.py::test_canonical_example_3 - assert -1 == 2
+========================= 2 failed, 2 passed in 0.03s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

@@ -1,0 +1,127 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+```python
+import pytest
+from typing import List
+
+# Import the function to be tested
+from solution import minCost
+
+def test_canonical_example_1():
+    """
+    Tests the first example from the specification.
+    """
+    n = 4
+    cost = [[3, 5, 7], [6, 2, 9], [4, 8, 1], [7, 3, 5]]
+    # spec: minCost(4, [[3,5,7],[6,2,9],[4,8,1],[7,3,5]]) -> 9
+    # Explanation: Optimal painting is [color 1, color 2, color 3, color 2].
+    # Costs: cost[0][0] + cost[1][1] + cost[2][2] + cost[3][1] = 3 + 2 + 1 + 3 = 9.
+    # Conditions:
+    # - Adjacent: 1!=2, 2!=3, 3!=2 (OK)
+    # - Equidistant:
+    #   - (0,3): color 1 != color 2 (OK)
+    #   - (1,2): color 2 != color 3 (OK)
+    assert minCost(n, cost) == 9
+
+def test_canonical_example_2():
+    """
+    Tests the second example from the specification.
+    """
+    n = 6
+    cost = [[2, 4, 6], [5, 3, 8], [7, 1, 9], [4, 6, 2], [3, 5, 7], [8, 2, 4]]
+    # spec: minCost(6, [[2,4,6],[5,3,8],[7,1,9],[4,6,2],[3,5,7],[8,2,4]]) -> 18
+    # Explanation: Optimal painting is [color 1, color 3, color 2, color 3, color 1, color 2].
+    # Costs: 2 + 8 + 1 + 2 + 3 + 2 = 18.
+    # Conditions:
+    # - Adjacent: 1!=3, 3!=2, 2!=3, 3!=1, 1!=2 (OK)
+    # - Equidistant:
+    #   - (0,5): color 1 != color 2 (OK)
+    #   - (1,4): color 3 != color 1 (OK)
+    #   - (2,3): color 2 != color 3 (OK)
+    assert minCost(n, cost) == 18
+
+def test_minimal_n():
+    """
+    Tests the smallest possible n (n=2).
+    """
+    n = 2
+    cost = [[1, 10, 100], [2, 20, 200]]
+    # For n=2, houses 0 and 1 must not have the same color.
+    # We check all 3*2=6 combinations of different colors:
+    # c(0,1): 1+20=21
+    # c(0,2): 1+200=201
+    # c(1,0): 10+2=12
+    # c(1,2): 10+200=210
+    # c(2,0): 100+2=102
+    # c(2,1): 100+20=120
+    # The minimum cost is 12.
+    assert minCost(n, cost) == 12
+
+def test_zero_cost_options():
+    """
+    Tests a case where some costs are zero.
+    """
+    n = 2
+    cost = [[0, 1, 2], [3, 0, 4]]
+    # For n=2, houses 0 and 1 must not have the same color.
+    # We check all combinations of different colors:
+    # c(0,1): 0+0=0
+    # c(0,2): 0+4=4
+    # c(1,0): 1+3=4
+    # c(1,2): 1+4=5
+    # c(2,0): 2+3=5
+    # c(2,1): 2+0=2
+    # The minimum cost is 0.
+    assert minCost(n, cost) == 0
+
+def test_greedy_choice_is_not_optimal():
+    """
+    Tests a case where a simple greedy approach would fail due to constraints.
+    """
+    n = 4
+    cost = [[1, 100, 100], [1, 100, 100], [1, 100, 100], [1, 100, 100]]
+    # A greedy approach would paint everything with color 1 (0-indexed), costing 4, but this violates all conditions.
+    # Let's consider pairs of houses (0,3) and (1,2).
+    # For pair (0,3), we must choose different colors.
+    # cost(0,3) with colors (0,1): 1+100=101.
+    # cost(0,3) with colors (0,2): 1+100=101.
+    # cost(0,3) with colors (1,2): 100+100=200.
+    # Min cost for pair (0,3) is 101, e.g., using colors (0,1).
+    #
+    # For pair (1,2), we must choose different colors.
+    # cost(1,2) with colors (0,1): 1+100=101.
+    # cost(1,2) with colors (0,2): 1+100=101.
+    # cost(1,2) with colors (1,2): 100+100=200.
+    # Min cost for pair (1,2) is 101, e.g., using colors (0,1).
+    #
+    # To combine, we must satisfy adjacency constraints.
+    # Let colors be c0, c1, c2, c3.
+    # If we choose (0,1) for (c0,c3) and (1,0) for (c1,c2), we get sequence [0,1,0,1].
+    # Check constraints: c0!=c1(0!=1), c1!=c2(1!=0), c2!=c3(0!=1). c0!=c3(0!=1), c1!=c2(1!=0). OK.
+    # Total cost = cost[0][0]+cost[1][1]+cost[2][0]+cost[3][1] = 1+100+1+100 = 202.
+    # Another option: [1,0,1,0]. Total cost = 100+1+100+1 = 202.
+    # It can be shown that 202 is the minimum.
+    assert minCost(n, cost) == 202
+
+def test_large_costs():
+    """
+    Tests with costs at the upper end of the specified range.
+    """
+    n = 4
+    cost = [[100000, 90000, 80000], [80000, 100000, 90000], [90000, 80000, 100000], [100000, 90000, 80000]]
+    # Houses (0,3) and (1,2) are pairs.
+    # Pair (0,3): cheapest is (color 2, color 3) or (color 3, color 2) for 80k+90k=170k.
+    # Pair (1,2): cheapest is (color 1, color 2) for 80k+80k=160k.
+    #
+    # Let's try combining these cheapest pairs.
+    # c0=1, c3=2 (cost 90k+80k=170k)
+    # c1=0, c2=1 (cost 80k+80k=160k)
+    # Colors: [1,0,1,2].
+    # Adjacency check: c0!=c1(1!=0), c1!=c2(0!=1), c2!=c3(1!=2). OK.
+    # The pairs are chosen such that equidistant constraints are met.
+    # Total cost = 170000 + 160000 = 330000.
+    assert minCost(n, cost) == 330000
+
+```

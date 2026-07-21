@@ -1,0 +1,27 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+## Analysis
+
+**test_all_negative_numbers** — expected -3, got -5
+
+**Inputs:** `[-5, -3, -8]`  
+**Expected:** `-3` (the maximum single element)  
+**Trace:**
+- `right = 0`: `nums[0] = -5`, `seen = {-5}`, `current_sum = -5`, `max_sum = -5`
+- `right = 1`: `nums[1] = -3`, `seen = {-5, -3}`, `current_sum = -5 + (-3) = -8`, `max_sum = max(-5, -8) = -5`
+- `right = 2`: `nums[2] = -8`, `seen = {-5, -3, -8}`, `current_sum = -8 + (-8) = -16`, `max_sum = max(-5, -16) = -5`
+- Returns `-5`
+
+**Root cause:** The implementation is solving a different problem — finding the maximum sum of a subarray with **all unique elements** (no duplicates). However, the tests indicate the actual problem is to find the maximum sum subarray where **no element appears more than once within that subarray**. 
+
+For `[-5, -3, -8]`, the implementation correctly finds that the best unique-element subarray starting from the beginning has sum -5 (just `[-5]`). But it never considers starting fresh from index 1, which would give the subarray `[-3]` with sum -3, which is better.
+
+The implementation uses a sliding window that only shrinks when duplicates are encountered, but never "resets" to try subarrays that don't begin at the leftmost viable position. In the case of all-negative numbers with no duplicates, it accumulates all elements from left to right, getting progressively worse sums, and never considers taking just a single element from the middle.
+
+Specifically, when all elements are unique (no duplicates), the window just keeps expanding (`left` stays at 0) and accumulates all negative values, missing that individual elements would be better choices.
+
+## FIX DIRECTIVES:
+
+FIX: The current implementation only tracks the running sum of the current window with unique elements. To handle cases where the optimal subarray doesn't include earlier elements, you need to also consider starting a fresh subarray at each position. After adding `nums[right]` to `current_sum` and updating `max_sum`, also update `max_sum` with just `nums[right]` alone: `max_sum = max(max_sum, current_sum, nums[right])`. Alternatively, when updating `current_sum`, use `current_sum = max(nums[right], current_sum + nums[right])` to allow the window to effectively "restart" at the current position if that yields a better sum.

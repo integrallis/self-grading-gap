@@ -1,0 +1,329 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784523763568
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: import pytest
+from solution import maxDistance
+
+#
+# MANDATORY: Canonical Examples from Specification
+#
+
+def test_canonical_example_1():
+    """
+    Test case from Example 1 in the problem description....[truncated]
+  impl_code: def maxDistance(s: str, k: int) -> int:
+    x, y = 0, 0  # Starting at the origin (0, 0)
+    max_distance = 0
+
+    # Count movements in each direction
+    n_count = 0
+    s_count = 0
+    e_count = 0
+ ...[truncated]
+  task: {'id': 'LCB/3754', 'use_case_id': 'LCB/3754', 'story_id': 'LCB/3754', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maxDistance()', 'description': 'You are given a string s consisting of the charact...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement maxDistance()**
+
+## Tests (the acceptance criterion)
+
+```python
+import pytest
+from solution import maxDistance
+
+#
+# MANDATORY: Canonical Examples from Specification
+#
+
+def test_canonical_example_1():
+    """
+    Test case from Example 1 in the problem description.
+    s = "NWSE", k = 1
+    By changing s[2] ('S') to 'N', the string becomes "NWNE".
+    The path is:
+    - N: (0, 1), Manhattan distance = 1
+    - W: (-1, 1), Manhattan distance = 2
+    - N: (-1, 2), Manhattan distance = 3
+    - E: (0, 2), Manhattan distance = 2
+    The maximum Manhattan distance achieved is 3.
+    """
+    assert maxDistance("NWSE", 1) == 3
+
+def test_canonical_example_2():
+    """
+    Test case from Example 2 in the problem description.
+    s = "NSWWEW", k = 3
+    By changing s[1] ('S') to 'N' and s[4] ('E') to 'W', the string becomes "NNWWWW".
+    This uses 2 out of 3 available changes.
+    The path is:
+    - N: (0, 1), dist=1
+    - N: (0, 2), dist=2
+    - W: (-1, 2), dist=3
+    - W: (-2, 2), dist=4
+    - W: (-3, 2), dist=5
+    - W: (-4, 2), dist=6
+    The maximum Manhattan distance achieved is 6.
+    """
+    assert maxDistance("NSWWEW", 3) == 6
+
+#
+# Additional test scenarios
+#
+
+def test_no_changes():
+    """
+    Test with k=0, so no changes are allowed. The path is fixed.
+    s = "NWS"
+    - N: (0, 1), dist=1
+    - W: (-1, 1), dist=2
+    - S: (-1, 0), dist=1
+    The maximum distance reached is 2.
+    """
+    assert maxDistance("NWS", 0) == 2
+
+def test_unlimited_changes():
+    """
+    Test with k >= len(s), allowing all characters to be changed.
+    The maximum distance is always len(s), as we can make all moves in one direction.
+    s = "NSWWEW", k = 6, len(s) = 6.
+    Change to "NNNNNN". The max distance reached is 6 at the end.
+    """
+    assert maxDistance("NSWWEW", 6) == 6
+
+def test_more_changes_than_length():
+    """
+    Test with k > len(s). This is equivalent to k = len(s).
+    The maximum distance is len(s).
+    s = "WE", k = 5, len(s) = 2.
+    Change to "NN". The max distance is 2.
+    """
+    assert maxDistance("WE", 5) == 2
+
+def test_minimal_length_string():
+    """
+    Test with the minimal length string s, len(s)=1.
+    s = "N", k = 0.
+    The path is one step north to (0, 1). The distance is 1.
+    """
+    assert maxDistance("N", 0) == 1
+    
+def test_single_move_with_change():
+    """
+    Test a single move with k=1, allowing one change.
+    s = "E", k = 1. Can change 'E' to 'N', 'S', or 'W'.
+    In all cases, the final position is 1 unit from the origin.
+    The max distance is 1.
+    """
+    assert maxDistance("E", 1) == 1
+
+def test_canceling_moves_no_changes():
+    """
+    Test a path with moves that cancel each other out, with k=0.
+    s = "NESW"
+    - N: (0, 1), dist=1
+    - E: (1, 1), dist=2
+    - S: (1, 0), dist=1
+    - W: (0, 0), dist=0
+    The maximum distance reached at any point is 2.
+    """
+    assert maxDistance("NESW", 0) == 2
+
+def test_canceling_moves_with_changes():
+    """
+    Test a path with canceling moves, but with enough k to optimize.
+    s = "NESW", k = 2.
+    With 2 changes, we can make the path unidirectional.
+    For example, change 'S'->'N' and 'W'->'E'. Path becomes "NENE".
+    - N: (0, 1), dist=1
+    - E: (1, 1), dist=2
+    - N: (1, 2), dist=3
+    - E: (2, 2), dist=4
+    The maximum distance is 4.
+    """
+    assert maxDistance("NESW", 2) == 4
+
+def test_all_same_direction():
+    """
+    Test a path where all moves are already in the same direction.
+    s = "WWWW", k = 2.
+    The path is already optimal for maximizing the -x coordinate.
+    Changes do not help increase the maximum Manhattan distance.
+    The max distance is len(s) = 4.
+    """
+    assert maxDistance("WWWW", 2) == 4
+
+def test_long_alternating_path():
+    """
+    Test a longer, alternating path to check a more complex case.
+    s = "WE" * 10 = "WEWEWEWEWEWEWEWEWEWE", len=20, k=5.
+    The maximum distance can be found by considering prefixes and optimizing them.
+    Consider the prefix of length 11, s[0..10] = "WEWEWEWEWEW".
+    Original path has 6 'W's, 5 'E's, pos: (-1, 0).
+    To maximize |-x+y|, we change 'E' moves to 'W' or 'N'.
+    The prefix has 5 'E's. With k=5, we can change all of them.
+    The optimized 11 moves are all 'W' or 'N'.
+    The distance becomes 11.
+    This is the maximum achievable for any prefix.
+    """
+    assert maxDistance("WE" * 10, 5) == 11
+
+def test_zero_k_but_optimal_path():
+    """
+    Test a case where k=0 and the path is already optimal.
+    s = "E" * 10, k = 0
+    The path moves east 10 times.
+    The distance increases by 1 at each step, reaching a max of 10.
+    """
+    assert maxDistance("E" * 10, 0) == 10
+```
+
+## Failing implementation
+
+```python
+def maxDistance(s: str, k: int) -> int:
+    x, y = 0, 0  # Starting at the origin (0, 0)
+    max_distance = 0
+
+    # Count movements in each direction
+    n_count = 0
+    s_count = 0
+    e_count = 0
+    w_count = 0
+
+    for move in s:
+        if move == 'N':
+            y += 1
+            n_count += 1
+        elif move == 'S':
+            y -= 1
+            s_count += 1
+        elif move == 'E':
+            x += 1
+            e_count += 1
+        elif move == 'W':
+            x -= 1
+            w_count += 1
+
+        # Calculate current Manhattan distance
+        current_distance = abs(x) + abs(y)
+        # Update maximum distance
+        max_distance = max(max_distance, current_distance)
+
+    # Calculate effective maximum distance with k changes
+    # We can change movements in the optimal direction
+    effective_distance = max_distance + k
+
+    return effective_distance,
+
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmp_enn4oga/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 12 items
+
+tests/test_task.py::test_canonical_example_1 FAILED                      [  8%]
+tests/test_task.py::test_canonical_example_2 FAILED                      [ 16%]
+tests/test_task.py::test_no_changes FAILED                               [ 25%]
+tests/test_task.py::test_unlimited_changes FAILED                        [ 33%]
+tests/test_task.py::test_more_changes_than_length FAILED                 [ 41%]
+tests/test_task.py::test_minimal_length_string FAILED                    [ 50%]
+tests/test_task.py::test_single_move_with_change FAILED                  [ 58%]
+tests/test_task.py::test_canceling_moves_no_changes FAILED               [ 66%]
+tests/test_task.py::test_canceling_moves_with_changes FAILED             [ 75%]
+tests/test_task.py::test_all_same_direction FAILED                       [ 83%]
+tests/test_task.py::test_long_alternating_path FAILED                    [ 91%]
+tests/test_task.py::test_zero_k_but_optimal_path FAILED                  [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_1 ___________________________
+tests/test_task.py:20: in test_canonical_example_1
+    assert maxDistance("NWSE", 1) == 3
+E   AssertionError: assert (3,) == 3
+E    +  where (3,) = maxDistance('NWSE', 1)
+___________________________ test_canonical_example_2 ___________________________
+tests/test_task.py:37: in test_canonical_example_2
+    assert maxDistance("NSWWEW", 3) == 6
+E   AssertionError: assert (5,) == 6
+E    +  where (5,) = maxDistance('NSWWEW', 3)
+_______________________________ test_no_changes ________________________________
+tests/test_task.py:52: in test_no_changes
+    assert maxDistance("NWS", 0) == 2
+E   AssertionError: assert (2,) == 2
+E    +  where (2,) = maxDistance('NWS', 0)
+____________________________ test_unlimited_changes ____________________________
+tests/test_task.py:61: in test_unlimited_changes
+    assert maxDistance("NSWWEW", 6) == 6
+E   AssertionError: assert (8,) == 6
+E    +  where (8,) = maxDistance('NSWWEW', 6)
+________________________ test_more_changes_than_length _________________________
+tests/test_task.py:70: in test_more_changes_than_length
+    assert maxDistance("WE", 5) == 2
+E   AssertionError: assert (6,) == 2
+E    +  where (6,) = maxDistance('WE', 5)
+__________________________ test_minimal_length_string __________________________
+tests/test_task.py:78: in test_minimal_length_string
+    assert maxDistance("N", 0) == 1
+E   AssertionError: assert (1,) == 1
+E    +  where (1,) = maxDistance('N', 0)
+_________________________ test_single_move_with_change _________________________
+tests/test_task.py:87: in test_single_move_with_change
+    assert maxDistance("E", 1) == 1
+E   AssertionError: assert (2,) == 1
+E    +  where (2,) = maxDistance('E', 1)
+_______________________ test_canceling_moves_no_changes ________________________
+tests/test_task.py:99: in test_canceling_moves_no_changes
+    assert maxDistance("NESW", 0) == 2
+E   AssertionError: assert (2,) == 2
+E    +  where (2,) = maxDistance('NESW', 0)
+______________________ test_canceling_moves_with_changes _______________________
+tests/test_task.py:113: in test_canceling_moves_with_changes
+    assert maxDistance("NESW", 2) == 4
+E   AssertionError: assert (4,) == 4
+E    +  where (4,) = maxDistance('NESW', 2)
+___________________________ test_all_same_direction ____________________________
+tests/test_task.py:123: in test_all_same_direction
+    assert maxDistance("WWWW", 2) == 4
+E   AssertionError: assert (6,) == 4
+E    +  where (6,) = maxDistance('WWWW', 2)
+__________________________ test
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

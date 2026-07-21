@@ -1,0 +1,191 @@
+================================================================================
+TEMPLATE: judge/code_against_tests.j2
+TIMESTAMP: 1784508653787
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_code: import pytest
+from solution import calculateScore
+
+
+def test_canonical_example_1():
+    # spec: s = "aczzx"
+    # i=0 'a': no mirror found, skip
+    # i=1 'c': no mirror found, skip
+    # i=2 'z': mir...[truncated]
+  impl_code: def calculateScore(s: str) -> int:
+    mirrored = {chr(i + 97): chr(122 - i) for i in range(26)}  # mapping letters to their mirrors
+    marked = [False] * len(s)  # tracking marked indices
+    score ...[truncated]
+  task: {'id': 'LCB/3634', 'use_case_id': 'LCB/3634', 'story_id': 'LCB/3634', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement calculateScore()', 'description': 'You are given a string s.\nWe define the mirror...[truncated]
+  recent_commits: []
+================================================================================
+
+You are predicting whether an implementation will pass a specific test suite. Trace the code
+with each test's inputs; do not judge style, design, or robustness — a crude implementation
+that passes every test rates 1.00, an elegant one that fails a test rates lower.
+
+## Task context
+
+**Implement calculateScore()**
+
+## Tests
+
+```python
+import pytest
+from solution import calculateScore
+
+
+def test_canonical_example_1():
+    # spec: s = "aczzx"
+    # i=0 'a': no mirror found, skip
+    # i=1 'c': no mirror found, skip
+    # i=2 'z': mirror is 'a' at j=0 (unmarked), mark both, score += 2-0 = 2
+    # i=3 'z': mirror is 'a', but j=0 is marked, skip
+    # i=4 'x': mirror is 'c' at j=1 (unmarked), mark both, score += 4-1 = 3
+    # total score = 2 + 3 = 5
+    assert calculateScore("aczzx") == 5
+
+
+def test_canonical_example_2():
+    # spec: s = "abcdef"
+    # No character has its mirror present before it
+    # total score = 0
+    assert calculateScore("abcdef") == 0
+
+
+def test_single_character():
+    # s = "a", only one character, no j < i exists
+    # score = 0
+    assert calculateScore("a") == 0
+
+
+def test_two_mirror_characters():
+    # s = "az", i=1 'z' has mirror 'a' at j=0
+    # score = 1 - 0 = 1
+    assert calculateScore("az") == 1
+
+
+def test_two_non_mirror_characters():
+    # s = "ab", 'b' mirror is 'y', not present
+    # score = 0
+    assert calculateScore("ab") == 0
+
+
+def test_multiple_mirrors_picks_closest():
+    # s = "aza", 
+    # i=1 'z': mirror 'a' at j=0, mark both, score += 1-0 = 1
+    # i=2 'a': mirror 'z' at j=1 but j=1 is marked, skip
+    # score = 1
+    assert calculateScore("aza") == 1
+
+
+def test_mirror_pairs_reversed_order():
+    # s = "za", i=1 'a' has mirror 'z' at j=0
+    # score = 1 - 0 = 1
+    assert calculateScore("za") == 1
+
+
+def test_same_character_not_its_own_mirror():
+    # s = "nn", 'n' mirror is 'm' (n=14th letter, mirror is 13th='m')
+    # no mirrors found, score = 0
+    assert calculateScore("nn") == 0
+
+
+def test_middle_character_is_own_mirror():
+    # s = "mm", 'm' is 13th letter (0-indexed: 12)
+    # mirror of 'm' is 'n' (25-12=13th letter='n')
+    # Actually 'a'=0, 'z'=25, so 'm'=12, mirror=25-12=13='n'
+    # So "mm" has no mirrors, score = 0
+    assert calculateScore("mm") == 0
+
+
+def test_multiple_pairs():
+    # s = "abzy"
+    # i=0 'a': no j<0
+    # i=1 'b': mirror 'y' not found before
+    # i=2 'z': mirror 'a' at j=0, mark both, score += 2-0 = 2
+    # i=3 'y': mirror 'b' at j=1 (unmarked), mark both, score += 3-1 = 2
+    # total = 4
+    assert calculateScore("abzy") == 4
+
+
+def test_marked_index_not_reused():
+    # s = "azaz"
+    # i=1 'z': mirror 'a' at j=0, mark both, score += 1
+    # i=2 'a': mirror 'z' at j=1 but marked, skip
+    # i=3 'z': mirror 'a' at j=2 but marked, and j=0 is marked, skip
+    # score = 1
+    assert calculateScore("azaz") == 1
+
+
+def test_closest_unmarked_index():
+    # s = "aazz"
+    # i=1 'a': mirror 'z' not found before
+    # i=2 'z': mirror 'a', closest is j=1, mark both, score += 2-1 = 1
+    # i=3 'z': mirror 'a', j=1 marked, try j=0 (unmarked), mark both, score += 3-0 = 3
+    # total = 4
+    assert calculateScore("aazz") == 4
+
+
+def test_all_same_non_mirror_character():
+    # s = "aaaa", 'a' mirror is 'z', not present
+    # score = 0
+    assert calculateScore("aaaa") == 0
+
+
+def test_longer_sequence_with_gaps():
+    # s = "abcxyz"
+    # i=3 'x': mirror 'c' at j=2, score += 3-2 = 1
+    # i=4 'y': mirror 'b' at j=1, score += 4-1 = 3
+    # i=5 'z': mirror 'a' at j=0, score += 5-0 = 5
+    # total = 9
+    assert calculateScore("abcxyz") == 9
+```
+
+## Implementation
+
+```python
+def calculateScore(s: str) -> int:
+    mirrored = {chr(i + 97): chr(122 - i) for i in range(26)}  # mapping letters to their mirrors
+    marked = [False] * len(s)  # tracking marked indices
+    score = 0
+
+    for i in range(len(s)):
+        if marked[i]:  # skip if already marked
+            continue
+        mirror_char = mirrored[s[i]]  # find mirror character
+        found_mirror = False  # flag for found mirror
+        # find the closest unmarked index j < i
+        for j in range(i - 1, -1, -1):
+            if s[j] == mirror_char:
+                found_mirror = True
+                if not marked[j]:  # check for unmarked mirror
+                    marked[i] = True  # mark index i
+                    marked[j] = True  # mark index j
+                    score += i - j  # update score
+                    break  # exit loop after finding the closest
+        if found_mirror:
+            marked[i] = True  # mark index i if we found a mirror (even if marked)
+
+    return score
+```
+
+## Method
+
+For EACH test function: state the inputs, trace the implementation's computation step by
+step (do the arithmetic explicitly), state the value the test expects, and conclude PASS or
+FAIL for that test. Check import/name compatibility first: if the tests cannot even import
+the implementation, every test fails.
+
+Also flag test gaming if you see it (hardcoded answers for specific inputs, input
+pattern-matching): report it in one line, but rate on predicted test outcomes only.
+
+## Output format (exactly this structure)
+
+1. One line per test, in this shape:
+   `test_canonical_example_1: PASS — computes 5 for [1,2,1,2,1,1,1], matching the assertion`
+   If you cannot trace a test's outcome from the code, mark it FAIL and say why the trace
+   is blocked — an unverifiable pass prediction is not a pass.
+2. If any FAIL: one short paragraph naming the root cause in the implementation.
+3. The last line must be exactly: `Rating: <predicted fraction of tests passing>` with two
+   decimals, e.g. `Rating: 0.83`

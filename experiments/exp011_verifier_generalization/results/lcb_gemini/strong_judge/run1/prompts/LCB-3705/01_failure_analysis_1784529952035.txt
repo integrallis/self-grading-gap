@@ -1,0 +1,148 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784529952035
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from typing import List
+from solution import largestInteger
+
+def test_canonical_example_1():
+    # spec: largestInteger([3, 9, 2, 1, 7], 3) -> 7
+    assert largestInteger([3, 9, 2, 1, 7], 3) == 7
+
+def...[truncated]
+  impl_code: from typing import List
+
+def largestInteger(nums: List[int], k: int) -> int:
+    from collections import defaultdict
+    count = defaultdict(int)
+    n = len(nums)
+
+    # Iterate through all subarrays...[truncated]
+  task: {'id': 'LCB/3705', 'use_case_id': 'LCB/3705', 'story_id': 'LCB/3705', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement largestInteger()', 'description': 'You are given an integer array nums and an inte...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement largestInteger()**
+
+## Tests (the acceptance criterion)
+
+```python
+from typing import List
+from solution import largestInteger
+
+def test_canonical_example_1():
+    # spec: largestInteger([3, 9, 2, 1, 7], 3) -> 7
+    assert largestInteger([3, 9, 2, 1, 7], 3) == 7
+
+def test_canonical_example_2():
+    # spec: largestInteger([3, 9, 7, 2, 1, 7], 4) -> 3
+    assert largestInteger([3, 9, 7, 2, 1, 7], 4) == 3
+
+def test_canonical_example_3():
+    # spec: largestInteger([0, 0], 1) -> -1
+    assert largestInteger([0, 0], 1) == -1
+
+def test_boundary_case_k_equals_length():
+    # spec: largestInteger([10, 20, 5], 3) -> 20
+    assert largestInteger([10, 20, 5], 3) == 20
+
+def test_boundary_case_length_one():
+    # spec: largestInteger([42], 1) -> 42
+    assert largestInteger([42], 1) == 42
+
+def test_max_length():
+    # spec: largestInteger(list(range(50)), 25) -> 49
+    assert largestInteger(list(range(50)), 25) == 49
+
+def test_max_element_value():
+    # spec: largestInteger([50, 1, 50], 2) -> 1
+    assert largestInteger([50, 1, 50], 2) == 1
+```
+
+## Failing implementation
+
+```python
+from typing import List
+
+def largestInteger(nums: List[int], k: int) -> int:
+    from collections import defaultdict
+    count = defaultdict(int)
+    n = len(nums)
+
+    # Iterate through all subarrays of size k
+    for i in range(n - k + 1):
+        subarray = nums[i:i + k]
+        unique_elements = set(subarray)
+        for element in unique_elements:
+            count[element] += 1
+
+    # Find the largest almost missing integer
+    largest_missing = -1
+    for num, cnt in count.items():
+        if cnt == 1:
+            largest_missing = max(largest_missing, num)
+
+    return largest_missing
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpfup44_y9/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 7 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [ 14%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 28%]
+tests/test_task.py::test_canonical_example_3 PASSED                      [ 42%]
+tests/test_task.py::test_boundary_case_k_equals_length PASSED            [ 57%]
+tests/test_task.py::test_boundary_case_length_one PASSED                 [ 71%]
+tests/test_task.py::test_max_length PASSED                               [ 85%]
+tests/test_task.py::test_max_element_value FAILED                        [100%]
+
+=================================== FAILURES ===================================
+____________________________ test_max_element_value ____________________________
+tests/test_task.py:30: in test_max_element_value
+    assert largestInteger([50, 1, 50], 2) == 1
+E   assert -1 == 1
+E    +  where -1 = largestInteger([50, 1, 50], 2)
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_max_element_value - assert -1 == 1
+========================= 1 failed, 6 passed in 0.02s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

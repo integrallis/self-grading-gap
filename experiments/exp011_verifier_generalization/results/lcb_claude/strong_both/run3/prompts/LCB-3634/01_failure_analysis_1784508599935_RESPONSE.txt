@@ -1,0 +1,55 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+## Analysis
+
+**test_marked_index_not_reused — expected 1, got 2**
+
+Input: `"azaz"`
+
+Expected behavior (from test comments):
+- i=1 'z': mirror 'a' at j=0, mark both (i=1, j=0), score += 1-0 = 1
+- i=2 'a': mirror 'z' at j=1 but j=1 is marked, skip
+- i=3 'z': mirror 'a' at j=2 but j=2 is marked, and j=0 is marked, skip
+- Total score = 1
+
+Actual execution trace:
+- i=0 'a': mirror is 'z', search j from -1 to -1 (no j < 0), no match found
+- i=1 'z': marked[1]=False, mirror is 'a', search j from 0 down:
+  - j=0: s[0]='a' == 'a' and not marked[0], so mark i=1 and j=0, score += 1-0 = 1
+- i=2 'a': marked[2]=False (this is the problem!), mirror is 'z', search j from 1 down:
+  - j=1: s[1]='z' == 'z' and marked[1]=True, skip
+  - j=0: s[0]='a' != 'z', continue
+  - No match found, continue
+- i=3 'z': marked[3]=False, mirror is 'a', search j from 2 down:
+  - j=2: s[2]='a' == 'a' and not marked[2], so mark i=3 and j=2, score += 3-2 = 1
+- Total score = 1 + 1 = 2
+
+**Root cause**: The implementation only checks `if marked[i]` at the start of each iteration and skips if the current index i is already marked. However, when a match is found, it marks BOTH indices i and j. The issue is that when i is marked as the j-partner of an earlier iteration, the current iteration should not have started in the first place—but it does, because the check happens before entering the loop body, not recognizing that i itself might get marked as someone else's mirror partner.
+
+Wait, let me re-trace more carefully:
+
+- i=0: not marked, 'a' mirror 'z', no j<0, remains unmarked
+- i=1: not marked, 'z' mirror 'a', j=0 has 'a' unmarked → mark both marked[1]=True and marked[0]=True, score=1
+- i=2: marked[2]=False initially, continues processing. 'a' mirror 'z', searches backwards:
+  - j=1: s[1]='z', marked[1]=True, skip
+  - j=0: s[0]='a' ≠ 'z', skip
+  - No match, continues
+- i=3: marked[3]=False, 'z' mirror 'a', searches backwards:
+  - j=2: s[2]='a', marked[2]=False → marks both marked[3]=True and marked[2]=True, score += 1
+
+The problem is at i=3: index j=2 should have been considered as already "used" because when we process i=2, even though we don't find a match and mark it, the algorithm should recognize that i=2 is the mirror character of i=3 and should only be used once. 
+
+Actually, re-reading the spec from the test: each index can only be marked once. The implementation correctly marks indices, but it's matching i=3 with j=2 when it shouldn't because... wait, let me check the logic again.
+
+Oh! I see it now. At i=2, the character is 'a' with mirror 'z'. The search finds j=1 has 'z' but it's marked. It doesn't find j=0 because 'a' ≠ 'z'. So i=2 remains unmarked. Then at i=3, 'z' with mirror 'a', it finds j=2 has 'a' and is unmarked, so it marks both.
+
+But according to the test, at i=3, j=2 should be marked already. Let me re-read the test comment:
+- "i=2 'a': mirror 'z' at j=1 but marked, skip"
+
+This suggests that when we can't find an unmarked mirror, we should still mark the current index i to prevent it from being used later! The implementation does NOT mark index i when no match is found—it only marks i when a match is found.
+
+**FIX DIRECTIVES:**
+
+FIX: In calculateScore, after the inner for-loop completes without finding a match (when the loop doesn't break), mark the current index i as True to prevent it from being matched in future iterations. Add `marked[i] = True` after the inner for-loop (outside the if-statement that marks both indices when a match is found).

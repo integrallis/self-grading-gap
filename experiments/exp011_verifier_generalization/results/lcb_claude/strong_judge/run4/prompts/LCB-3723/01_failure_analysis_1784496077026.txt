@@ -1,0 +1,172 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784496077026
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from typing import List
+from solution import sumOfGoodNumbers
+
+def test_canonical_example_1():
+    # Spec: nums = [1, 3, 2, 1, 5, 4], k = 2
+    # Good numbers: nums[1] = 3 (greater than nums[-1] (not ...[truncated]
+  impl_code: from typing import List
+
+def sumOfGoodNumbers(nums: List[int], k: int) -> int:
+    total_sum = 0
+    n = len(nums)
+    for i in range(n):
+        is_good = True
+        if i - k >= 0 and i + k < n:
+  ...[truncated]
+  task: {'id': 'LCB/3723', 'use_case_id': 'LCB/3723', 'story_id': 'LCB/3723', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement sumOfGoodNumbers()', 'description': 'Given an array of integers nums and an intege...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement sumOfGoodNumbers()**
+
+## Tests (the acceptance criterion)
+
+```python
+from typing import List
+from solution import sumOfGoodNumbers
+
+def test_canonical_example_1():
+    # Spec: nums = [1, 3, 2, 1, 5, 4], k = 2
+    # Good numbers: nums[1] = 3 (greater than nums[-1] (not exists) and nums[3] = 1)
+    #               nums[4] = 5 (greater than nums[2] = 2 and nums[6] (not exists))
+    #               nums[5] = 4 (greater than nums[3] = 1 and nums[7] (not exists))
+    # Sum = 3 + 5 + 4 = 12
+    assert sumOfGoodNumbers([1, 3, 2, 1, 5, 4], 2) == 12
+
+def test_canonical_example_2():
+    # Spec: nums = [2, 1], k = 1
+    # Good number: nums[0] = 2 (greater than nums[1] = 1)
+    # Sum = 2
+    assert sumOfGoodNumbers([2, 1], 1) == 2
+
+def test_edge_case_no_neighbors():
+    # Edge case: nums = [5, 3, 7], k = 2
+    # Good numbers: nums[0] = 5 (no left neighbor, right neighbor nums[2] = 7)
+    #               nums[1] = 3 (greater than nums[-1] (not exists) and nums[3] (not exists))
+    #               nums[2] = 7 (left neighbor nums[0] = 5, no right neighbor)
+    # Sum = 5 + 3 + 7 = 10
+    assert sumOfGoodNumbers([5, 3, 7], 2) == 10
+
+def test_all_elements_good():
+    # All elements good: nums = [5, 1, 5, 1], k = 2
+    # Good numbers: nums[0] = 5 (no left neighbor, right neighbor nums[2] = 5)
+    #               nums[1] = 1 (greater than nums[-1] (not exists) and nums[3] = 1)
+    #               nums[2] = 5 (left neighbor nums[0] = 5, no right neighbor)
+    #               nums[3] = 1 (greater than nums[1] = 1)
+    # Sum = 0 (none are good)
+    assert sumOfGoodNumbers([5, 1, 5, 1], 2) == 0
+
+def test_no_elements_good():
+    # No elements good: nums = [1, 5, 1], k = 1
+    # Good numbers: nums[0] = 1 (greater than nums[1] = 5)
+    #               nums[1] = 5 (greater than nums[0] = 1)
+    #               nums[2] = 1 (greater than nums[1] = 5)
+    # Sum = 5 (only nums[1] is good)
+    assert sumOfGoodNumbers([1, 5, 1], 1) == 5
+
+def test_minimum_array_length():
+    # Minimum length: nums = [1, 2], k = 1
+    # Good numbers: nums[0] = 1 (greater than nums[1] = 2)
+    #               nums[1] = 2 (greater than nums[0] = 1)
+    # Sum = 2 (only nums[1] is good)
+    assert sumOfGoodNumbers([1, 2], 1) == 2
+
+def test_k_equals_floor_n_over_2():
+    # k equals floor(n/2): nums = [1, 2, 3, 4], k = 2
+    # Good numbers: nums[0] = 1 (no left neighbor, right neighbor nums[2] = 3)
+    #               nums[1] = 2 (left neighbor nums[0] = 1, right neighbor nums[3] = 4)
+    #               nums[2] = 3 (left neighbor nums[1] = 2, no right neighbor)
+    #               nums[3] = 4 (left neighbor nums[2] = 3, no right neighbor)
+    # Sum = 0 (none are good)
+    assert sumOfGoodNumbers([1, 2, 3, 4], 2) == 0
+```
+
+## Failing implementation
+
+```python
+from typing import List
+
+def sumOfGoodNumbers(nums: List[int], k: int) -> int:
+    total_sum = 0
+    n = len(nums)
+    for i in range(n):
+        is_good = True
+        if i - k >= 0 and i + k < n:
+            if nums[i] <= nums[i - k] or nums[i] <= nums[i + k]:
+                is_good = False
+        elif i - k >= 0:
+            if nums[i] <= nums[i - k]:
+                is_good = False
+        elif i + k < n:
+            if nums[i] <= nums[i + k]:
+                is_good = False
+        if is_good:
+            total_sum += nums[i]
+    return total_sum
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmp8vn4tft0/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 7 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [ 14%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 28%]
+tests/test_task.py::test_edge_case_no_neighbors PASSED                   [ 42%]
+tests/test_task.py::test_all_elements_good PASSED                        [ 57%]
+tests/test_task.py::test_no_elements_good PASSED                         [ 71%]
+tests/test_task.py::test_minimum_array_length PASSED                     [ 85%]
+tests/test_task.py::test_k_equals_floor_n_over_2 FAILED                  [100%]
+
+=================================== FAILURES ===================================
+_________________________ test_k_equals_floor_n_over_2 _________________________
+tests/test_task.py:57: in test_k_equals_floor_n_over_2
+    assert sumOfGoodNumbers([1, 2, 3, 4], 2) == 0
+E   assert 7 == 0
+E    +  where 7 = sumOfGoodNumbers([1, 2, 3, 4], 2)
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_k_equals_floor_n_over_2 - assert 7 == 0
+========================= 1 failed, 6 passed in 0.02s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

@@ -1,0 +1,268 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784592521846
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from typing import List
+
+import pytest
+
+# The function to be tested is assumed to be in a file named `solution.py`
+# in a `solution` package.
+from solution import zigzagTraversal
+
+
+def test_canonical_...[truncated]
+  impl_code: from typing import List
+
+def zigzagTraversal(grid: List[List[int]]) -> List[int]:
+    result = []
+    for i in range(len(grid)):
+        if i % 2 == 0:
+            # Even row: traverse left to right
+ ...[truncated]
+  task: {'id': 'LCB/3708', 'use_case_id': 'LCB/3708', 'story_id': 'LCB/3708', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement zigzagTraversal()', 'description': 'You are given an m x n 2D array grid of positi...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement zigzagTraversal()**
+
+## Tests (the acceptance criterion)
+
+```python
+from typing import List
+
+import pytest
+
+# The function to be tested is assumed to be in a file named `solution.py`
+# in a `solution` package.
+from solution import zigzagTraversal
+
+
+def test_canonical_example_1():
+    """
+    Tests the function with the first example from the specification.
+    """
+    # spec: zigzagTraversal([[1, 2], [3, 4]]) -> [1, 4]
+    grid = [[1, 2], [3, 4]]
+    # The full traversal path is [1, 2] (row 0, right) then [4, 3] (row 1, left).
+    # The combined path is [1, 2, 4, 3].
+    # Skipping every alternate element gives the 1st and 3rd elements: [1, 4].
+    expected = [1, 4]
+    assert zigzagTraversal(grid) == expected
+
+
+def test_canonical_example_2():
+    """
+    Tests the function with the second example from the specification.
+    """
+    # spec: zigzagTraversal([[2, 1], [2, 1], [2, 1]]) -> [2, 1, 2]
+    grid = [[2, 1], [2, 1], [2, 1]]
+    # The full traversal path is [2, 1] (row 0, right), [1, 2] (row 1, left),
+    # and [2, 1] (row 2, right).
+    # The combined path is [2, 1, 1, 2, 2, 1].
+    # Skipping every alternate element gives the 1st, 3rd, and 5th elements: [2, 1, 2].
+    expected = [2, 1, 2]
+    assert zigzagTraversal(grid) == expected
+
+
+def test_canonical_example_3():
+    """
+    Tests the function with the third example from the specification.
+    """
+    # spec: zigzagTraversal([[1, 2, 3], [4, 5, 6], [7, 8, 9]]) -> [1, 3, 5, 7, 9]
+    grid = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+    # The full traversal path is [1, 2, 3] (row 0, right), [6, 5, 4] (row 1, left),
+    # and [7, 8, 9] (row 2, right).
+    # The combined path is [1, 2, 3, 6, 5, 4, 7, 8, 9].
+    # Skipping every alternate element gives the 1st, 3rd, 5th, 7th, and 9th elements:
+    # [1, 3, 5, 7, 9].
+    expected = [1, 3, 5, 7, 9]
+    assert zigzagTraversal(grid) == expected
+
+
+def test_even_rows_and_odd_columns():
+    """
+    Tests a grid with an even number of rows and an odd number of columns.
+    """
+    # spec: zigzagTraversal([[1, 2, 3], [4, 5, 6]]) -> [1, 3, 5]
+    grid = [[1, 2, 3], [4, 5, 6]]
+    # The full traversal path is [1, 2, 3] (row 0, right), then [6, 5, 4] (row 1, left).
+    # The combined path is [1, 2, 3, 6, 5, 4].
+    # Skipping every alternate element gives the 1st, 3rd, and 5th elements: [1, 3, 5].
+    expected = [1, 3, 5]
+    assert zigzagTraversal(grid) == expected
+
+
+def test_larger_grid_with_even_rows():
+    """
+    Tests a grid with an even number of rows > 2.
+    """
+    # spec: zigzagTraversal([[1, 2], [3, 4], [5, 6], [7, 8]]) -> [1, 4, 5, 8]
+    grid = [[1, 2], [3, 4], [5, 6], [7, 8]]
+    # Full path: [1, 2] (R0), [4, 3] (R1), [5, 6] (R2), [8, 7] (R3).
+    # Combined path: [1, 2, 4, 3, 5, 6, 8, 7].
+    # Skipping every alternate element gives 1st, 3rd, 5th, 7th elements: [1, 4, 5, 8].
+    expected = [1, 4, 5, 8]
+    assert zigzagTraversal(grid) == expected
+
+
+def test_max_rows_at_constraint():
+    """
+    Tests a grid at the maximum row constraint (n=50).
+    """
+    # Grid: 50 rows, 2 columns. Values from 1 to 100.
+    # grid[r] = [2*r + 1, 2*r + 2]
+    rows, cols = 50, 2
+    grid = [[r * cols + c + 1 for c in range(cols)] for r in range(rows)]
+
+    # Traversal logic:
+    # The full path is [1,2], then [4,3], then [5,6], etc.
+    # Full path: [1, 2, 4, 3, 5, 6, 8, 7, ...]
+    # We take every alternate element starting from the first: path[0], path[2], path[4], ...
+    # path[0] = grid[0][0] = 1
+    # path[2] = grid[1][1] = 4
+    # path[4] = grid[2][0] = 5
+    # path[6] = grid[3][1] = 8
+    # For row r (0-indexed):
+    # if r is even, take grid[r][0] = 2*r + 1
+    # if r is odd, take grid[r][1] = 2*r + 2
+    expected = []
+    for r in range(rows):
+        if r % 2 == 0:
+            expected.append(2 * r + 1)
+        else:
+            expected.append(2 * r + 2)
+
+    assert zigzagTraversal(grid) == expected
+
+
+def test_max_cols_at_constraint():
+    """
+    Tests a grid at the maximum column constraint (m=50).
+    """
+    # Grid: 2 rows, 50 columns. Values from 1 to 100.
+    # grid[0] = [1, ..., 50]
+    # grid[1] = [51, ..., 100]
+    rows, cols = 2, 50
+    grid = [[r * cols + c + 1 for c in range(cols)] for r in range(rows)]
+
+    # Traversal logic:
+    # Row 0 (even): right -> [1, 2, ..., 50]
+    # Row 1 (odd):  left  -> [100, 99, ..., 51]
+    # Full path is [1, 2, ..., 50, 100, 99, ..., 51].
+    # We take every alternate element: path[0], path[2], ...
+    #
+    # Part 1 (from row 0): from [1, 2, ..., 50], we take 1, 3, ..., 49.
+    part1 = list(range(1, 50, 2))
+    # Part 2 (from row 1): Row 0 path has 50 elements (even). So the first element
+    # of row 1 path (100) is at an even index (50) in the full path and is included.
+    # From [100, 99, ..., 51], we take 100, 98, ..., 52.
+    part2 = list(range(100, 51, -2))
+
+    expected = part1 + part2
+
+    assert zigzagTraversal(grid) == expected
+```
+
+## Failing implementation
+
+```python
+from typing import List
+
+def zigzagTraversal(grid: List[List[int]]) -> List[int]:
+    result = []
+    for i in range(len(grid)):
+        if i % 2 == 0:
+            # Even row: traverse left to right
+            for j in range(0, len(grid[i]), 2):
+                result.append(grid[i][j])
+        else:
+            # Odd row: traverse right to left
+            for j in range(len(grid[i]) - 1, -1, -2):
+                result.append(grid[i][j])
+    return result
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpzgppb9_d/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 7 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [ 14%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 28%]
+tests/test_task.py::test_canonical_example_3 FAILED                      [ 42%]
+tests/test_task.py::test_even_rows_and_odd_columns FAILED                [ 57%]
+tests/test_task.py::test_larger_grid_with_even_rows PASSED               [ 71%]
+tests/test_task.py::test_max_rows_at_constraint PASSED                   [ 85%]
+tests/test_task.py::test_max_cols_at_constraint PASSED                   [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_3 ___________________________
+tests/test_task.py:49: in test_canonical_example_3
+    assert zigzagTraversal(grid) == expected
+E   AssertionError: assert [1, 3, 6, 4, 7, 9] == [1, 3, 5, 7, 9]
+E     
+E     At index 2 diff: 6 != 5
+E     Left contains one more item: 9
+E     
+E     Full diff:
+E       [
+E           1,...
+E     
+E     ...Full output truncated (9 lines hidden), use '-vv' to show
+________________________ test_even_rows_and_odd_columns ________________________
+tests/test_task.py:62: in test_even_rows_and_odd_columns
+    assert zigzagTraversal(grid) == expected
+E   AssertionError: assert [1, 3, 6, 4] == [1, 3, 5]
+E     
+E     At index 2 diff: 6 != 5
+E     Left contains one more item: 4
+E     
+E     Full diff:
+E       [
+E           1,...
+E     
+E     ...Full output truncated (7 lines hidden), use '-vv' to show
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_canonical_example_3 - AssertionError: assert ...
+FAILED tests/test_task.py::test_even_rows_and_odd_columns - AssertionError: a...
+========================= 2 failed, 5 passed in 0.03s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

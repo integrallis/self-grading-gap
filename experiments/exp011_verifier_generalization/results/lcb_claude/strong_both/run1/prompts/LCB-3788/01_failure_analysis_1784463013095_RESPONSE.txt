@@ -1,0 +1,60 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+## Analysis
+
+**test_need_to_skip_negative** — expected 10, got 7
+
+Input: `[1, 2, -10, 3, 4]`
+
+Expected: `10`
+
+Trace of actual computation:
+- `left = 0`: 
+  - `right = 0`: nums[0]=1, seen={1}, current_sum=1, max_sum=1
+  - `right = 1`: nums[1]=2, seen={1,2}, current_sum=3, max_sum=3
+  - `right = 2`: nums[2]=-10, seen={1,2,-10}, current_sum=-7, max_sum=3
+  - `right = 3`: nums[3]=3, seen={1,2,-10,3}, current_sum=-4, max_sum=3
+  - `right = 4`: nums[4]=4, seen={1,2,-10,3,4}, current_sum=0, max_sum=3
+- `left = 1`:
+  - `right = 1`: nums[1]=2, seen={2}, current_sum=2, max_sum=3
+  - `right = 2`: nums[2]=-10, seen={2,-10}, current_sum=-8, max_sum=3
+  - `right = 3`: nums[3]=3, seen={2,-10,3}, current_sum=-5, max_sum=3
+  - `right = 4`: nums[4]=4, seen={2,-10,3,4}, current_sum=-1, max_sum=3
+- `left = 2`:
+  - `right = 2`: nums[2]=-10, seen={-10}, current_sum=-10, max_sum=3
+  - `right = 3`: nums[3]=3, seen={-10,3}, current_sum=-7, max_sum=3
+  - `right = 4`: nums[4]=4, seen={-10,3,4}, current_sum=-3, max_sum=3
+- `left = 3`:
+  - `right = 3`: nums[3]=3, seen={3}, current_sum=3, max_sum=3
+  - `right = 4`: nums[4]=4, seen={3,4}, current_sum=7, max_sum=7
+- `left = 4`:
+  - `right = 4`: nums[4]=4, seen={4}, current_sum=4, max_sum=7
+
+Returns: `7`
+
+**Root cause**: The implementation interprets the problem as finding the maximum-sum contiguous subarray with all unique elements. However, the test comment reveals the actual requirement: "could select [1, 2, 3, 4] after deleting -10". This means you can **delete arbitrary elements from the array** and then select a contiguous subarray from what remains. The implementation currently only considers contiguous subarrays of the original array.
+
+The correct interpretation is:
+1. Delete zero or more elements from the original array
+2. From the remaining array (after deletion), select a contiguous subarray with all unique elements
+3. Maximize the sum of the selected subarray
+
+For `[1, 2, -10, 3, 4]`: delete index 2 (element -10) → `[1, 2, 3, 4]` → select all → sum = 10.
+
+## FIX DIRECTIVES:
+
+The current algorithm is fundamentally incorrect for the problem specification. You need to rewrite `maxSum()` to:
+
+1. **Generate all possible arrays** that result from deleting zero or more elements from the input. For each subset of indices to keep (maintaining their relative order), create the corresponding subarray.
+
+2. **For each deletion possibility**, apply the current algorithm: find the maximum-sum contiguous subarray with all unique elements using the two-pointer approach with a seen set.
+
+3. **Return the maximum** across all deletion possibilities.
+
+**Concrete implementation approach**:
+- Use bit masking or recursion to enumerate all 2^n subsets of indices to keep
+- For each subset, extract the corresponding elements in order to form a candidate array
+- Run the existing two-nested-loop logic (left/right pointers with seen set) on each candidate array
+- Track the global maximum across all candidates

@@ -1,0 +1,142 @@
+================================================================================
+TEMPLATE: judge/code_against_tests.j2
+TIMESTAMP: 1784489178120
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_code: from typing import List
+from solution import maxFreeTime
+
+def test_canonical_example_1():
+    # Input: eventTime = 5, k = 1, startTime = [1, 3], endTime = [2, 5]
+    # Reschedule meeting at [1, 2] to ...[truncated]
+  impl_code: from typing import List
+
+def maxFreeTime(eventTime: int, k: int, startTime: List[int], endTime: List[int]) -> int:
+    n = len(startTime)
+    # Calculate initial free time gaps
+    free_gaps = []
+    ...[truncated]
+  task: {'id': 'LCB/3743', 'use_case_id': 'LCB/3743', 'story_id': 'LCB/3743', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maxFreeTime()', 'description': 'You are given an integer eventTime denoting the du...[truncated]
+  recent_commits: []
+================================================================================
+
+You are predicting whether an implementation will pass a specific test suite. Trace the code
+with each test's inputs; do not judge style, design, or robustness — a crude implementation
+that passes every test rates 1.00, an elegant one that fails a test rates lower.
+
+## Task context
+
+**Implement maxFreeTime()**
+
+## Tests
+
+```python
+from typing import List
+from solution import maxFreeTime
+
+def test_canonical_example_1():
+    # Input: eventTime = 5, k = 1, startTime = [1, 3], endTime = [2, 5]
+    # Reschedule meeting at [1, 2] to [2, 3], leaving free time [0, 2].
+    assert maxFreeTime(5, 1, [1, 3], [2, 5]) == 2
+
+def test_canonical_example_2():
+    # Input: eventTime = 10, k = 1, startTime = [0, 2, 9], endTime = [1, 4, 10]
+    # Reschedule meeting at [2, 4] to [1, 3], leaving free time [3, 9].
+    assert maxFreeTime(10, 1, [0, 2, 9], [1, 4, 10]) == 6
+
+def test_canonical_example_3():
+    # Input: eventTime = 5, k = 2, startTime = [0, 1, 2, 3, 4], endTime = [1, 2, 3, 4, 5]
+    # No time during the event is free since all times are occupied by meetings.
+    assert maxFreeTime(5, 2, [0, 1, 2, 3, 4], [1, 2, 3, 4, 5]) == 0
+
+def test_free_time_at_end():
+    # Input: eventTime = 10, k = 1, startTime = [0, 2], endTime = [1, 3]
+    # Meetings end at 3, leaving free time from [3, 10].
+    assert maxFreeTime(10, 1, [0, 2], [1, 3]) == 7
+
+def test_minimum_meetings():
+    # Input: eventTime = 6, k = 1, startTime = [1, 4], endTime = [2, 5]
+    # Meeting [1, 2] can be rescheduled to [2, 3], leaving free time [0, 2] and [3, 4].
+    assert maxFreeTime(6, 1, [1, 4], [2, 5]) == 3
+
+def test_reschedule_all_meetings():
+    # Input: eventTime = 10, k = 3, startTime = [0, 2, 4], endTime = [1, 3, 5]
+    # All meetings can be rescheduled to create maximum free time. 
+    # Maximum free time = 10 - 3 (meetings of duration 1 each) = 7
+    assert maxFreeTime(10, 3, [0, 2, 4], [1, 3, 5]) == 7
+
+def test_rescheduling_multiple_strategies():
+    # Input: eventTime = 10, k = 1, startTime = [1, 3, 5], endTime = [2, 4, 6]
+    # Reschedule meeting [3, 4] to [2, 3], leaving free time [0, 2] and [6, 10].
+    assert maxFreeTime(10, 1, [1, 3, 5], [2, 4, 6]) == 5
+
+def test_free_time_at_start():
+    # Input: eventTime = 10, k = 1, startTime = [8, 9], endTime = [9, 10]
+    # Reschedule meeting [8, 9] to [0, 1], leaving free time [0, 8).
+    assert maxFreeTime(10, 1, [8, 9], [9, 10]) == 8
+```
+
+## Implementation
+
+```python
+from typing import List
+
+def maxFreeTime(eventTime: int, k: int, startTime: List[int], endTime: List[int]) -> int:
+    n = len(startTime)
+    # Calculate initial free time gaps
+    free_gaps = []
+    if startTime[0] > 0:
+        free_gaps.append((0, startTime[0]))  # Free time before first meeting
+    for i in range(1, n):
+        if endTime[i - 1] < startTime[i]:
+            free_gaps.append((endTime[i - 1], startTime[i]))  # Gap between meetings
+    if endTime[n - 1] < eventTime:
+        free_gaps.append((endTime[n - 1], eventTime))  # Free time after last meeting
+
+    # If k is greater than or equal to the number of meetings, all can be rescheduled
+    if k >= n:
+        total_duration = sum(end - start for start, end in zip(startTime, endTime))
+        return eventTime - total_duration
+
+    # Now we need to consider rescheduling to maximize free time
+    max_free_time = 0
+    for i in range(len(free_gaps)):
+        gap_start, gap_end = free_gaps[i]
+        gap_duration = gap_end - gap_start
+        # If we can adjust meetings into this gap
+        if i < len(free_gaps) - 1:
+            next_gap_start, _ = free_gaps[i + 1]
+            # Calculate how many meetings fit into this gap
+            meetings_fit = 0
+            for j in range(n):
+                if startTime[j] < next_gap_start and endTime[j] > gap_start:
+                    meetings_fit += 1
+            # We can only move k meetings
+            adjustments = min(meetings_fit, k)
+            # Calculate new free time
+            new_free_time = gap_duration + adjustments
+            max_free_time = max(max_free_time, new_free_time)
+
+    return max(max_free_time, *[gap[1] - gap[0] for gap in free_gaps])
+
+```
+
+## Method
+
+For EACH test function: state the inputs, trace the implementation's computation step by
+step (do the arithmetic explicitly), state the value the test expects, and conclude PASS or
+FAIL for that test. Check import/name compatibility first: if the tests cannot even import
+the implementation, every test fails.
+
+Also flag test gaming if you see it (hardcoded answers for specific inputs, input
+pattern-matching): report it in one line, but rate on predicted test outcomes only.
+
+## Output format (exactly this structure)
+
+1. One line per test, in this shape:
+   `test_canonical_example_1: PASS — computes 5 for [1,2,1,2,1,1,1], matching the assertion`
+   If you cannot trace a test's outcome from the code, mark it FAIL and say why the trace
+   is blocked — an unverifiable pass prediction is not a pass.
+2. If any FAIL: one short paragraph naming the root cause in the implementation.
+3. The last line must be exactly: `Rating: <predicted fraction of tests passing>` with two
+   decimals, e.g. `Rating: 0.83`

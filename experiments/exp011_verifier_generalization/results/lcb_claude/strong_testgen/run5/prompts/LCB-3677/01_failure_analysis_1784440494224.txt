@@ -1,0 +1,315 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784440494224
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from typing import List
+import pytest
+from solution import maximumAmount
+
+
+def test_canonical_example_1():
+    # spec: coins = [[0,1,-1],[1,-2,3],[2,-3,4]] -> 8
+    # Path: (0,0)->(0,1)->(1,1)->(1,2)-...[truncated]
+  impl_code: from typing import List
+
+def maximumAmount(coins: List[List[int]]) -> int:
+    m, n = len(coins), len(coins[0])
+    # dp[neutralizations][i][j] represents the maximum coins collected to (i, j) with 'n...[truncated]
+  task: {'id': 'LCB/3677', 'use_case_id': 'LCB/3677', 'story_id': 'LCB/3677', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maximumAmount()', 'description': "You are given an m x n grid. A robot starts at t...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement maximumAmount()**
+
+## Tests (the acceptance criterion)
+
+```python
+from typing import List
+import pytest
+from solution import maximumAmount
+
+
+def test_canonical_example_1():
+    # spec: coins = [[0,1,-1],[1,-2,3],[2,-3,4]] -> 8
+    # Path: (0,0)->(0,1)->(1,1)->(1,2)->(2,2)
+    # 0 + 1 + 0 (neutralize -2) + 3 + 4 = 8
+    assert maximumAmount([[0, 1, -1], [1, -2, 3], [2, -3, 4]]) == 8
+
+
+def test_canonical_example_2():
+    # spec: coins = [[10,10,10],[10,10,10]] -> 40
+    # Path: (0,0)->(0,1)->(0,2)->(1,2)
+    # 10 + 10 + 10 + 10 = 40
+    assert maximumAmount([[10, 10, 10], [10, 10, 10]]) == 40
+
+
+def test_single_cell():
+    # 1x1 grid, robot starts and ends at (0,0)
+    # Gain: 5
+    assert maximumAmount([[5]]) == 5
+
+
+def test_single_cell_negative():
+    # 1x1 grid with negative value
+    # Robot must take the cell, loses 10 coins but can neutralize
+    # With neutralization: 0
+    assert maximumAmount([[-10]]) == 0
+
+
+def test_single_row_all_positive():
+    # 1x3 grid, only move right
+    # 1 + 2 + 3 = 6
+    assert maximumAmount([[1, 2, 3]]) == 6
+
+
+def test_single_column_all_positive():
+    # 3x1 grid, only move down
+    # 1 + 2 + 3 = 6
+    assert maximumAmount([[1], [2], [3]]) == 6
+
+
+def test_single_row_with_negatives():
+    # 1x4 grid with negative values
+    # Path: 5 + (-10) + (-20) + 15
+    # Without neutralization: 5 - 10 - 20 + 15 = -10
+    # Neutralize the two negatives: 5 + 0 + 0 + 15 = 20
+    assert maximumAmount([[5, -10, -20, 15]]) == 20
+
+
+def test_single_column_with_negatives():
+    # 4x1 grid with negative values
+    # Similar to single row: neutralize two worst robbers
+    # 5 + 0 + 0 + 15 = 20
+    assert maximumAmount([[5], [-10], [-20], [15]]) == 20
+
+
+def test_all_negative_small_grid():
+    # 2x2 grid with all negatives
+    # Path options: (0,0)->(0,1)->(1,1) or (0,0)->(1,0)->(1,1)
+    # Best: neutralize the two worst
+    # Option 1: -1 + -2 + -4 = -7, neutralize -4 and -2: -1 + 0 + 0 = -1
+    # Option 2: -1 + -3 + -4 = -8, neutralize -4 and -3: -1 + 0 + 0 = -1
+    assert maximumAmount([[-1, -2], [-3, -4]]) == -1
+
+
+def test_all_positive_grid():
+    # 3x3 grid with all positive values, no neutralization needed
+    # Best path: sum all cells on any path from (0,0) to (2,2)
+    # Path: 1+2+3+6+9 = 21
+    assert maximumAmount([[1, 2, 3], [4, 5, 6], [7, 8, 9]]) == 21
+
+
+def test_mix_positive_negative_needs_one_neutralization():
+    # 2x2 grid where neutralizing one robber is optimal
+    # Path: 10 + 5 + 20 = 35 via (0,0)->(0,1)->(1,1)
+    # or 10 + (-100) + 20 = -70 via (0,0)->(1,0)->(1,1)
+    # Neutralize -100: 10 + 0 + 20 = 30
+    # First path is better
+    assert maximumAmount([[10, 5], [-100, 20]]) == 35
+
+
+def test_three_robbers_neutralize_two_worst():
+    # 1x4 grid with three robbers
+    # 10 + (-5) + (-15) + (-25)
+    # Without neutralization: 10 - 5 - 15 - 25 = -35
+    # Neutralize -25 and -15: 10 - 5 + 0 + 0 = 5
+    assert maximumAmount([[10, -5, -15, -25]]) == 5
+
+
+def test_zero_values():
+    # Grid with zeros
+    # 0 + 0 + 0 = 0
+    assert maximumAmount([[0, 0], [0, 0]]) == 0
+
+
+def test_mix_with_zeros():
+    # Grid with mix of positive, negative, and zero
+    # Path: 5 + 0 + (-3) + 10
+    # With neutralization of -3: 5 + 0 + 0 + 10 = 15
+    assert maximumAmount([[5, 0], [-3, 10]]) == 15
+
+
+def test_large_negative_at_start():
+    # Robot starts at negative cell
+    # Path: -50 + 10 + 20
+    # Neutralize -50: 0 + 10 + 20 = 30
+    assert maximumAmount([[-50, 10], [5, 20]]) == 30
+
+
+def test_large_negative_at_end():
+    # Negative at destination
+    # Path: 10 + 20 + (-50)
+    # Neutralize -50: 10 + 20 + 0 = 30
+    assert maximumAmount([[10, 20], [5, -50]]) == 30
+
+
+def test_no_neutralization_needed():
+    # All positive path exists, neutralization not needed
+    # 1 + 1 + 1 = 3
+    assert maximumAmount([[1, 1], [0, 1]]) == 3
+
+
+def test_neutralize_helps_even_with_positive_path():
+    # Even though positive path exists, neutralizing might give better result
+    # Path with robber: 100 + (-50) + 100 = 150
+    # Neutralize -50: 100 + 0 + 100 = 200
+    # Alternative path: 100 + 10 + 100 = 210
+    assert maximumAmount([[100, 10], [-50, 100]]) == 210
+```
+
+## Failing implementation
+
+```python
+from typing import List
+
+def maximumAmount(coins: List[List[int]]) -> int:
+    m, n = len(coins), len(coins[0])
+    # dp[neutralizations][i][j] represents the maximum coins collected to (i, j) with 'neutralizations' used
+    dp = [[[-float('inf')] * n for _ in range(m)] for _ in range(3)]
+    dp[0][0][0] = coins[0][0]  # Starting point
+
+    for i in range(m):
+        for j in range(n):
+            for k in range(3):  # k represents the number of neutralizations used
+                if i == 0 and j == 0:
+                    continue  # Skip the starting cell as it's already initialized
+                # Compute the maximum coins coming from the left and above
+                for ni, nj in [(i - 1, j), (i, j - 1)]:
+                    if 0 <= ni < m and 0 <= nj < n:
+                        # Normal gain/loss from the cell
+                        current = dp[k][ni][nj]
+                        if current != -float('inf'):
+                            if coins[i][j] >= 0:
+                                dp[k][i][j] = max(dp[k][i][j], current + coins[i][j])
+                            else:
+                                # Robber scenario
+                                if k > 0:
+                                    # Use a neutralization
+                                    dp[k][i][j] = max(dp[k][i][j], current)
+                                # Without neutralization
+                                dp[k][i][j] = max(dp[k][i][j], current + coins[i][j])
+
+    # Find the maximum coins collected at the bottom-right corner with at most 2 neutralizations
+    return max(dp[k][m - 1][n - 1] for k in range(3))
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmp5zryoxtf/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 18 items
+
+tests/test_task.py::test_canonical_example_1 FAILED                      [  5%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 11%]
+tests/test_task.py::test_single_cell PASSED                              [ 16%]
+tests/test_task.py::test_single_cell_negative FAILED                     [ 22%]
+tests/test_task.py::test_single_row_all_positive PASSED                  [ 27%]
+tests/test_task.py::test_single_column_all_positive PASSED               [ 33%]
+tests/test_task.py::test_single_row_with_negatives FAILED                [ 38%]
+tests/test_task.py::test_single_column_with_negatives FAILED             [ 44%]
+tests/test_task.py::test_all_negative_small_grid FAILED                  [ 50%]
+tests/test_task.py::test_all_positive_grid FAILED                        [ 55%]
+tests/test_task.py::test_mix_positive_negative_needs_one_neutralization PASSED [ 61%]
+tests/test_task.py::test_three_robbers_neutralize_two_worst FAILED       [ 66%]
+tests/test_task.py::test_zero_values PASSED                              [ 72%]
+tests/test_task.py::test_mix_with_zeros PASSED                           [ 77%]
+tests/test_task.py::test_large_negative_at_start FAILED                  [ 83%]
+tests/test_task.py::test_large_negative_at_end FAILED                    [ 88%]
+tests/test_task.py::test_no_neutralization_needed PASSED                 [ 94%]
+tests/test_task.py::test_neutralize_helps_even_with_positive_path PASSED [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_1 ___________________________
+tests/test_task.py:10: in test_canonical_example_1
+    assert maximumAmount([[0, 1, -1], [1, -2, 3], [2, -3, 4]]) == 8
+E   assert 7 == 8
+E    +  where 7 = maximumAmount([[0, 1, -1], [1, -2, 3], [2, -3, 4]])
+__________________________ test_single_cell_negative ___________________________
+tests/test_task.py:30: in test_single_cell_negative
+    assert maximumAmount([[-10]]) == 0
+E   assert -10 == 0
+E    +  where -10 = maximumAmount([[-10]])
+________________________ test_single_row_with_negatives ________________________
+tests/test_task.py:50: in test_single_row_with_negatives
+    assert maximumAmount([[5, -10, -20, 15]]) == 20
+E   assert -10 == 20
+E    +  where -10 = maximumAmount([[5, -10, -20, 15]])
+______________________ test_single_column_with_negatives _______________________
+tests/test_task.py:57: in test_single_column_with_negatives
+    assert maximumAmount([[5], [-10], [-20], [15]]) == 20
+E   assert -10 == 20
+E    +  where -10 = maximumAmount([[5], [-10], [-20], [15]])
+_________________________ test_all_negative_small_grid _________________________
+tests/test_task.py:66: in test_all_negative_small_grid
+    assert maximumAmount([[-1, -2], [-3, -4]]) == -1
+E   assert -7 == -1
+E    +  where -7 = maximumAmount([[-1, -2], [-3, -4]])
+____________________________ test_all_positive_grid ____________________________
+tests/test_task.py:73: in test_all_positive_grid
+    assert maximumAmount([[1, 2, 3], [4, 5, 6], [7, 8, 9]]) == 21
+E   assert 29 == 21
+E    +  where 29 = maximumAmount([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+___________________ test_three_robbers_neutralize_two_worst ____________________
+tests/test_task.py:90: in test_three_robbers_neutralize_two_worst
+    assert maximumAmount([[10, -5, -15, -25]]) == 5
+E   assert -35 == 5
+E    +  where -35 = maximumAmount([[10, -5, -15, -25]])
+_________________________ test_large_negative_at_start _________________________
+tests/test_task.py:110: in test_large_negative_at_start
+    assert maximumAmount([[-50, 10], [5, 20]]) == 30
+E   assert -20 == 30
+E    +  where -20 = maximumAmount([[-50, 10], [5, 20]])
+__________________________ test_large_negative_at_end __________________________
+tests/test_task.py:117: in test_large_negative_at_end
+    assert maximumAmount([[10, 20], [5, -50]]) == 30
+E   assert -20 == 30
+E    +  where -20 = maximumAmount([[10, 20], [5, -50]])
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_canonical_example_1 - assert 7 == 8
+FAILED tests/test_task.py::test_single_cell_negative - assert -10 == 0
+FAILED tests/test_task.py::test_single_row_with_negatives - assert -10 == 20
+FAILED tests/test_task.py::test_single_column_with_negatives - assert -10 == 20
+FAILED tests/test_task.py::test_all_negative_small_grid - assert -7 == -1
+FAILED tests/test_task.py::test_all_positive_grid - assert 29 == 21
+FAILED tests/test_task.py::test_three_robbers_neutralize_two_worst - assert -...
+FAILED tests/test_task.py::test_large_negative_at_start - assert -20 == 30
+FAILED tests/test_task.py::test_large_negative_at_end - assert -20 == 30
+========================= 9 failed, 9 passed in 0.03s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

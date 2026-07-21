@@ -1,0 +1,294 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784436246855
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from typing import List
+import pytest
+from solution import maxFrequency
+
+
+def test_canonical_example_1():
+    # spec: nums = [1,2,3,4,5,6], k = 1
+    # After adding -5 to nums[2..5], 1 has a frequency...[truncated]
+  impl_code: from typing import List
+
+
+def maxFrequency(nums: List[int], k: int) -> int:
+    nums.sort()
+    left = 0
+    total = 0
+    max_freq = 0
+
+    for right in range(len(nums)):
+        total += nums[right]...[truncated]
+  task: {'id': 'LCB/3751', 'use_case_id': 'LCB/3751', 'story_id': 'LCB/3751', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maxFrequency()', 'description': 'You are given an array nums of length n. You are ...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement maxFrequency()**
+
+## Tests (the acceptance criterion)
+
+```python
+from typing import List
+import pytest
+from solution import maxFrequency
+
+
+def test_canonical_example_1():
+    # spec: nums = [1,2,3,4,5,6], k = 1
+    # After adding -5 to nums[2..5], 1 has a frequency of 2 in [1, 2, -2, -1, 0, 1]
+    assert maxFrequency([1, 2, 3, 4, 5, 6], 1) == 2
+
+
+def test_canonical_example_2():
+    # spec: nums = [10,2,3,4,5,5,4,3,2,2], k = 10
+    # After adding 8 to nums[1..9], 10 has a frequency of 4 in [10, 10, 11, 12, 13, 13, 12, 11, 10, 10]
+    assert maxFrequency([10, 2, 3, 4, 5, 5, 4, 3, 2, 2], 10) == 4
+
+
+def test_single_element_already_k():
+    # nums = [5], k = 5
+    # No operation needed, frequency of 5 is already 1
+    assert maxFrequency([5], 5) == 1
+
+
+def test_single_element_not_k():
+    # nums = [3], k = 5
+    # Add 2 to nums[0..0], result is [5], frequency of 5 is 1
+    assert maxFrequency([3], 5) == 1
+
+
+def test_all_elements_already_k():
+    # nums = [7, 7, 7], k = 7
+    # All elements are already k, frequency is 3
+    assert maxFrequency([7, 7, 7], 7) == 3
+
+
+def test_convert_all_elements_to_k():
+    # nums = [2, 2, 2], k = 5
+    # Add 3 to nums[0..2], result is [5, 5, 5], frequency of 5 is 3
+    assert maxFrequency([2, 2, 2], 5) == 3
+
+
+def test_convert_prefix_to_k():
+    # nums = [3, 3, 10], k = 5
+    # Add 2 to nums[0..1], result is [5, 5, 10], frequency of 5 is 2
+    assert maxFrequency([3, 3, 10], 5) == 2
+
+
+def test_convert_suffix_to_k():
+    # nums = [10, 3, 3], k = 5
+    # Add 2 to nums[1..2], result is [10, 5, 5], frequency of 5 is 2
+    assert maxFrequency([10, 3, 3], 5) == 2
+
+
+def test_convert_middle_subarray():
+    # nums = [1, 4, 4, 1], k = 6
+    # Add 2 to nums[1..2], result is [1, 6, 6, 1], frequency of 6 is 2
+    assert maxFrequency([1, 4, 4, 1], 6) == 2
+
+
+def test_some_elements_already_k():
+    # nums = [5, 3, 5, 3], k = 5
+    # Already 2 elements with value 5, can add to subarray [3, 3] to get more
+    # Or keep existing 2 and add 2 to nums[1..1] or nums[3..3] to get one more
+    # Best: add 2 to nums[1..3], result is [5, 5, 7, 5], frequency is 3
+    assert maxFrequency([5, 3, 5, 3], 5) == 3
+
+
+def test_no_operation_needed_max_frequency():
+    # nums = [1, 1, 1, 2], k = 1
+    # Already 3 elements with value 1, and can add -1 to nums[3..3] to get 4
+    assert maxFrequency([1, 1, 1, 2], 1) == 4
+
+
+def test_multiple_scattered_k_values():
+    # nums = [7, 3, 7, 3, 7], k = 7
+    # Already 3 elements with value 7, can convert the two 3s
+    # Add 4 to nums[1..3], result is [7, 7, 11, 7, 7], frequency is 4
+    assert maxFrequency([7, 3, 7, 3, 7], 7) == 4
+
+
+def test_large_difference_requires_large_x():
+    # nums = [1, 50], k = 1
+    # Add 0 to nums[0..0] or add -49 to nums[1..1], result has frequency 1
+    # Or keep as is, frequency of 1 is already 1
+    assert maxFrequency([1, 50], 1) == 1
+
+
+def test_two_elements_same_value():
+    # nums = [10, 10], k = 5
+    # Add -5 to nums[0..1], result is [5, 5], frequency of 5 is 2
+    assert maxFrequency([10, 10], 5) == 2
+```
+
+## Failing implementation
+
+```python
+from typing import List
+
+
+def maxFrequency(nums: List[int], k: int) -> int:
+    nums.sort()
+    left = 0
+    total = 0
+    max_freq = 0
+
+    for right in range(len(nums)):
+        total += nums[right]
+        while (right - left + 1) * k > total + (right - left) * nums[right]:
+            total -= nums[left]
+            left += 1
+        max_freq = max(max_freq, right - left + 1)
+
+    return max_freq
+
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpk61ho6_m/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 14 items
+
+tests/test_task.py::test_canonical_example_1 FAILED                      [  7%]
+tests/test_task.py::test_canonical_example_2 FAILED                      [ 14%]
+tests/test_task.py::test_single_element_already_k PASSED                 [ 21%]
+tests/test_task.py::test_single_element_not_k FAILED                     [ 28%]
+tests/test_task.py::test_all_elements_already_k PASSED                   [ 35%]
+tests/test_task.py::test_convert_all_elements_to_k FAILED                [ 42%]
+tests/test_task.py::test_convert_prefix_to_k FAILED                      [ 50%]
+tests/test_task.py::test_convert_suffix_to_k FAILED                      [ 57%]
+tests/test_task.py::test_convert_middle_subarray FAILED                  [ 64%]
+tests/test_task.py::test_some_elements_already_k FAILED                  [ 71%]
+tests/test_task.py::test_no_operation_needed_max_frequency PASSED        [ 78%]
+tests/test_task.py::test_multiple_scattered_k_values FAILED              [ 85%]
+tests/test_task.py::test_large_difference_requires_large_x FAILED        [ 92%]
+tests/test_task.py::test_two_elements_same_value PASSED                  [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_1 ___________________________
+tests/test_task.py:9: in test_canonical_example_1
+    assert maxFrequency([1, 2, 3, 4, 5, 6], 1) == 2
+E   assert 6 == 2
+E    +  where 6 = maxFrequency([1, 2, 3, 4, 5, 6], 1)
+___________________________ test_canonical_example_2 ___________________________
+tests/test_task.py:15: in test_canonical_example_2
+    assert maxFrequency([10, 2, 3, 4, 5, 5, 4, 3, 2, 2], 10) == 4
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:13: in maxFrequency
+    total -= nums[left]
+             ^^^^^^^^^^
+E   IndexError: list index out of range
+__________________________ test_single_element_not_k ___________________________
+tests/test_task.py:27: in test_single_element_not_k
+    assert maxFrequency([3], 5) == 1
+           ^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:13: in maxFrequency
+    total -= nums[left]
+             ^^^^^^^^^^
+E   IndexError: list index out of range
+________________________ test_convert_all_elements_to_k ________________________
+tests/test_task.py:39: in test_convert_all_elements_to_k
+    assert maxFrequency([2, 2, 2], 5) == 3
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:13: in maxFrequency
+    total -= nums[left]
+             ^^^^^^^^^^
+E   IndexError: list index out of range
+___________________________ test_convert_prefix_to_k ___________________________
+tests/test_task.py:45: in test_convert_prefix_to_k
+    assert maxFrequency([3, 3, 10], 5) == 2
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:13: in maxFrequency
+    total -= nums[left]
+             ^^^^^^^^^^
+E   IndexError: list index out of range
+___________________________ test_convert_suffix_to_k ___________________________
+tests/test_task.py:51: in test_convert_suffix_to_k
+    assert maxFrequency([10, 3, 3], 5) == 2
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:13: in maxFrequency
+    total -= nums[left]
+             ^^^^^^^^^^
+E   IndexError: list index out of range
+_________________________ test_convert_middle_subarray _________________________
+tests/test_task.py:57: in test_convert_middle_subarray
+    assert maxFrequency([1, 4, 4, 1], 6) == 2
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:13: in maxFrequency
+    total -= nums[left]
+             ^^^^^^^^^^
+E   IndexError: list index out of range
+_________________________ test_some_elements_already_k _________________________
+tests/test_task.py:65: in test_some_elements_already_k
+    assert maxFrequency([5, 3, 5, 3], 5) == 3
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:13: in maxFrequency
+    total -= nums[left]
+             ^^^^^^^^^^
+E   IndexError: list index out of range
+_______________________ test_multiple_scattered_k_values _______________________
+tests/test_task.py:78: in test_multiple_scattered_k_values
+    assert maxFrequency([7, 3, 7, 3, 7], 7) == 4
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src/solution/__init__.py:13: in maxFrequency
+    total -= nums[left]
+             ^^^^^^^^^^
+E   IndexError: list index out of range
+____________________ test_large_difference_requires_large_x ____________________
+tests/test_task.py:85: in test_large_difference_requires_large_x
+    assert maxFrequency([1, 50], 1) == 1
+E   assert 2 == 1
+E    +  where 2 = maxFrequency([1, 50], 1)
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_canonical_example_1 - assert 6 == 2
+FAILED tests/test_task.py::test_canonical_example_2 - IndexError: list index ...
+FAILED tests/test_task.py::test_single_element_not_k - IndexError: list index...
+FAILED tests/test_task.py::test_convert_all_elements_to_k - IndexError: list ...
+FAILED tests/test_task.py::test_convert_prefix_to_k - IndexError: list index ...
+FAILED tests/test_task.py::test_convert_suffix_to_k - IndexError: list index ...
+FAILED tests/test_task.py::test_convert_middle_subarray - IndexError: list in...
+FAILED tests/test_task.py::test_some_elements_already_k - IndexError: list in...
+FAILED tests/test_task.py::test_multiple_scattered_k_values - IndexError: lis...
+FAILED tests/test_task.py::test_large_difference_requires_large_x - assert 2 ...
+========================= 10 failed, 4 passed in 0.03s =========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

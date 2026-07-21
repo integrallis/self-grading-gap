@@ -1,0 +1,35 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+Here is the analysis of the failing implementation.
+
+test_simple_root_at_zero — expected approximately 0.0, got 2.91e-08, because the binary search logic does not terminate correctly when it finds the exact root.
+
+The test `test_simple_root_at_zero` calls `find_zero` with the input `xs = [0, 1]`. This represents the polynomial `f(x) = x`, whose only root is at `x=0`. The test expects a result extremely close to `0.0`. The implementation returns `2.91e-08`, which fails the assertion.
+
+Here is a trace of the execution:
+1. `find_zero` initializes its search bounds: `low = -1000`, `high = 1000`.
+2. The `while` loop begins. In the first iteration, `mid` is calculated as `(low + high) / 2`, which is `0.0`.
+3. The implementation evaluates `poly([0, 1], 0.0)`, which returns `0.0`.
+4. The computation diverges at the conditional `if poly(xs, mid) > 0:`. The condition `0.0 > 0` is false.
+5. Consequently, the `else` block is executed, and the line `low = mid` sets `low` to `0.0`.
+6. The search interval for the next iteration becomes `[0.0, 1000]`. The algorithm has found the exact root but has discarded the negative half of the search space, trapping the root at the very boundary of the new interval.
+7. The loop continues, narrowing the interval `[0.0, high]` until `high` is a very small positive number (less than `1e-7`). The final return value `(low + high) / 2` will be a small positive number (half of `high`), not the `0.0` that was found and subsequently lost.
+
+### FIX DIRECTIVES:
+
+FIX: in `find_zero`, check if the midpoint is an exact root before updating the search bounds. If it is, return it immediately.
+
+```python
+# In find_zero(), change the logic inside the while loop:
+mid = (low + high) / 2
+p_mid = poly(xs, mid)
+if p_mid == 0.0:
+    return mid
+
+if p_mid > 0:
+    high = mid
+else:
+    low = mid
+```

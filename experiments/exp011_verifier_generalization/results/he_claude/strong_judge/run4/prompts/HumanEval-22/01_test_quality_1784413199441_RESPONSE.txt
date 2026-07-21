@@ -1,0 +1,76 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+# Test Quality Evaluation
+
+## Check 0 — MANDATORY Canonical Example Coverage
+
+The specification provides two canonical examples:
+1. `filter_integers(['a', 3.14, 5])` → `[5]`
+2. `filter_integers([1, 2, 3, 'abc', {}, []])` → `[1, 2, 3]`
+
+Checking the test suite:
+- `test_canonical_example_1`: Tests `filter_integers(['a', 3.14, 5]) == [5]` ✓
+- `test_canonical_example_2`: Tests `filter_integers([1, 2, 3, 'abc', {}, []]) == [1, 2, 3]` ✓
+
+Both canonical examples are present with exact inputs and outputs. **Check 0 passes.**
+
+## Check 1 — Fidelity
+
+Reviewing each assertion against the specification:
+
+1. `test_canonical_example_1`: `[5]` ✓ (from spec)
+2. `test_canonical_example_2`: `[1, 2, 3]` ✓ (from spec)
+3. `test_empty_list`: `[]` ✓ (no integers to filter → empty list)
+4. `test_list_with_only_integers`: `[1, 2, 3]` ✓ (all are integers)
+5. `test_list_with_no_integers`: `[]` ✓ (no integers present)
+6. `test_negative_integers_and_zero`: `[-1, 0, 1]` ✓ (all are integers)
+7. `test_boolean_values`: **ISSUE DETECTED**
+   - Input: `[True, False, 1, 2]`
+   - Expected in test: `[1, 2]`
+   - In Python, `bool` is a subclass of `int`: `isinstance(True, int)` is `True`
+   - The comment says "True is included because it is an int" but the assertion expects `[1, 2]`
+   - If filtering for integers using `isinstance(x, int)`, both `True` and `False` would be included
+   - Expected should be `[True, False, 1, 2]` or comment is misleading
+   - The specification says "filter...only for integers" without clarifying the bool/int relationship
+   - This creates ambiguity, but the test's assertion contradicts its own comment
+
+## Check 2 — No Invented Constraints
+
+All tests operate within the domain of "list of any python values" → "list of integers". No invented validation or error handling is present. **No violations.**
+
+## Check 3 — Coverage
+
+Specified behaviors:
+- ✓ Filter mixed types (canonical examples cover this)
+- ✓ Empty list
+- ✓ List with only integers
+- ✓ List with no integers
+- ✓ Negative integers and zero
+- ? Boolean values (tested but with contradictory expectation)
+
+The specification doesn't explicitly address the bool subclass relationship, so this is adequate coverage of stated behaviors.
+
+## Check 4 — Sanity
+
+- ✓ Imports from `solution`
+- ✓ Function name matches: `filter_integers`
+- ✓ Syntactically valid pytest
+- ✓ Type hints match specification
+
+**One issue:** The `test_boolean_values` has a comment that contradicts the assertion. The comment states "True is included because it is an int" but the expected result `[1, 2]` excludes `True` and `False`. This is internally inconsistent.
+
+## Deductions
+
+- **0.30** for assertion with wrong/contradictory expected value in `test_boolean_values` (the comment suggests `[True, False, 1, 2]` is correct if bools are ints, but assertion says `[1, 2]`)
+
+The boolean case is genuinely ambiguous in the specification, but the test's internal contradiction (comment vs. assertion) suggests an error was made.
+
+---
+
+## Directives
+
+FIX: `test_boolean_values` has contradictory comment and assertion. The comment says "True is included because it is an int" but the assertion expects `[1, 2]` excluding booleans. Either change expected to `[True, False, 1, 2]` (if bools count as integers) or change comment to clarify bools are excluded, depending on intended implementation behavior. Since the spec is silent, recommend removing this test entirely as it tests beyond the specification.
+
+Final score: 0.70

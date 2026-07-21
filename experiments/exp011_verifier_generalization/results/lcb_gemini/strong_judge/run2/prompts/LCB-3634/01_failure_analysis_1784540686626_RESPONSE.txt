@@ -1,0 +1,30 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+Based on the analysis, the provided implementation is algorithmically correct for small inputs but fails on larger inputs due to performance issues, resulting in a timeout. The test suite includes a test with a large input string containing many mirror-pairs, which the current O(N²) solution cannot pass within the time limit.
+
+failing test `(implicit performance test)` — expected `(some score)`, got `(Time Limit Exceeded)`, because the nested loop structure results in a timeout on large inputs. The outer loop iterates through each character `i`, and for each one, the inner loop may iterate up to `i` times again. For an input of length N with many potential pairs, this leads to approximately N²/2 operations, which is too slow for N=10⁵. The line `for j in range(i - 1, -1, -1):` initiates a scan that is inefficient for large-scale matching.
+
+FIX DIRECTIVES:
+- In `calculateScore`, replace the O(N²) nested loop with an O(N) single-pass approach. Use a dictionary to store stacks of available indices for each character. When processing `s[i]`, if its mirror character has a non-empty stack, pop the most recent index `j` to form a pair and add `i-j` to the score. Otherwise, push index `i` onto the stack for `s[i]`.
+
+  Example of the new logic:
+  ```python
+  from collections import defaultdict
+  
+  # ... inside calculateScore ...
+  available_indices = defaultdict(list)
+  score = 0
+  mirror = {chr(i): chr(219 - i) for i in range(97, 123)}
+
+  for i, char in enumerate(s):
+      target = mirror[char]
+      if available_indices[target]:
+          j = available_indices[target].pop()
+          score += i - j
+      else:
+          available_indices[char].append(i)
+  
+  return score
+  ```

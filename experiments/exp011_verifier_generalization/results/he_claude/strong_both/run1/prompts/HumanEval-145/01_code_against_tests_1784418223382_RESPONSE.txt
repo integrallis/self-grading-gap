@@ -1,0 +1,55 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+Let me trace through each test with the given implementation.
+
+First, checking import compatibility: The implementation defines `order_by_points(nums)` and tests import `from solution import order_by_points` - this is compatible.
+
+Now analyzing the `digit_sum` helper function:
+- For positive numbers like 123: `str(123)` = "123", enumerate gives [(0,'1'), (1,'2'), (2,'3')]
+  - i=0: -int('1') = -1
+  - i=1: int('2') = 2
+  - i=2: int('3') = 3
+  - sum = -1 + 2 + 3 = 4 (INCORRECT - should be 6)
+
+- For negative numbers like -12: `str(-12)` = "-12", enumerate gives [(0,'-'), (1,'1'), (2,'2')]
+  - i=0: -int('-') will raise ValueError (CRITICAL BUG)
+
+Let me trace each test:
+
+test_canonical_example_1: FAIL — digit_sum(-1) calls int('-') at i=0, raising ValueError
+test_canonical_example_2: PASS — empty list returns empty list without calling digit_sum
+test_single_element: FAIL — digit_sum(5) would give -5+0=−5 (wrong), but str(5)="5" has only one char at i=0, so -int('5')=-5 (wrong sum)
+test_all_same_digit_sum: FAIL — digit_sum(10) on str("10") gives i=0:-int('1')=-1, i=1:int('0')=0, sum=-1 (wrong)
+test_positive_numbers_ascending: FAIL — digit_sum treats first digit as negative
+test_positive_numbers_different_sums: FAIL — digit_sum treats first digit as negative
+test_negative_single_digit: FAIL — digit_sum(-5) raises ValueError on int('-')
+test_mixed_positive_and_negative: FAIL — digit_sum(-5) raises ValueError
+test_negative_multi_digit: FAIL — digit_sum(-23) raises ValueError
+test_preserve_order_on_tie: FAIL — digit_sum treats first digit as negative
+test_zero: FAIL — digit_sum(0) on str("0") gives -int('0')=0 (accidentally correct sum), but would work
+test_zero_with_others: FAIL — digit_sum(-1) raises ValueError
+test_multiple_zeros: PASS — all zeros, digit_sum(0) gives 0, sorting by (0, index) preserves order
+
+Wait, let me reconsider test_zero: str(0)="0", enumerate gives [(0,'0')], i=0 so -int('0')=0. This gives sum 0 which is correct. Sorted by (0, 0) returns [0]. This would PASS.
+
+**Root cause**: The implementation has a critical bug in `digit_sum`. For negative numbers, `str(n)` includes the '-' character, and `int('-')` raises a ValueError. For positive numbers, the logic incorrectly negates the first digit (e.g., 123 should sum to 6 but gives -1+2+3=4).
+
+test_canonical_example_1: FAIL — digit_sum(-1) raises ValueError on int('-')
+test_canonical_example_2: PASS — empty list, no computation needed
+test_single_element: FAIL — digit_sum(5) gives -5 instead of 5
+test_all_same_digit_sum: FAIL — digit_sum(10) gives -1 instead of 1
+test_positive_numbers_ascending: FAIL — digit_sum negates first digit of all numbers
+test_positive_numbers_different_sums: FAIL — digit_sum negates first digit
+test_negative_single_digit: FAIL — ValueError on int('-')
+test_mixed_positive_and_negative: FAIL — ValueError on int('-')
+test_negative_multi_digit: FAIL — ValueError on int('-')
+test_preserve_order_on_tie: FAIL — digit_sum negates first digit
+test_zero: PASS — digit_sum(0) correctly gives 0
+test_zero_with_others: FAIL — ValueError on int('-')
+test_multiple_zeros: PASS — all zeros handled correctly
+
+The implementation fails catastrophically on any negative number due to attempting `int('-')`, and incorrectly computes digit sums for positive numbers by negating the first digit.
+
+Rating: 0.23

@@ -1,0 +1,114 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+# Test Suite Review: numerical_letter_grade
+
+## Check 0 — Canonical Example Coverage
+
+The specification contains one worked example:
+- `grade_equation([4.0, 3, 1.7, 2, 3.5]) ==> ['A+', 'B', 'C-', 'C', 'A-']`
+
+Note: The specification references `grade_equation` in the example but the actual function name is `numerical_letter_grade` (this is a spec inconsistency, not a test issue).
+
+**Finding:** `test_canonical_example_1()` contains this exact example with correct inputs `[4.0, 3, 1.7, 2, 3.5]` and expected output `['A+', 'B', 'C-', 'C', 'A-']`. ✓
+
+However, the suite also includes `test_canonical_example_2()` and `test_canonical_example_3()` which are NOT in the specification—these appear to be invented examples.
+
+The mandatory canonical example IS present, so we proceed with detailed checks.
+
+## Check 1 — Fidelity
+
+Recomputing expected values from the grading table:
+
+**test_canonical_example_1:** `[4.0, 3, 1.7, 2, 3.5]`
+- 4.0 = 4.0 → A+ ✓
+- 3.0: not 4.0, not > 3.7, not > 3.3, is > 3.0 → B+ (but test expects 'B') ✗
+- 1.7: > 1.7? No. = 1.7? The table says "> 1.7" gives C, so 1.7 exactly is not > 1.7. Next: > 1.3? Yes → C- ✗ (test expects 'C-' but should verify boundary)
+- 2.0: = 2.0? Not in table. > 2.0? No. > 1.7? Yes → C ✓
+- 3.5: > 3.3 and ≤ 3.7 → A- ✓
+
+Wait, let me recalculate 3.0 carefully:
+- Is it 4.0? No
+- Is it > 3.7? No
+- Is it > 3.3? No
+- Is it > 3.0? No (3.0 is not > 3.0)
+- Is it > 2.7? Yes → B ✓
+
+And 1.7:
+- Is it > 1.7? No (1.7 is not > 1.7)
+- Is it > 1.3? Yes → C- ✓
+
+So the canonical example expects: ['A+', 'B', 'C-', 'C', 'A-'] which matches the test. ✓
+
+**test_canonical_example_2:** `[3.8, 3.2, 2.5, 1.0, 0.0]` → ['A', 'B+', 'B', 'D', 'E']
+- 3.8: > 3.7 → A ✓
+- 3.2: > 3.0 and not > 3.3 → B+ ✓
+- 2.5: > 2.3 and not > 2.7 → B- (but test expects 'B') ✗
+- 1.0: not > 1.0, not > 0.7? Yes → D ✓
+- 0.0: = 0.0 → E ✓
+
+**test_canonical_example_3:** Similar invented test, needs verification.
+
+**Individual tests:**
+- `test_B_plus_grade`: 3.1 is > 3.0 and not > 3.3 → B+ ✓
+- `test_B_minus_grade`: 2.4 is > 2.3 and not > 2.7 → B- ✓
+- `test_C_plus_grade`: 2.2 is > 2.0 and not > 2.3 → C+ ✓
+- `test_D_grade`: 0.8 is > 0.7 and not > 1.0 → D ✓
+- `test_boundary_A_minus`: 3.7 is not > 3.7, so not A; is > 3.3 → A- (but test expects 'A') ✗
+- `test_boundary_A`: 3.3 is not > 3.3, so is > 3.0 → B+ (but test expects 'A-') ✗
+- `test_boundary_B`: 2.7 is not > 2.7, so is > 2.3 → B- (but test expects 'B') ✗
+- `test_boundary_B_minus`: 2.3 is not > 2.3, so is > 2.0 → C+ (but test expects 'B-') ✗
+- `test_boundary_C_minus`: 1.3 is not > 1.3, so is > 1.0 → D+ (but test expects 'C-') ✗
+- `test_boundary_D`: 0.7 is not > 0.7, so is > 0.0 → D- (but test expects 'D') ✗
+
+## Check 2 — No Invented Constraints
+
+No validation or error handling tests present. No invented constraints detected beyond the extra canonical examples.
+
+## Check 3 — Coverage
+
+Specified behaviors:
+- All 13 grade boundaries (4.0, >3.7, >3.3, >3.0, >2.7, >2.3, >2.0, >1.7, >1.3, >1.0, >0.7, >0.0, 0.0) ✓ (attempted but many incorrect)
+- Empty list: not specified
+- Multiple grades in list: ✓ (canonical example)
+
+## Check 4 — Sanity
+
+- Imports from `solution` ✓
+- Function name matches `numerical_letter_grade` ✓
+- Syntactically valid pytest ✓
+
+## Summary of Defects
+
+1. **test_canonical_example_2**: GPA 2.5 should be B-, not B (wrong expected value)
+2. **test_boundary_A_minus**: GPA 3.7 should be A-, not A (wrong expected value)
+3. **test_boundary_A**: GPA 3.3 should be B+, not A- (wrong expected value)
+4. **test_boundary_B**: GPA 2.7 should be B-, not B (wrong expected value)
+5. **test_boundary_B_minus**: GPA 2.3 should be C+, not B- (wrong expected value)
+6. **test_boundary_C_minus**: GPA 1.3 should be D+, not C- (wrong expected value)
+7. **test_boundary_D**: GPA 0.7 should be D-, not D (wrong expected value)
+
+## Directives
+
+FIX: test_canonical_example_2 expects 'B' for GPA 2.5 but per the spec table (> 2.3 and not > 2.7) it should be 'B-'
+
+FIX: test_boundary_A_minus expects 'A' for GPA 3.7 but per the spec table (not > 3.7, so next is > 3.3) it should be 'A-'
+
+FIX: test_boundary_A expects 'A-' for GPA 3.3 but per the spec table (not > 3.3, so next is > 3.0) it should be 'B+'
+
+FIX: test_boundary_B expects 'B' for GPA 2.7 but per the spec table (not > 2.7, so next is > 2.3) it should be 'B-'
+
+FIX: test_boundary_B_minus expects 'B-' for GPA 2.3 but per the spec table (not > 2.3, so next is > 2.0) it should be 'C+'
+
+FIX: test_boundary_C_minus expects 'C-' for GPA 1.3 but per the spec table (not > 1.3, so next is > 1.0) it should be 'D+'
+
+FIX: test_boundary_D expects 'D' for GPA 0.7 but per the spec table (not > 0.7, so next is > 0.0) it should be 'D-'
+
+REMOVE: test_canonical_example_2 and test_canonical_example_3 are not from the specification
+
+ADD: test for exact boundary 4.0 (should give A+)
+
+ADD: test for value just above each boundary (e.g., 3.71 for A, 3.31 for A-, etc.)
+
+Final score: 0.10

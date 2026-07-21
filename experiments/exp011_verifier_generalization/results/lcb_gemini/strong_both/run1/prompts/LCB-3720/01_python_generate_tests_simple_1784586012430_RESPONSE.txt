@@ -1,0 +1,196 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+```python
+import pytest
+from typing import List
+
+# This is the function signature, but it will be imported from the solution file.
+# We are writing the tests before the implementation exists.
+# def minMaxWeight(n: int, edges: List[List[int]], threshold: int) -> int:
+#     pass
+
+from solution import minMaxWeight
+
+
+def test_canonical_example_1():
+    """
+    Example 1 from the specification.
+    n = 5, edges = [[1,0,1],[2,0,2],[3,0,1],[4,3,1],[2,1,1]], threshold = 2
+    Output: 1
+    Explanation: If we allow a max weight of 1, we can use edges:
+    [1,0,1], [3,0,1], [4,3,1], [2,1,1].
+    - Paths to 0: 1->0, 2->1->0, 3->0, 4->3->0. All nodes can reach 0.
+    - Out-degrees: out(1)=1, out(2)=1, out(3)=1, out(4)=1. All are <= threshold=2.
+    - Max weight is 1. This is the minimal possible.
+    """
+    n = 5
+    edges = [[1, 0, 1], [2, 0, 2], [3, 0, 1], [4, 3, 1], [2, 1, 1]]
+    threshold = 2
+    assert minMaxWeight(n, edges, threshold) == 1
+
+
+def test_canonical_example_2():
+    """
+    Example 2 from the specification.
+    n = 5, edges = [[0,1,1],[0,2,2],[0,3,1],[0,4,1],[1,2,1],[1,4,1]], threshold = 1
+    Output: -1
+    Explanation: In this graph, all edges point away from node 0. No other node can reach node 0.
+    It's impossible to satisfy the reachability condition.
+    """
+    n = 5
+    edges = [[0, 1, 1], [0, 2, 2], [0, 3, 1], [0, 4, 1], [1, 2, 1], [1, 4, 1]]
+    threshold = 1
+    assert minMaxWeight(n, edges, threshold) == -1
+
+
+def test_canonical_example_3():
+    """
+    Example 3 from the specification.
+    n = 5, edges = [[1,2,1],[1,3,3],[1,4,5],[2,3,2],[3,4,2],[4,0,1]], threshold = 1
+    Output: 2
+    Explanation:
+    - If max weight is 1: edges are [1,2,1], [4,0,1]. Node 3 cannot reach 0.
+    - If max weight is 2: edges are [1,2,1], [2,3,2], [3,4,2], [4,0,1].
+      We can form a path 1->2->3->4->0. All nodes can reach 0.
+      Out-degrees are all 1, which is <= threshold.
+      So, 2 is a possible max weight. Since 1 is not possible, 2 is the minimum.
+    """
+    n = 5
+    edges = [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [3, 4, 2], [4, 0, 1]]
+    threshold = 1
+    assert minMaxWeight(n, edges, threshold) == 2
+
+
+def test_canonical_example_4():
+    """
+    Example 4 from the specification.
+    n = 5, edges = [[1,2,1],[1,3,3],[1,4,5],[2,3,2],[4,0,1]], threshold = 1
+    Output: -1
+    Explanation: Even with all edges included (max weight 5), node 3 has no outgoing edges.
+    It is impossible for node 3 to reach node 0.
+    """
+    n = 5
+    edges = [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [4, 0, 1]]
+    threshold = 1
+    assert minMaxWeight(n, edges, threshold) == -1
+
+
+def test_no_solution_due_to_disconnected_component():
+    """
+    Tests a graph where a node is in a component that cannot reach node 0.
+    """
+    n = 4
+    edges = [[1, 2, 5], [2, 0, 5], [3, 3, 1]]  # Node 3 is isolated
+    threshold = 1
+    # Node 3 can never reach node 0.
+    assert minMaxWeight(n, edges, threshold) == -1
+
+
+def test_simple_line_graph():
+    """
+    Tests a graph that is a single path to 0. The result must be the max weight on that path.
+    """
+    n = 4
+    edges = [[3, 2, 10], [2, 1, 20], [1, 0, 5]]
+    threshold = 1
+    # The only way to connect all nodes to 0 is to use all edges.
+    # The max weight in this set is 20.
+    assert minMaxWeight(n, edges, threshold) == 20
+
+
+def test_choice_of_path_matters():
+    """
+    Tests that the algorithm correctly chooses a path with a lower max weight.
+    """
+    n = 3
+    edges = [[1, 0, 100], [1, 2, 10], [2, 0, 20]]
+    threshold = 1
+    # To connect node 1 to 0, there are two options:
+    # 1. Direct edge (1,0) with weight 100.
+    # 2. Path 1 -> 2 -> 0 with max edge weight of max(10, 20) = 20.
+    # The minimal maximum weight is 20.
+    assert minMaxWeight(n, edges, threshold) == 20
+
+
+def test_no_edges():
+    """
+    Tests the case where the edge list is empty. No paths can be formed.
+    """
+    n = 3
+    edges = []
+    threshold = 1
+    # Without edges, no node can reach node 0.
+    assert minMaxWeight(n, edges, threshold) == -1
+
+
+def test_minimal_graph_n2():
+    """
+    Tests the smallest possible graph size n=2.
+    """
+    n = 2
+    edges = [[1, 0, 123]]
+    threshold = 1
+    # The only edge is required. The max weight is its weight.
+    assert minMaxWeight(n, edges, threshold) == 123
+
+
+def test_all_nodes_direct_to_zero():
+    """
+    Tests a graph where all other nodes have a direct edge to 0.
+    """
+    n = 4
+    edges = [[1, 0, 10], [2, 0, 30], [3, 0, 20]]
+    threshold = 2
+    # To connect all nodes, all edges are needed.
+    # The maximum weight among these is 30.
+    assert minMaxWeight(n, edges, threshold) == 30
+
+
+def test_high_threshold():
+    """
+    Tests a case where the threshold is large enough not to be a constraint.
+    """
+    n = 5
+    edges = [[1, 0, 10], [1, 2, 5], [2, 0, 8], [3, 0, 12], [4, 0, 100]]
+    threshold = 4  # threshold = n - 1
+    # We need to connect all nodes 1, 2, 3, 4.
+    # To connect node 4, we must use the edge (4,0) with weight 100.
+    # So the minimum max weight is at least 100. At this weight, all edges are available
+    # and it's possible to connect everyone.
+    assert minMaxWeight(n, edges, threshold) == 100
+
+def test_multiple_edges_between_nodes():
+    """
+    Tests a graph with multiple edges between the same pair of nodes.
+    """
+    n = 3
+    edges = [[1, 2, 10], [2, 0, 30], [1, 2, 20]] # Two edges from 1 to 2
+    threshold = 1
+    # Path 1->2->0 is required.
+    # To minimize max weight, we should use the (1,2) edge with weight 10.
+    # The max weight on this path is max(10, 30) = 30.
+    assert minMaxWeight(n, edges, threshold) == 30
+
+def test_all_weights_are_the_same():
+    """
+    Tests a case where all edges have the same weight.
+    """
+    n = 4
+    edges = [[3, 0, 10], [2, 3, 10], [1, 2, 10]]
+    threshold = 1
+    # A path 1->2->3->0 exists. All edges have weight 10.
+    # The max weight is 10. If we tried a smaller weight, no edges would be available.
+    assert minMaxWeight(n, edges, threshold) == 10
+
+def test_impossible_case_with_same_weights():
+    """
+    Tests an impossible case where all edges have the same weight but connectivity is not possible.
+    """
+    n = 4
+    edges = [[0, 1, 10], [0, 2, 10], [0, 3, 10]]
+    threshold = 1
+    # All edges point away from 0. Impossible to reach 0.
+    assert minMaxWeight(n, edges, threshold) == -1
+```

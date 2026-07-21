@@ -1,0 +1,301 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784611208737
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: import pytest
+from typing import List
+
+from solution import maxFreeTime
+
+
+def test_canonical_example_1():
+    """
+    Test with the first example from the specification.
+    Input: eventTime = 5, k = ...[truncated]
+  impl_code: from typing import List
+
+
+def maxFreeTime(eventTime: int, k: int, startTime: List[int], endTime: List[int]) -> int:
+    n = len(startTime)
+    durations = [endTime[i] - startTime[i] for i in range(n)]...[truncated]
+  task: {'id': 'LCB/3743', 'use_case_id': 'LCB/3743', 'story_id': 'LCB/3743', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maxFreeTime()', 'description': 'You are given an integer eventTime denoting the du...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement maxFreeTime()**
+
+## Tests (the acceptance criterion)
+
+```python
+import pytest
+from typing import List
+
+from solution import maxFreeTime
+
+
+def test_canonical_example_1():
+    """
+    Test with the first example from the specification.
+    Input: eventTime = 5, k = 1, startTime = [1,3], endTime = [2,5]
+    Output: 2
+    Explanation: Reschedule the meeting at [1, 2] to [2, 3], leaving no meetings during the time [0, 2].
+    """
+    eventTime = 5
+    k = 1
+    startTime = [1, 3]
+    endTime = [2, 5]
+    
+    # Calculation:
+    # n = 2, k = 1. Meetings: M0=[1,2] (d=1), M1=[3,5] (d=2).
+    # Initial free times: [0,1] (len 1), [2,3] (len 1). Max initial free time = 1.
+    # We can move k=1 meeting.
+    # Option 1: Move M0. The space available for M0 is between the event start and M1's start: [0, startTime[1]] = [0,3].
+    #   Duration of M0 is 1. We can pack M0 at the end of its available space: [2,3].
+    #   This leaves free time [0,2], length 2. M1 is not affected. Total moves = 1 <= k.
+    #   New free time: max(len([0,2])) = 2.
+    # Option 2: Move M1. The space available for M1 is between M0's end and the event end: [endTime[0], eventTime] = [2,5].
+    #   Duration of M1 is 2. Pack M1 at start of this space: [2,4]. Leaves free time [4,5], length 1.
+    # Maximum free time is 2.
+    assert maxFreeTime(eventTime, k, startTime, endTime) == 2
+
+def test_canonical_example_2():
+    """
+    Test with the second example from the specification.
+    Input: eventTime = 10, k = 1, startTime = [0,2,9], endTime = [1,4,10]
+    Output: 6
+    Explanation: Reschedule the meeting at [2, 4] to [1, 3], leaving no meetings during the time [3, 9].
+    """
+    eventTime = 10
+    k = 1
+    startTime = [0, 2, 9]
+    endTime = [1, 4, 10]
+    
+    # Calculation:
+    # n = 3, k = 1. Meetings: M0=[0,1](d=1), M1=[2,4](d=2), M2=[9,10](d=1).
+    # Initial free times: [1,2](len 1), [4,9](len 5). Max initial free time = 5.
+    # We can move k=1 meeting.
+    # Option 1: Move M0. Space: [0, startTime[1]]=[0,2]. M0 duration=1. Move to [1,2]. Free time [0,1], len 1.
+    # Option 2: Move M1. Space: [endTime[0], startTime[2]]=[1,9]. M1 duration=2. Move to [1,3]. Free time [3,9], len 6.
+    # Option 3: Move M2. Space: [endTime[1], eventTime]=[4,10]. M2 duration=1. Move to [4,5]. Free time [5,10], len 5.
+    # Maximum free time is 6.
+    assert maxFreeTime(eventTime, k, startTime, endTime) == 6
+
+def test_canonical_example_3():
+    """
+    Test with the third example from the specification.
+    Input: eventTime = 5, k = 2, startTime = [0,1,2,3,4], endTime = [1,2,3,4,5]
+    Output: 0
+    Explanation: There is no time during the event not occupied by meetings.
+    """
+    eventTime = 5
+    k = 2
+    startTime = [0, 1, 2, 3, 4]
+    endTime = [1, 2, 3, 4, 5]
+
+    # Calculation:
+    # n = 5. Meetings are perfectly packed, filling the entire [0,5] event time.
+    # Total duration of meetings is 5. Event time is 5.
+    # No matter how we reschedule, the total time occupied by meetings is 5.
+    # The maximum free time is eventTime - total_meeting_duration = 5 - 5 = 0.
+    assert maxFreeTime(eventTime, k, startTime, endTime) == 0
+
+def test_all_meetings_movable():
+    """
+    Test case where k=n, so all meetings can be moved.
+    The maximum free time should be the eventTime minus the total duration of all meetings.
+    """
+    eventTime = 100
+    k = 3
+    startTime = [10, 20, 30]
+    endTime = [15, 25, 35]
+    n = 3
+
+    # Calculation:
+    # Durations: d0=5, d1=5, d2=5. Total duration = 15.
+    # Since all meetings can be moved (k=n=3), they can be packed contiguously.
+    # For example, at the beginning: [0,5], [5,10], [10,15].
+    # This leaves the interval [15, 100] free, which has a length of 85.
+    # Expected: eventTime - total_duration = 100 - 15 = 85.
+    assert maxFreeTime(eventTime, k, startTime, endTime) == 85
+
+def test_minimal_setup_n2_k1():
+    """
+    Test with the minimum number of meetings (n=2) and k=1.
+    """
+    eventTime = 20
+    k = 1
+    startTime = [5, 15]
+    endTime = [7, 18]
+    n = 2
+
+    # Calculation:
+    # Meetings: M0=[5,7](d=2), M1=[15,18](d=3).
+    # Initial free times: [0,5](len 5), [7,15](len 8), [18,20](len 2). Max initial = 8.
+    # Option 1: Move M0. Space [0, s1]=[0,15]. Duration 2. Free time created = 15 - 0 - 2 = 13.
+    # Option 2: Move M1. Space [e0, 20]=[7,20]. Duration 3. Free time created = 20 - 7 - 3 = 10.
+    # Max free time is max(8, 13, 10) = 13.
+    assert maxFreeTime(eventTime, k, startTime, endTime) == 13
+
+def test_no_gaps_between_some_meetings():
+    """
+    Test where some meetings are already packed together, leaving no gap.
+    """
+    eventTime = 20
+    k = 1
+    startTime = [5, 10, 15]
+    endTime = [10, 15, 19]
+    n = 3
+
+    # Calculation:
+    # Meetings: M0=[5,10](d=5), M1=[10,15](d=5), M2=[15,19](d=4).
+    # Initial free times: [0,5](len 5), [10,10](len 0), [15,15](len 0), [19,20](len 1). Max initial = 5.
+    # k=1.
+    # Move M0: space [0, s1]=[0,10]. d0=5. Free time = 10 - 0 - 5 = 5.
+    # Move M1: space [e0, s2]=[10,15]. d1=5. Free time = 15 - 10 - 5 = 0.
+    # Move M2: space [e1, 20]=[15,20]. d2=4. Free time = 20 - 15 - 4 = 1.
+    # Max free time is max(5, 5, 0, 1) = 5.
+    assert maxFreeTime(eventTime, k, startTime, endTime) == 5
+
+def test_initial_large_gap_at_end():
+    """
+    Test a scenario where a large initial free period exists, but moving meetings can create an even larger one.
+    """
+    eventTime = 100
+    k = 1
+    startTime = [10, 25]
+    endTime = [20, 30]
+    n = 2
+
+    # Calculation:
+    # Meetings: M0=[10,20](d=10), M1=[25,30](d=5).
+    # Initial free times: [0,10](len 10), [20,25](len 5), [30,100](len 70). Max initial = 70.
+    # k=1.
+    # Move M0: space [0, s1]=[0,25]. d0=10. Free time = 25 - 0 - 10 = 15.
+    # Move M1: space [e0, 100]=[20,100]. d1=5. Free time = 100 - 20 - 5 = 75.
+    # Max free time is max(70, 15, 75) = 75.
+    assert maxFreeTime(eventTime, k, startTime, endTime) == 75
+
+def test_large_k_but_not_all():
+    """
+    Test with k being a large portion of n, but less than n. The best strategy might involve
+    moving a block of meetings smaller than k.
+    """
+    eventTime = 100
+    k = 3
+    startTime = [10, 20, 30, 90]
+    endTime = [15, 25, 35, 95]
+    n = 4
+
+    # Calculation:
+    # d=[5,5,5,5]. Initial max free time: gap [35,90] has length 55.
+    # We can move a contiguous block of j meetings (1<=j<=k).
+    # The max free time is the maximum of free times created by moving blocks of size j=1, j=2, and j=3.
+    # j=1: Max free time by moving M3 is 100 - e2 - d3 = 100 - 35 - 5 = 60.
+    # j=2: Max free time by moving M1,M2 is s3-e0-(d1+d2) = 90-15-10 = 65.
+    #      Max free time by moving M2,M3 is 100-e1-(d2+d3) = 100-25-10 = 65.
+    # j=3: Max free time by moving M0,M1,M2 is s3-0-(d0+d1+d2) = 90-0-15 = 75.
+    # The overall max is max(initial_55, 60, 65, 75) = 75.
+    assert maxFreeTime(eventTime, k, startTime, endTime) == 75
+```
+
+## Failing implementation
+
+```python
+from typing import List
+
+
+def maxFreeTime(eventTime: int, k: int, startTime: List[int], endTime: List[int]) -> int:
+    n = len(startTime)
+    durations = [endTime[i] - startTime[i] for i in range(n)]
+
+    # Calculate initial free times between meetings
+    free_times = []
+    free_times.append(startTime[0])  # Free time before the first meeting
+
+    for i in range(1, n):
+        free_times.append(startTime[i] - endTime[i - 1])  # Free time between meetings
+
+    free_times.append(eventTime - endTime[-1])  # Free time after the last meeting
+
+    # Initial maximum free time without any moves
+    max_free_time = max(free_times)
+
+    # If k >= n, we can move all meetings to create one big free time
+    if k >= n:
+        total_duration = sum(durations)
+        return eventTime - total_duration
+
+    # We will consider moving up to k meetings to maximize the free time
+    max_possible_free_time = 0
+    for i in range(n - k):  # Iterate through initial gaps
+        current_free_time = free_times[i]
+        for j in range(1, k + 1):  # Combine with next k gaps
+            if i + j < len(free_times):
+                current_free_time += free_times[i + j]
+        max_possible_free_time = max(max_possible_free_time, current_free_time)
+
+    return max(max_free_time, max_possible_free_time)
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpl4yet3lk/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 8 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [ 12%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 25%]
+tests/test_task.py::test_canonical_example_3 PASSED                      [ 37%]
+tests/test_task.py::test_all_meetings_movable PASSED                     [ 50%]
+tests/test_task.py::test_minimal_setup_n2_k1 PASSED                      [ 62%]
+tests/test_task.py::test_no_gaps_between_some_meetings PASSED            [ 75%]
+tests/test_task.py::test_initial_large_gap_at_end FAILED                 [ 87%]
+tests/test_task.py::test_large_k_but_not_all PASSED                      [100%]
+
+=================================== FAILURES ===================================
+________________________ test_initial_large_gap_at_end _________________________
+tests/test_task.py:147: in test_initial_large_gap_at_end
+    assert maxFreeTime(eventTime, k, startTime, endTime) == 75
+E   assert 70 == 75
+E    +  where 70 = maxFreeTime(100, 1, [10, 25], [20, 30])
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_initial_large_gap_at_end - assert 70 == 75
+========================= 1 failed, 7 passed in 0.02s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

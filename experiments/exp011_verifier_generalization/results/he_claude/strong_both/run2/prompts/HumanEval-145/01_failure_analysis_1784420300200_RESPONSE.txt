@@ -1,0 +1,69 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+## Analysis
+
+### test_canonical_example_1
+
+**Input:** `[1, 11, -1, -11, -12]`  
+**Expected:** `[-1, -11, 1, -12, 11]`  
+**Got:** `[-12, -11, -1, 1, 11]`
+
+Let me trace the digit sums computed by the implementation:
+- `1`: sum = 1
+- `11`: sum = 1 + 1 = 2
+- `-1`: sum = -1 (negative of sum of digits of abs(-1) = -(1) = -1)
+- `-11`: sum = -(1 + 1) = -2
+- `-12`: sum = -(1 + 2) = -3
+
+The implementation sorts by `(digit_sum(x), nums.index(x))`:
+- `-12`: digit_sum = -3, index = 4 → sort key = (-3, 4)
+- `-11`: digit_sum = -2, index = 3 → sort key = (-2, 3)
+- `-1`: digit_sum = -1, index = 2 → sort key = (-1, 2)
+- `1`: digit_sum = 1, index = 0 → sort key = (1, 0)
+- `11`: digit_sum = 2, index = 1 → sort key = (2, 1)
+
+Sorted result: `[-12, -11, -1, 1, 11]` ✓ (matches actual output)
+
+Now checking the expected output `[-1, -11, 1, -12, 11]`:
+If we group by digit sum and preserve original order within each group:
+- digit_sum = -3: `-12` (index 4)
+- digit_sum = -2: `-11` (index 3)
+- digit_sum = -1: `-1` (index 2)
+- digit_sum = 1: `1` (index 0)
+- digit_sum = 2: `11` (index 1)
+
+But the expected output is `[-1, -11, 1, -12, 11]`. Let me re-examine the digit sum calculation for negative numbers.
+
+Looking at the expected output pattern:
+- `-1` comes first
+- `-11` comes second
+- `1` comes third
+- `-12` comes fourth
+- `11` comes fifth
+
+If `-1` (with computed sum -1) comes before `-11` (with computed sum -2), and `-11` comes before `-12` (with computed sum -3), this contradicts sorting by digit sum ascending.
+
+Let me reconsider: for negative numbers, the digit sum calculation might need to only negate the **first digit**, not the entire sum.
+
+For `-12`:
+- If we compute: -1 + 2 = 1 (negate only the first digit)
+- For `-11`: -1 + 1 = 0
+- For `-1`: -1
+
+For `-12` with digit_sum = 1, `-11` with digit_sum = 0, `-1` with digit_sum = -1:
+Sorted by digit sum: `-1` (sum=-1), `-11` (sum=0), `1` (sum=1), `-12` (sum=1), `11` (sum=2)
+
+When digit sums are equal (both `1` and `-12` have sum=1), we preserve original order:
+- `1` appears at index 0
+- `-12` appears at index 4
+So `1` comes before `-12`.
+
+Final sorted order: `[-1, -11, 1, -12, 11]` ✓ (matches expected)
+
+**Root cause:** For negative numbers, the implementation incorrectly negates the entire sum of all digits. It should only negate the first digit and then add the remaining digits normally.
+
+## FIX DIRECTIVES:
+
+FIX: in `digit_sum` function, change the negative number case from `return -sum(int(d) for d in str(abs(n)))` to compute the digit sum by negating only the first digit. Specifically: convert the negative number to a string, take the first digit after the minus sign and negate it, then add all remaining digits positively. Implementation: `s = str(abs(n)); return -int(s[0]) + sum(int(d) for d in s[1:])` (handle single-digit case where `s[1:]` is empty, which gives sum of 0 correctly).

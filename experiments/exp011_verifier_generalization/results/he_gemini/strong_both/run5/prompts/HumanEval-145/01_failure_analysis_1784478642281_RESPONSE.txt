@@ -1,0 +1,34 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+Here is the analysis of the failing implementation.
+
+There is a single root cause for both test failures, located in the tie-breaking logic of the `custom_compare` function. The function incorrectly implements a special rule for numbers with the same point value but different signs, which violates the stability requirement of the sort.
+
+***
+
+`test_canonical_example_1` — expected `[-1, -11, 1, -12, 11]`, got `[-1, 1, -11, 11, -12]`, because the implementation's output is sorted by points, but the test's expectation is not. The implementation first groups items by point value, then sorts within those groups. The expected output shows `1` (1 point) appearing after `-11` (2 points), which violates a sort-by-points ordering. The implementation's incorrect tie-breaking logic is also a factor, but the primary discrepancy is the overall sort order.
+
+`test_mixed_sign_and_zero` — expected `[0, 10, -1]`, got `[0, -1, 10]`, because the custom comparison logic is not stable.
+1.  **Input**: `[10, 0, -1]`
+2.  **Points**: `10` -> 1, `0` -> 0, `-1` -> 1.
+3.  **Expected Logic**: `0` should come first (point value 0). For the numbers with point value 1 (`10` and `-1`), their original relative order (`10` before `-1`) must be preserved (this is called a stable sort). The expected output is `[0, 10, -1]`.
+4.  **Implementation Trace**: The implementation correctly places `0` first. When comparing `10` and `-1`, which have the same point value, it enters the tie-breaking logic. The expression `if a[1] * b[1] < 0:` is true (`10 * -1 < 0`). The code then prioritizes the negative number, placing `-1` before `10`.
+5.  **Divergence**: The line `if a[1] * b[1] < 0:` introduces a non-stable sorting rule that prioritizes negative numbers in a tie-break, contradicting the stability requirement demonstrated by this test and other passing tests. This results in the incorrect output `[0, -1, 10]`.
+
+### FIX DIRECTIVES:
+
+1.  **`order_by_points`**: The `custom_compare` function's tie-breaking logic is incorrect. When two numbers have the same point value, their original relative order should be preserved. Replace the conditional logic for handling ties with a single line that compares their original indices.
+
+    ```python
+    # In custom_compare, change this block:
+    if sum_a == sum_b:
+        if a[1] * b[1] < 0:
+            return -1 if a[1] < 0 else 1
+        return a[0] - b[0]  # Preserve original order by index
+    
+    # To this:
+    if sum_a == sum_b:
+        return a[0] - b[0]  # Preserve original order by index
+    ```

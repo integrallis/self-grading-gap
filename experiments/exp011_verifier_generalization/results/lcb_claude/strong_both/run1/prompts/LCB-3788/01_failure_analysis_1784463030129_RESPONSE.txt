@@ -1,0 +1,59 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+## Analysis
+
+**test_need_to_skip_negative** — expected 10, got 7
+
+**Inputs:** `[1, 2, -10, 3, 4]`
+
+**Expected:** 10
+
+**Trace of implementation:**
+- `left = 0`: 
+  - `right = 0`: seen={}, nums[0]=1, not in seen, add 1, current_sum=1, max_sum=1
+  - `right = 1`: seen={1}, nums[1]=2, not in seen, add 2, current_sum=3, max_sum=3
+  - `right = 2`: seen={1,2}, nums[2]=-10, not in seen, add -10, current_sum=-7, max_sum=3
+  - `right = 3`: seen={1,2,-10}, nums[3]=3, not in seen, add 3, current_sum=-4, max_sum=3
+  - `right = 4`: seen={1,2,-10,3}, nums[4]=4, not in seen, add 4, current_sum=0, max_sum=3
+
+- `left = 1`:
+  - `right = 1`: seen={}, nums[1]=2, not in seen, add 2, current_sum=2, max_sum=3
+  - `right = 2`: seen={2}, nums[2]=-10, not in seen, add -10, current_sum=-8, max_sum=3
+  - `right = 3`: seen={2,-10}, nums[3]=3, not in seen, add 3, current_sum=-5, max_sum=3
+  - `right = 4`: seen={2,-10,3}, nums[4]=4, not in seen, add 4, current_sum=-1, max_sum=3
+
+- `left = 2`:
+  - `right = 2`: seen={}, nums[2]=-10, not in seen, add -10, current_sum=-10, max_sum=3
+  - `right = 3`: seen={-10}, nums[3]=3, not in seen, add 3, current_sum=-7, max_sum=3
+  - `right = 4`: seen={-10,3}, nums[4]=4, not in seen, add 4, current_sum=-3, max_sum=3
+
+- `left = 3`:
+  - `right = 3`: seen={}, nums[3]=3, not in seen, add 3, current_sum=3, max_sum=3
+  - `right = 4`: seen={3}, nums[4]=4, not in seen, add 4, current_sum=7, max_sum=7
+
+- `left = 4`:
+  - `right = 4`: seen={}, nums[4]=4, not in seen, add 4, current_sum=4, max_sum=7
+
+**Got:** 7
+
+**Root cause:** The test comment indicates "could select [1, 2, 3, 4] after deleting -10 = 10". The problem description allows **deleting elements** first, then selecting a subarray from what remains. The implementation misunderstands the problem: it only considers contiguous subarrays in the **original** array where all elements are unique. It does NOT model the deletion operation at all.
+
+The correct interpretation is:
+1. Choose zero or more elements to delete from the array
+2. From the remaining (possibly non-contiguous) elements, select a contiguous subarray
+3. That subarray must have all unique values
+4. Maximize the sum
+
+For `[1, 2, -10, 3, 4]`, deleting index 2 (value -10) gives `[1, 2, 3, 4]`, and selecting the entire resulting array gives sum = 10.
+
+The implementation's approach of using nested loops over the original array indices cannot handle this because after deletion, elements that were non-contiguous become contiguous.
+
+---
+
+## FIX DIRECTIVES:
+
+FIX: The current implementation fundamentally misunderstands the problem. You need to rewrite `maxSum` to consider all possible deletion scenarios. For each possible subset of indices to delete, compute the resulting array after deletion, then find the maximum sum of any contiguous subarray with unique elements in that resulting array. Since the constraint is small (nums.length likely ≤ 100 based on value constraints), you can iterate through all 2^n deletion masks using bit manipulation, or use a different algorithmic approach such as dynamic programming that tracks which elements to skip and which contiguous unique subarray to select from the remaining elements.
+
+FIX: Alternatively, recognize that the problem is asking: from all possible ways to (1) delete some elements, then (2) select a contiguous unique-element subarray from what remains, find the maximum sum. Implement this by generating all possible arrays that result from deletions, then for each, compute the maximum unique-subarray sum using your current sliding window logic.

@@ -1,0 +1,11 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_another_non_empty_string — expected '8a2f7c0043818ea14e7a23c347076d29', got 'b5e80dfd47001394db3dc1312b3f434f', because the implementation reuses a single `hashlib.md5` object across function calls. The object retained its state from the preceding `test_canonical_example_1`, which hashed `'Hello world'`. For this test, the implementation updated that existing hash object with `'Python TDD'`, effectively calculating the hash of the concatenated string `b'Hello world' + b'Python TDD'`, which is `'b5e80dfd47001394db3dc1312b3f434f'`, instead of hashing `'Python TDD'` alone.
+
+test_string_with_various_chars — expected '218dd28731d794218b0671a74d209e1e', got '9fc04cc3b32ddacd274570c43ff29243', due to the same root cause. The single `hashlib.md5` object now carried the state from hashing `b'Hello world' + b'Python TDD'`. This test updated it further with `'123!@#$ %^&*()-_=+'`, calculating the hash of the concatenated string `b'Hello world' + b'Python TDD' + b'123!@#$ %^&*()-_=+'`, which is `'9fc04cc3b32ddacd274570c43ff29243'`. A new hash object was not created for the call.
+
+FIX DIRECTIVES:
+FIX: in string_to_md5, ensure a new `hashlib.md5()` object is created for every function call. The object must not be defined in a scope outside the function where its state can persist between calls.
+FIX: in string_to_md5, the entire hashing operation for a non-empty string should be self-contained within the function call, for example: `return hashlib.md5(text.encode('utf-8')).hexdigest()`.

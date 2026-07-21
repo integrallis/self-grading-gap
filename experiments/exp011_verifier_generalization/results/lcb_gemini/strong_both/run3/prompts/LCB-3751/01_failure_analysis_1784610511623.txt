@@ -1,0 +1,311 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784610511623
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: # test_max_frequency.py
+from typing import List
+import pytest
+
+# Assume the function to be tested is in a file named `solution.py`
+from solution import maxFrequency
+
+
+def test_canonical_example_1():
+ ...[truncated]
+  impl_code: from typing import List
+
+
+def maxFrequency(nums: List[int], k: int) -> int:
+    # Frequency map to count occurrences of each number
+    freq = [0] * 51  # Since 1 <= nums[i], k <= 50
+    for num in nu...[truncated]
+  task: {'id': 'LCB/3751', 'use_case_id': 'LCB/3751', 'story_id': 'LCB/3751', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maxFrequency()', 'description': 'You are given an array nums of length n. You are ...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement maxFrequency()**
+
+## Tests (the acceptance criterion)
+
+```python
+# test_max_frequency.py
+from typing import List
+import pytest
+
+# Assume the function to be tested is in a file named `solution.py`
+from solution import maxFrequency
+
+
+def test_canonical_example_1():
+    """
+    Tests the first canonical example from the specification.
+    Input: nums = [1,2,3,4,5,6], k = 1
+    Output: 2
+    """
+    nums = [1, 2, 3, 4, 5, 6]
+    k = 1
+    # Explanation from spec: adding -5 to nums[2..5] results in [1, 2, -2, -1, 0, 1]. Freq of 1 is 2.
+    # This is achieved by targeting nums[5]=6 to become 1. x = 1 - 6 = -5.
+    # Initial frequency of k=1 is 1.
+    # By converting another number (e.g., 6) to 1, we can achieve a frequency of 2.
+    # The maximum gain is 1 (convert one number to k).
+    # Final frequency = initial_freq(1) + max_gain(1) = 1 + 1 = 2.
+    assert maxFrequency(nums, k) == 2
+
+
+def test_canonical_example_2():
+    """
+    Tests the second canonical example from the specification.
+    Input: nums = [10,2,3,4,5,5,4,3,2,2], k = 10
+    Output: 4
+    """
+    nums = [10, 2, 3, 4, 5, 5, 4, 3, 2, 2]
+    k = 10
+    # Explanation from spec: adding 8 to nums[1..9] results in
+    # [10, 10, 11, 12, 13, 13, 12, 11, 10, 10]. Freq of 10 is 4.
+    # This is achieved by targeting the three 2s to become 10. x = 10 - 2 = 8.
+    # Initial frequency of k=10 is 1.
+    # The three 2s are converted to 10s. This gives a gain of 3.
+    # Final frequency = initial_freq(1) + max_gain(3) = 1 + 3 = 4.
+    assert maxFrequency(nums, k) == 4
+
+
+def test_all_elements_are_k():
+    """
+    Tests the case where all elements are already the target value k.
+    """
+    nums = [7, 7, 7, 7]
+    k = 7
+    # Initial frequency is 4. No operation can increase this.
+    # Converting 7 to 7 has no effect. Converting any other value is not possible.
+    # Max gain is 0. Final frequency = 4 + 0 = 4.
+    assert maxFrequency(nums, k) == 4
+
+
+def test_all_elements_same_but_not_k():
+    """
+    Tests the case where all elements are identical, but not k.
+    """
+    nums = [3, 3, 3, 3, 3]
+    k = 8
+    # Initial frequency of k=8 is 0.
+    # We can convert all 3s to 8s by adding 5 to the whole array.
+    # This results in [8, 8, 8, 8, 8], frequency 5.
+    # Max gain is 5. Final frequency = 0 + 5 = 5.
+    assert maxFrequency(nums, k) == 5
+
+
+def test_no_k_in_initial_array():
+    """
+    Tests the case where k is not present in the initial array.
+    """
+    nums = [1, 2, 3, 4]
+    k = 5
+    # Initial frequency of k=5 is 0.
+    # We can convert any single element to 5. For example, convert 4 to 5 by adding 1.
+    # This gives a frequency of 1.
+    # Max gain is 1. Final frequency = 0 + 1 = 1.
+    assert maxFrequency(nums, k) == 1
+
+
+def test_beneficial_to_sacrifice_k_for_greater_gain():
+    """
+    Tests a scenario where the best strategy involves a subarray that contains k,
+    because converting other elements gives a higher net gain.
+    """
+    nums = [1, 5, 5, 5, 1]
+    k = 1
+    # Initial frequency of k=1 is 2.
+    # We can convert the three 5s to 1s by adding -4.
+    # If we choose the subarray [5, 5, 5], we gain 3 new 1s.
+    # The elements outside this subarray are the two original 1s.
+    # The final array can be [1, 1, 1, 1, 1], frequency 5.
+    # Max gain is count(5s in sub) - count(1s in sub) = 3 - 0 = 3.
+    # Final frequency = initial_freq(2) + max_gain(3) = 5.
+    assert maxFrequency(nums, k) == 5
+
+
+def test_not_beneficial_to_sacrifice_k():
+    """
+    Tests a scenario where sacrificing a k does not lead to a better result.
+    """
+    nums = [5, 1, 1, 1, 5]
+    k = 1
+    # Initial frequency of k=1 is 3.
+    # We can convert the 5s to 1s.
+    # Option 1: Convert just one 5. Subarray [0..0]. Gain = 1. Final freq = 3 + 1 = 4.
+    # Option 2: Convert both 5s. Subarray [0..4]. Gain = count(5s) - count(1s) = 2 - 3 = -1.
+    #   Final freq = total_k + gain = 3 - 1 = 2.
+    # The best strategy is to convert one 5, yielding a frequency of 4.
+    assert maxFrequency(nums, k) == 4
+
+
+def test_single_element_array():
+    """
+    Tests the smallest possible array according to constraints.
+    """
+    nums = [42]
+    k = 1
+    # Initial frequency of k=1 is 0.
+    # We can convert 42 to 1. Frequency becomes 1.
+    # Final frequency = 0 + 1 = 1.
+    assert maxFrequency(nums, k) == 1
+
+
+def test_single_element_is_k():
+    """
+    Tests the smallest possible array where the element is already k.
+    """
+    nums = [42]
+    k = 42
+    # Initial frequency is 1. No operation can improve this.
+    assert maxFrequency(nums, k) == 1
+
+
+def test_find_best_value_to_convert():
+    """
+    Tests an array with multiple non-k values to ensure the one yielding
+    the highest frequency is chosen.
+    """
+    nums = [1, 2, 2, 3, 3, 3, 4, 4, 4, 4]
+    k = 10
+    # Initial frequency of k=10 is 0.
+    # Count of 1: 1
+    # Count of 2: 2
+    # Count of 3: 3
+    # Count of 4: 4
+    # The best value to convert to 10 is 4, which appears 4 times.
+    # We can choose a subarray containing all 4s, e.g., nums[6..9] = [4,4,4,4].
+    # This gives a max gain of 4. Final frequency = 0 + 4 = 4.
+    assert maxFrequency(nums, k) == 4
+
+
+def test_k_at_ends_of_array():
+    """
+    Tests a case where k values are separated, and the optimal subarray lies between them.
+    """
+    nums = [10, 2, 3, 3, 4, 10]
+    k = 10
+    # Initial frequency of k=10 is 2.
+    # Candidates for conversion: 2 (x1), 3 (x2), 4 (x1).
+    # Best is to convert the two 3s by choosing subarray nums[2..3] = [3,3].
+    # This subarray contains no 10s. Gain = 2 - 0 = 2.
+    # Final frequency = initial_freq(2) + max_gain(2) = 4.
+    assert maxFrequency(nums, k) == 4
+```
+
+## Failing implementation
+
+```python
+from typing import List
+
+
+def maxFrequency(nums: List[int], k: int) -> int:
+    # Frequency map to count occurrences of each number
+    freq = [0] * 51  # Since 1 <= nums[i], k <= 50
+    for num in nums:
+        freq[num] += 1
+
+    initial_freq = freq[k]  # Initial frequency of k
+    max_gain = 0
+
+    # Now we need to find the best value to convert to k
+    for v in range(1, 51):  # Check all possible values from 1 to 50
+        if freq[v] > 0:
+            # Calculate gain using a sliding window approach
+            gain = [0] * len(nums)
+            for i in range(len(nums)):
+                if nums[i] == v:
+                    gain[i] = 1  # Gain for converting v to k
+                elif nums[i] == k:
+                    gain[i] = -1  # Loss for converting k to k
+
+            # Find maximum subarray sum using Kadane's algorithm
+            current_sum = 0
+            for g in gain:
+                current_sum += g
+                if current_sum < 0:
+                    current_sum = 0
+                max_gain = max(max_gain, current_sum)
+
+    return initial_freq + max_gain
+
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmptyswwerm/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 11 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [  9%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 18%]
+tests/test_task.py::test_all_elements_are_k FAILED                       [ 27%]
+tests/test_task.py::test_all_elements_same_but_not_k PASSED              [ 36%]
+tests/test_task.py::test_no_k_in_initial_array PASSED                    [ 45%]
+tests/test_task.py::test_beneficial_to_sacrifice_k_for_greater_gain PASSED [ 54%]
+tests/test_task.py::test_not_beneficial_to_sacrifice_k FAILED            [ 63%]
+tests/test_task.py::test_single_element_array PASSED                     [ 72%]
+tests/test_task.py::test_single_element_is_k FAILED                      [ 81%]
+tests/test_task.py::test_find_best_value_to_convert PASSED               [ 90%]
+tests/test_task.py::test_k_at_ends_of_array PASSED                       [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_all_elements_are_k ____________________________
+tests/test_task.py:52: in test_all_elements_are_k
+    assert maxFrequency(nums, k) == 4
+E   assert 8 == 4
+E    +  where 8 = maxFrequency([7, 7, 7, 7], 7)
+______________________ test_not_beneficial_to_sacrifice_k ______________________
+tests/test_task.py:110: in test_not_beneficial_to_sacrifice_k
+    assert maxFrequency(nums, k) == 4
+E   assert 6 == 4
+E    +  where 6 = maxFrequency([5, 1, 1, 1, 5], 1)
+___________________________ test_single_element_is_k ___________________________
+tests/test_task.py:132: in test_single_element_is_k
+    assert maxFrequency(nums, k) == 1
+E   assert 2 == 1
+E    +  where 2 = maxFrequency([42], 42)
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_all_elements_are_k - assert 8 == 4
+FAILED tests/test_task.py::test_not_beneficial_to_sacrifice_k - assert 6 == 4
+FAILED tests/test_task.py::test_single_element_is_k - assert 2 == 1
+========================= 3 failed, 8 passed in 0.02s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

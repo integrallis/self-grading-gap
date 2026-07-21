@@ -1,0 +1,293 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784433878032
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from typing import List
+import pytest
+from solution import maxSum
+
+
+def test_canonical_example_1():
+    # spec: nums = [1,2,3,4,5] -> 15
+    # Select the entire array without deleting any element
+    ...[truncated]
+  impl_code: from typing import List
+
+def maxSum(nums: List[int]) -> int:
+    unique_nums = set()
+    current_sum = 0
+    max_sum = float('-inf')
+
+    for num in nums:
+        if num not in unique_nums:
+          ...[truncated]
+  task: {'id': 'LCB/3788', 'use_case_id': 'LCB/3788', 'story_id': 'LCB/3788', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maxSum()', 'description': 'You are given an integer array nums.\nYou are allowed t...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement maxSum()**
+
+## Tests (the acceptance criterion)
+
+```python
+from typing import List
+import pytest
+from solution import maxSum
+
+
+def test_canonical_example_1():
+    # spec: nums = [1,2,3,4,5] -> 15
+    # Select the entire array without deleting any element
+    assert maxSum([1, 2, 3, 4, 5]) == 15
+
+
+def test_canonical_example_2():
+    # spec: nums = [1,1,0,1,1] -> 1
+    # Delete duplicates and select subarray with unique elements
+    assert maxSum([1, 1, 0, 1, 1]) == 1
+
+
+def test_canonical_example_3():
+    # spec: nums = [1,2,-1,-2,1,0,-1] -> 3
+    # Delete negative elements and select optimal subarray [2, 1]
+    assert maxSum([1, 2, -1, -2, 1, 0, -1]) == 3
+
+
+def test_single_element_positive():
+    # Single element array with positive value
+    # Only option: select that element, sum = 5
+    assert maxSum([5]) == 5
+
+
+def test_single_element_negative():
+    # Single element array with negative value
+    # Only option: select that element, sum = -3
+    assert maxSum([-3]) == -3
+
+
+def test_all_same_positive():
+    # All elements are the same positive number
+    # Can only select one element after deletions, sum = 7
+    assert maxSum([7, 7, 7]) == 7
+
+
+def test_all_same_negative():
+    # All elements are the same negative number
+    # Can only select one element after deletions, sum = -5
+    assert maxSum([-5, -5, -5]) == -5
+
+
+def test_all_negative_different():
+    # All negative but different values
+    # Select the least negative single element, sum = -1
+    assert maxSum([-5, -3, -1, -4]) == -1
+
+
+def test_two_elements_unique():
+    # Two unique elements, both positive
+    # Select both, sum = 3 + 7 = 10
+    assert maxSum([3, 7]) == 10
+
+
+def test_two_elements_duplicate():
+    # Two duplicate elements
+    # Select one element, sum = 4
+    assert maxSum([4, 4]) == 4
+
+
+def test_mix_positive_negative_unique():
+    # Mix of positive and negative, all unique
+    # Select only positives: 3 + 5 = 8
+    assert maxSum([3, -2, 5, -1]) == 8
+
+
+def test_zero_in_array():
+    # Array with zero and positive values
+    # Select positives only: 2 + 3 = 5
+    assert maxSum([2, 0, 3]) == 5
+
+
+def test_only_zeros():
+    # Array with only zeros
+    # Select one zero, sum = 0
+    assert maxSum([0, 0, 0]) == 0
+
+
+def test_zero_and_negative():
+    # Array with zero and negatives
+    # Select zero, sum = 0
+    assert maxSum([0, -5, -3]) == 0
+
+
+def test_duplicate_positives_and_negatives():
+    # Duplicates of both positive and negative
+    # Select the positive value: 5
+    assert maxSum([5, 5, -3, -3]) == 5
+
+
+def test_long_sequence_unique():
+    # Longer sequence with all unique positive values
+    # Sum all: 1+2+3+4+5+6 = 21
+    assert maxSum([1, 2, 3, 4, 5, 6]) == 21
+
+
+def test_alternating_duplicates():
+    # Alternating pattern with duplicates
+    # Best unique subarray: select distinct values with max sum
+    # Can get 2 + 3 = 5
+    assert maxSum([2, 3, 2, 3]) == 5
+
+
+def test_negative_then_positive():
+    # Negative values followed by positive
+    # Select only positives: 4 + 5 = 9
+    assert maxSum([-1, -2, 4, 5]) == 9
+
+
+def test_positive_then_negative():
+    # Positive values followed by negative
+    # Select only positives: 4 + 5 = 9
+    assert maxSum([4, 5, -1, -2]) == 9
+
+
+def test_sandwich_pattern():
+    # Positive, negative, positive pattern
+    # Select positives from one side: max(3+4, 5+6) = 11
+    assert maxSum([3, 4, -1, 5, 6]) == 11
+```
+
+## Failing implementation
+
+```python
+from typing import List
+
+def maxSum(nums: List[int]) -> int:
+    unique_nums = set()
+    current_sum = 0
+    max_sum = float('-inf')
+
+    for num in nums:
+        if num not in unique_nums:
+            unique_nums.add(num)
+            current_sum += num
+        else:
+            max_sum = max(max_sum, current_sum)
+            while num in unique_nums:
+                unique_nums.remove(nums[nums.index(num)])
+            unique_nums.add(num)
+            current_sum = sum(unique_nums)
+
+    return max(max_sum, current_sum)
+
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmp_1mh2ka6/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 20 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [  5%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 10%]
+tests/test_task.py::test_canonical_example_3 FAILED                      [ 15%]
+tests/test_task.py::test_single_element_positive PASSED                  [ 20%]
+tests/test_task.py::test_single_element_negative PASSED                  [ 25%]
+tests/test_task.py::test_all_same_positive PASSED                        [ 30%]
+tests/test_task.py::test_all_same_negative PASSED                        [ 35%]
+tests/test_task.py::test_all_negative_different FAILED                   [ 40%]
+tests/test_task.py::test_two_elements_unique PASSED                      [ 45%]
+tests/test_task.py::test_two_elements_duplicate PASSED                   [ 50%]
+tests/test_task.py::test_mix_positive_negative_unique FAILED             [ 55%]
+tests/test_task.py::test_zero_in_array PASSED                            [ 60%]
+tests/test_task.py::test_only_zeros PASSED                               [ 65%]
+tests/test_task.py::test_zero_and_negative FAILED                        [ 70%]
+tests/test_task.py::test_duplicate_positives_and_negatives PASSED        [ 75%]
+tests/test_task.py::test_long_sequence_unique PASSED                     [ 80%]
+tests/test_task.py::test_alternating_duplicates PASSED                   [ 85%]
+tests/test_task.py::test_negative_then_positive FAILED                   [ 90%]
+tests/test_task.py::test_positive_then_negative FAILED                   [ 95%]
+tests/test_task.py::test_sandwich_pattern FAILED                         [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_3 ___________________________
+tests/test_task.py:21: in test_canonical_example_3
+    assert maxSum([1, 2, -1, -2, 1, 0, -1]) == 3
+E   assert 0 == 3
+E    +  where 0 = maxSum([1, 2, -1, -2, 1, 0, ...])
+_________________________ test_all_negative_different __________________________
+tests/test_task.py:51: in test_all_negative_different
+    assert maxSum([-5, -3, -1, -4]) == -1
+E   assert -13 == -1
+E    +  where -13 = maxSum([-5, -3, -1, -4])
+______________________ test_mix_positive_negative_unique _______________________
+tests/test_task.py:69: in test_mix_positive_negative_unique
+    assert maxSum([3, -2, 5, -1]) == 8
+E   assert 5 == 8
+E    +  where 5 = maxSum([3, -2, 5, -1])
+____________________________ test_zero_and_negative ____________________________
+tests/test_task.py:87: in test_zero_and_negative
+    assert maxSum([0, -5, -3]) == 0
+E   assert -8 == 0
+E    +  where -8 = maxSum([0, -5, -3])
+_________________________ test_negative_then_positive __________________________
+tests/test_task.py:112: in test_negative_then_positive
+    assert maxSum([-1, -2, 4, 5]) == 9
+E   assert 6 == 9
+E    +  where 6 = maxSum([-1, -2, 4, 5])
+_________________________ test_positive_then_negative __________________________
+tests/test_task.py:118: in test_positive_then_negative
+    assert maxSum([4, 5, -1, -2]) == 9
+E   assert 6 == 9
+E    +  where 6 = maxSum([4, 5, -1, -2])
+____________________________ test_sandwich_pattern _____________________________
+tests/test_task.py:124: in test_sandwich_pattern
+    assert maxSum([3, 4, -1, 5, 6]) == 11
+E   assert 17 == 11
+E    +  where 17 = maxSum([3, 4, -1, 5, 6])
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_canonical_example_3 - assert 0 == 3
+FAILED tests/test_task.py::test_all_negative_different - assert -13 == -1
+FAILED tests/test_task.py::test_mix_positive_negative_unique - assert 5 == 8
+FAILED tests/test_task.py::test_zero_and_negative - assert -8 == 0
+FAILED tests/test_task.py::test_negative_then_positive - assert 6 == 9
+FAILED tests/test_task.py::test_positive_then_negative - assert 6 == 9
+FAILED tests/test_task.py::test_sandwich_pattern - assert 17 == 11
+========================= 7 failed, 13 passed in 0.03s =========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

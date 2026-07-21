@@ -1,0 +1,72 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+## Analysis
+
+**test_canonical_example_1** — expected `[-1, -11, 1, -12, 11]`, got `[1, -1, 11, -11, -12]`
+
+Tracing the computation for input `[1, 11, -1, -11, -12]`:
+
+1. Calculate digit sums using `digit_sum(n)`:
+   - `digit_sum(1)` → `abs(1) = 1` → `str(1) = "1"` → sum = 1
+   - `digit_sum(11)` → `abs(11) = 11` → `str(11) = "11"` → sum = 1+1 = 2
+   - `digit_sum(-1)` → `abs(-1) = 1` → `str(1) = "1"` → sum = 1
+   - `digit_sum(-11)` → `abs(-11) = 11` → `str(11) = "11"` → sum = 1+1 = 2
+   - `digit_sum(-12)` → `abs(-12) = 12` → `str(12) = "12"` → sum = 1+2 = 3
+
+2. Sort keys become:
+   - `1` → `(1, 0)` (sum=1, index=0)
+   - `11` → `(2, 1)` (sum=2, index=1)
+   - `-1` → `(1, 2)` (sum=1, index=2)
+   - `-11` → `(2, 3)` (sum=2, index=3)
+   - `-12` → `(3, 4)` (sum=3, index=4)
+
+3. Sorted by these keys: `[1, -1, 11, -11, -12]`
+
+The problem is in the `digit_sum` function at line 3. For negative numbers, the function computes `sum(int(d) for d in str(abs(n)))`, which treats all digits as positive. However, according to the test comment "sum of digits: [1, 2, 1, 2, 3]", negative numbers should have their **first digit negative**.
+
+For `-11`: the correct sum should be `-1 + 1 = 0` (not `1 + 1 = 2`)
+For `-1`: the correct sum should be `-1` (not `1`)
+For `-12`: the correct sum should be `-1 + 2 = 1` (not `1 + 2 = 3`)
+
+Wait, let me recheck the test comment: "sum of digits: [1, 2, 1, 2, 3]". This suggests:
+- `1` → sum = 1 ✓
+- `11` → sum = 2 ✓
+- `-1` → sum = 1 (but my calculation gives -1)
+- `-11` → sum = 2 (but my calculation gives 0)
+- `-12` → sum = 3 (but my calculation gives 1)
+
+Let me reconsider. Looking at the expected output `[-1, -11, 1, -12, 11]` and assuming stable sort on the comment's digit sums `[1, 2, 1, 2, 3]`:
+- Elements with sum=1: `-1` (index 2), `1` (index 0) → should be `-1, 1`
+- Elements with sum=2: `11` (index 1), `-11` (index 3) → should be `11, -11`... but output shows `-11, 11`
+
+Actually, re-reading the comment more carefully: the digit sums ARE `[1, 2, 1, 2, 3]` but the expected output suggests when digit sums are equal, the original order is NOT maintained as simple stable sort would do.
+
+Let me trace expected output `[-1, -11, 1, -12, 11]` backward:
+If sorted by (digit_sum, original_index):
+- Sum 1: `-1` appears before `1` even though `-1` has higher original index (2) than `1` (0)
+
+This means for negative numbers, only the **first digit** should be negative in the sum calculation. So:
+- `-1` → `-1` (sum = -1, not 1)
+- `-11` → `-1 + 1 = 0` (sum = 0, not 2)
+- `-12` → `-1 + 2 = 1` (sum = 1, not 3)
+
+But the test comment says sums are `[1, 2, 1, 2, 3]`... This is contradictory. Let me trust the actual expected output instead of the comment.
+
+With corrected sums: `[1, 0, -1, 0, 1]` for `[1, 11, -1, -11, -12]`, sorted would give: `-1, 11, -11, 1, -12`... still not matching.
+
+Actually, stable sort on `[-1, 0, 0, 1, 1]` with original indices preserved when equal gives: `-1` (sum=-1), `11` (sum=0, idx=1), `-11` (sum=0, idx=3), `1` (sum=1, idx=0), `-12` (sum=1, idx=4) → `[-1, 11, -11, 1, -12]`. Still not matching expected `[-1, -11, 1, -12, 11]`.
+
+I need to reconsider: perhaps the negative sign applies only to the leftmost digit. For `-123`, the sum would be `-1 + 2 + 3 = 4`.
+
+FIX DIRECTIVES:
+
+FIX: in `digit_sum`, change the logic to handle negative numbers by making only the first digit negative. Replace the function body with:
+```python
+if n < 0:
+    s = str(n)[1:]  # remove the '-' sign
+    return -int(s[0]) + sum(int(d) for d in s[1:])
+else:
+    return sum(int(d) for d in str(n))
+```

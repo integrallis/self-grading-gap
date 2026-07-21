@@ -1,0 +1,79 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+## Analysis
+
+### test_marked_indices_not_reused — expected 3, got 2
+
+**Input:** `"azza"`
+
+**Expected:** 3
+
+**Trace:**
+- i=0, 'a': no j < 0, nothing happens
+- i=1, 'z' (mirror='a'): searches backward from j=0
+  - j=0: s[0]='a', mirror['z']='a', match! Mark both indices 0 and 1, score += 1-0 = 1
+- i=2, 'z' (mirror='a'): marked[2]=False, so process it
+  - Searches backward from j=1 down to j=0
+  - j=1: marked[1]=True, skip
+  - j=0: marked[0]=True, skip
+  - No match found, but i=2 is **never marked** (only gets marked when it's position j in someone else's match)
+- i=3, 'a' (mirror='z'): marked[3]=False, so process it
+  - Searches backward from j=2 down to j=0
+  - j=2: marked[2]=False, s[2]='z', mirror['a']='z', match! Mark both indices 2 and 3, score += 3-2 = 1
+  - Total score = 1 + 1 = 2
+
+**Problem:** The implementation only marks index i when it finds a match. If index i doesn't find a mirror before it, i remains unmarked and can later be matched as a j position by a future index. This is incorrect — the algorithm should mark index i whenever it's processed (whether or not it finds a match), so that each index can only participate once.
+
+In this test, index 2 ('z') should be marked after being processed at i=2 (even though it found no match), preventing it from being matched later at i=3.
+
+### test_long_distance_match — expected 1, got 169
+
+**Input:** `"abcdefghijklmnopqrstuvwxyza"` (alphabet followed by 'a')
+
+**Expected:** 1 (only the final 'a' at i=26 should match 'z' at j=25)
+
+**Trace (partial, showing the bug):**
+- i=0, 'a' (mirror='z'): no j < 0
+- i=1, 'b' (mirror='y'): no 'y' before it
+- ...continues...
+- i=24, 'y' (mirror='b'): finds 'b' at j=1, marks both, score += 24-1 = 23
+- i=25, 'z' (mirror='a'): finds 'a' at j=0, marks both, score += 25-0 = 25
+- i=26, 'a' (mirror='z'): finds 'z' at j=25, but marked[25]=True from previous step... wait, let me recalculate.
+
+Actually, the real issue is the same as above. Let me trace more carefully:
+
+The string has many characters that are mirrors of each other. For instance:
+- 'a' (i=0) and 'z' (i=25) are mirrors
+- 'b' (i=1) and 'y' (i=24) are mirrors
+- etc.
+
+When we process each index:
+- Most early indices won't find their mirrors before them
+- But as we progress, many will find matches
+- The problem is that indices that don't find matches remain unmarked and can be matched later
+
+The score of 169 suggests many pairs are being matched. The actual issue is still that indices should be marked after being processed, not just when they match.
+
+## FIX DIRECTIVES:
+
+FIX: In calculateScore, after processing index i in the outer loop (after the inner for-loop completes, whether or not a match was found), add `marked[i] = True` to ensure each index is only considered once. Specifically, move the line `marked[i] = True` outside the `if mirror[s[i]] == s[j]:` block but still inside the outer `for i in range(len(s)):` loop. The corrected structure should be:
+```python
+for i in range(len(s)):
+    if marked[i]:
+        continue
+    for j in range(i - 1, -1, -1):
+        if marked[j]:
+            continue
+        if mirror[s[i]] == s[j]:
+            marked[j] = True
+            marked[i] = True
+            score += (i - j)
+            break
+    # Add this line here (outside inner loop, outside the if-match block):
+    if not marked[i]:
+        marked[i] = True
+```
+
+Or more simply, remove `marked[i] = True` from inside the match block and place it once after the inner loop completes.

@@ -1,0 +1,277 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784513688944
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: import pytest
+from solution import hasMatch
+
+# Note: The problem statement guarantees that `p` contains exactly one '*'.
+# The tests below are written based on this guarantee and do not test for
+# mal...[truncated]
+  impl_code: def hasMatch(s: str, p: str) -> bool:
+    star_index = p.index('*')
+    prefix = p[:star_index]
+    suffix = p[star_index + 1:]
+    prefix_length = len(prefix)
+    suffix_length = len(suffix)
+    # It...[truncated]
+  task: {'id': 'LCB/3684', 'use_case_id': 'LCB/3684', 'story_id': 'LCB/3684', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement hasMatch()', 'description': 'You are given a string s and a pattern string p, wher...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement hasMatch()**
+
+## Tests (the acceptance criterion)
+
+```python
+import pytest
+from solution import hasMatch
+
+# Note: The problem statement guarantees that `p` contains exactly one '*'.
+# The tests below are written based on this guarantee and do not test for
+# malformed `p` (e.g., no '*' or multiple '*').
+
+def test_canonical_example_1():
+    # spec: s = "leetcode", p = "ee*e" -> true
+    # Explanation: The substring "eetcode" of s matches the pattern "ee*e"
+    # by replacing '*' with "tcod".
+    assert hasMatch("leetcode", "ee*e") is True
+
+def test_canonical_example_2():
+    # spec: s = "car", p = "c*v" -> false
+    # Explanation: No substring of "car" starts with 'c' and ends with 'v'.
+    # Substrings are "c", "ca", "car", "a", "ar", "r".
+    assert hasMatch("car", "c*v") is False
+
+def test_canonical_example_3():
+    # spec: s = "luck", p = "u*" -> true
+    # Explanation: The substring "u" of "luck" matches "u*" with '*' as an empty sequence.
+    # Other matching substrings are "uc" and "uck".
+    assert hasMatch("luck", "u*") is True
+
+def test_star_at_beginning():
+    # Pattern where '*' is the first character.
+    # s = "luck", p = "*k"
+    # The substrings "luck", "uck", "ck", "k" all match the pattern.
+    # e.g., "k" matches "*k" with '*' as an empty sequence.
+    assert hasMatch("luck", "*k") is True
+
+def test_star_as_empty_sequence():
+    # '*' represents zero characters.
+    # s = "autobahn", p = "auto*bahn"
+    # The substring "autobahn" matches "auto*bahn" with '*' as an empty sequence.
+    assert hasMatch("autobahn", "auto*bahn") is True
+
+def test_star_as_single_character():
+    # '*' represents one character.
+    # s = "topcoder", p = "t*p"
+    # The substring "top" matches "t*p" with '*' representing 'o'.
+    assert hasMatch("topcoder", "t*p") is True
+
+def test_star_as_multiple_characters():
+    # '*' represents a sequence of characters.
+    # s = "mississippi", p = "m*i"
+    # The substring "missi" matches "m*i" with '*' representing "ss".
+    assert hasMatch("mississippi", "m*i") is True
+
+def test_entire_string_is_the_match():
+    # The whole string `s` forms the matching substring.
+    # s = "foobar", p = "f*r"
+    # The substring "foobar" matches "f*r" with '*' representing "ooba".
+    assert hasMatch("foobar", "f*r") is True
+
+def test_match_in_middle_of_string():
+    # The matching substring is in the middle of `s`.
+    # s = "xxabcdeyy", p = "b*d"
+    # The substring "bcd" matches "b*d" with '*' representing "c".
+    assert hasMatch("xxabcdeyy", "b*d") is True
+
+def test_multiple_prefix_occurrences_first_fails():
+    # s has multiple occurrences of the prefix. The first one doesn't lead to a match, but a later one does.
+    # s = "banana", p = "b*nana"
+    # Prefix "b" at index 0. Suffix "nana" must be found after index 0. It is found at index 2.
+    # The substring s[0:6] "banana" matches.
+    assert hasMatch("banana", "b*nana") is True
+
+def test_overlapping_prefix_and_suffix():
+    # The prefix and suffix of the pattern overlap.
+    # s = "ababa", p = "ab*ba"
+    # Prefix "ab" at index 0. Suffix "ba" must be found at or after index 2.
+    # It is found at index 3. The substring s[0:5] "ababa" matches.
+    assert hasMatch("ababa", "ab*ba") is True
+
+def test_pattern_with_only_star():
+    # Per constraints, p.length >= 1. If p="*", it's valid.
+    # Any non-empty substring of s will match p="*".
+    # Since s.length >= 1, it always has a non-empty substring.
+    assert hasMatch("anything", "*") is True
+
+def test_single_char_string_matching_star_only_pattern():
+    # s = "a", p = "*"
+    # The substring "a" matches '*' with '*' as "a".
+    assert hasMatch("a", "*") is True
+
+def test_no_match_prefix_not_found():
+    # s = "abc", p = "d*c"
+    # The prefix 'd' does not exist in 's'.
+    assert hasMatch("abc", "d*c") is False
+
+def test_no_match_suffix_not_found():
+    # s = "abc", p = "a*d"
+    # The prefix 'a' exists, but the suffix 'd' does not.
+    assert hasMatch("abc", "a*d") is False
+
+def test_no_match_prefix_after_suffix():
+    # Both prefix and suffix exist, but no occurrence of prefix is followed by an occurrence of suffix.
+    # s = "bac", p = "a*b"
+    # Prefix 'a' is at index 1. No 'b' appears at or after index 2.
+    assert hasMatch("bac", "a*b") is False
+
+def test_no_match_due_to_non_overlapping_substring():
+    # A substring must be contiguous.
+    # s = "a_c_b", p = "a*b"
+    # There is no contiguous substring of "a_c_b" that starts with 'a' and ends with 'b'.
+    assert hasMatch("a_c_b", "a*b") is False
+
+def test_no_match_pattern_parts_too_long():
+    # The combined length of the pattern's prefix and suffix is greater than the string length.
+    # s = "short", p = "long*pattern"
+    # len("long") + len("pattern") = 4 + 7 = 11, which is > len("short") = 5.
+    assert hasMatch("short", "long*pattern") is False
+
+def test_no_match_exact_prefix_suffix_too_long():
+    # The combined length of prefix and suffix equals string length, but they don't match.
+    # s = "ab", p = "c*d"
+    # len("c")+len("d")=2, len("ab")=2. No substring can match.
+    assert hasMatch("ab", "c*d") is False
+    
+def test_no_match_overlapping_candidate():
+    # s = "aaaa", p = "aa*aa"
+    # Prefix "aa" at index 0. Suffix "aa" must be found at or after index 2. It is, at index 2.
+    # Substring s[0:4] "aaaa" matches. This test should be TRUE. Let's fix it.
+    # Let's try another: s = "aba", p = "a*a"
+    # Prefix "a" at index 0. Suffix "a" must be found at or after index 1. It is at index 2.
+    # Substring s[0:3] "aba" matches.
+    assert hasMatch("aba", "a*a") is True
+    # Let's find a real false case.
+    # s = "aa", p = "a*aa"
+    # Prefix "a" at index 0. Suffix "aa" must be found at or after index 1. No "aa" starts at or after index 1.
+    assert hasMatch("aa", "a*aa") is False
+
+def test_max_length_strings_match():
+    # Test with constraints s.length=50, p.length=50
+    s = "a" * 50
+    p = "a" * 25 + "*" + "a" * 24
+    # len(p) = 25 + 1 + 24 = 50.
+    # Prefix "a"*25 at index 0. Suffix "a"*24 must be found at or after index 25.
+    # It is found at index 25. Substring s[0:49] is "a"*49. It matches.
+    assert hasMatch(s, p) is True
+
+def test_max_length_strings_no_match_due_to_length():
+    # Test with constraints where combined prefix/suffix length exceeds s length.
+    s = "a" * 49
+    p = "a" * 25 + "*" + "a" * 25
+    # len(p) = 51, this is an invalid test case per constraints. Let's adjust.
+    # p.length <= 50, so this p is valid.
+    # len(prefix) + len(suffix) = 50, which is > len(s) = 49.
+    assert hasMatch(s, p) is False
+```
+
+## Failing implementation
+
+```python
+def hasMatch(s: str, p: str) -> bool:
+    star_index = p.index('*')
+    prefix = p[:star_index]
+    suffix = p[star_index + 1:]
+    prefix_length = len(prefix)
+    suffix_length = len(suffix)
+    # Iterate through the string to find a valid contiguous match
+    for i in range(len(s) - prefix_length + 1):
+        if s[i:i + prefix_length] == prefix:
+            # Check if a valid suffix can be found after the prefix
+            if s[i + prefix_length:].startswith(suffix):
+                return True
+            # Check if the suffix can be found anywhere after the prefix
+            for j in range(i + prefix_length, len(s) - suffix_length + 1):
+                if s[j:j + suffix_length] == suffix:
+                    return True
+    return False
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpchgut1tf/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 22 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [  4%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [  9%]
+tests/test_task.py::test_canonical_example_3 PASSED                      [ 13%]
+tests/test_task.py::test_star_at_beginning PASSED                        [ 18%]
+tests/test_task.py::test_star_as_empty_sequence PASSED                   [ 22%]
+tests/test_task.py::test_star_as_single_character PASSED                 [ 27%]
+tests/test_task.py::test_star_as_multiple_characters PASSED              [ 31%]
+tests/test_task.py::test_entire_string_is_the_match PASSED               [ 36%]
+tests/test_task.py::test_match_in_middle_of_string PASSED                [ 40%]
+tests/test_task.py::test_multiple_prefix_occurrences_first_fails PASSED  [ 45%]
+tests/test_task.py::test_overlapping_prefix_and_suffix PASSED            [ 50%]
+tests/test_task.py::test_pattern_with_only_star PASSED                   [ 54%]
+tests/test_task.py::test_single_char_string_matching_star_only_pattern PASSED [ 59%]
+tests/test_task.py::test_no_match_prefix_not_found PASSED                [ 63%]
+tests/test_task.py::test_no_match_suffix_not_found PASSED                [ 68%]
+tests/test_task.py::test_no_match_prefix_after_suffix PASSED             [ 72%]
+tests/test_task.py::test_no_match_due_to_non_overlapping_substring FAILED [ 77%]
+tests/test_task.py::test_no_match_pattern_parts_too_long PASSED          [ 81%]
+tests/test_task.py::test_no_match_exact_prefix_suffix_too_long PASSED    [ 86%]
+tests/test_task.py::test_no_match_overlapping_candidate PASSED           [ 90%]
+tests/test_task.py::test_max_length_strings_match PASSED                 [ 95%]
+tests/test_task.py::test_max_length_strings_no_match_due_to_length PASSED [100%]
+
+=================================== FAILURES ===================================
+________________ test_no_match_due_to_non_overlapping_substring ________________
+tests/test_task.py:108: in test_no_match_due_to_non_overlapping_substring
+    assert hasMatch("a_c_b", "a*b") is False
+E   AssertionError: assert True is False
+E    +  where True = hasMatch('a_c_b', 'a*b')
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_no_match_due_to_non_overlapping_substring - A...
+========================= 1 failed, 21 passed in 0.02s =========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

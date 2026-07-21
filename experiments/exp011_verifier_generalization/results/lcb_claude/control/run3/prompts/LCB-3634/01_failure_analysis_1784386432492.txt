@@ -1,0 +1,158 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784386432492
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from solution import calculateScore
+
+def test_canonical_example_1():
+    # spec: calculateScore("aczzx") -> 5
+    # Explanation: 
+    # i = 0: no j
+    # i = 1: no j
+    # i = 2: j = 0 (mirror of 'c' ...[truncated]
+  impl_code: def calculateScore(s: str) -> int:
+    score = 0
+    marked = [False] * len(s)
+    mirror = {chr(i): chr(219 - i) for i in range(97, 123)}  # Create a mirror mapping for a-z
+    for i in range(len(s))...[truncated]
+  task: {'id': 'LCB/3634', 'use_case_id': 'LCB/3634', 'story_id': 'LCB/3634', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement calculateScore()', 'description': 'You are given a string s.\nWe define the mirror...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement calculateScore()**
+
+## Tests (the acceptance criterion)
+
+```python
+from solution import calculateScore
+
+def test_canonical_example_1():
+    # spec: calculateScore("aczzx") -> 5
+    # Explanation: 
+    # i = 0: no j
+    # i = 1: no j
+    # i = 2: j = 0 (mirror of 'c' is 'x'); score += 2 - 0 = 2
+    # i = 3: no j
+    # i = 4: j = 1 (mirror of 'e' is 'v'); score += 4 - 1 = 3
+    # Total score = 2 + 3 = 5
+    assert calculateScore("aczzx") == 5
+
+def test_canonical_example_2():
+    # spec: calculateScore("abcdef") -> 0
+    # Explanation:
+    # For each index i, there is no index j that satisfies the conditions.
+    # Thus, total score = 0
+    assert calculateScore("abcdef") == 0
+
+def test_edge_case_single_character():
+    # spec: calculateScore("a") -> 0
+    # Explanation: 
+    # Single character, no j exists, total score = 0
+    assert calculateScore("a") == 0
+
+def test_edge_case_two_characters_no_mirror():
+    # spec: calculateScore("ab") -> 0
+    # Explanation: 
+    # No valid j exists for either character, total score = 0
+    assert calculateScore("ab") == 0
+
+def test_edge_case_two_characters_mirror():
+    # spec: calculateScore("az") -> 1
+    # Explanation: 
+    # i = 0: no j
+    # i = 1: j = 0 (mirror of 'a' is 'z'); score += 1 - 0 = 1
+    assert calculateScore("az") == 1
+
+def test_complex_pattern():
+    # spec: calculateScore("abczyx") -> 6
+    # Explanation:
+    # i = 0: no j
+    # i = 1: no j
+    # i = 2: no j
+    # i = 3: j = 2 (mirror of 'z' is 'a'); score += 3 - 0 = 3
+    # i = 4: j = 1 (mirror of 'y' is 'b'); score += 4 - 1 = 3
+    # Total score = 3 + 3 = 6
+    assert calculateScore("abczyx") == 6
+```
+
+## Failing implementation
+
+```python
+def calculateScore(s: str) -> int:
+    score = 0
+    marked = [False] * len(s)
+    mirror = {chr(i): chr(219 - i) for i in range(97, 123)}  # Create a mirror mapping for a-z
+    for i in range(len(s)):
+        if marked[i]:  # Skip if already marked
+            continue
+        for j in range(i - 1, -1, -1):  # Look for a mirror character before i
+            if marked[j]:  # Skip if j is already marked
+                continue
+            if mirror[s[i]] == s[j]:  # Check for mirror
+                score += i - j  # Update score
+                marked[j] = True  # Mark only j
+                break  # Move to the next i
+    return score
+
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmp2obp04s2/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 6 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [ 16%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 33%]
+tests/test_task.py::test_edge_case_single_character PASSED               [ 50%]
+tests/test_task.py::test_edge_case_two_characters_no_mirror PASSED       [ 66%]
+tests/test_task.py::test_edge_case_two_characters_mirror PASSED          [ 83%]
+tests/test_task.py::test_complex_pattern FAILED                          [100%]
+
+=================================== FAILURES ===================================
+_____________________________ test_complex_pattern _____________________________
+tests/test_task.py:49: in test_complex_pattern
+    assert calculateScore("abczyx") == 6
+E   AssertionError: assert 9 == 6
+E    +  where 9 = calculateScore('abczyx')
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_complex_pattern - AssertionError: assert 9 == 6
+========================= 1 failed, 5 passed in 0.02s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

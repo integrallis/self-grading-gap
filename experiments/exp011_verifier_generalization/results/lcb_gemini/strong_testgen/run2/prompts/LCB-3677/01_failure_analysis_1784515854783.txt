@@ -1,0 +1,311 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784515854783
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: import pytest
+from typing import List
+
+# Assume the function is in a file named "solution.py"
+# This is a placeholder for the TDD red phase; the file and function do not exist yet.
+try:
+    from solut...[truncated]
+  impl_code: from typing import List
+
+
+def maximumAmount(coins: List[List[int]]) -> int:
+    m, n = len(coins), len(coins[0])
+    dp = [[[-float('inf')] * 3 for _ in range(n)] for _ in range(m)]
+    dp[0][0][0] = ...[truncated]
+  task: {'id': 'LCB/3677', 'use_case_id': 'LCB/3677', 'story_id': 'LCB/3677', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maximumAmount()', 'description': "You are given an m x n grid. A robot starts at t...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement maximumAmount()**
+
+## Tests (the acceptance criterion)
+
+```python
+import pytest
+from typing import List
+
+# Assume the function is in a file named "solution.py"
+# This is a placeholder for the TDD red phase; the file and function do not exist yet.
+try:
+    from solution import maximumAmount
+except ImportError:
+    # This is a dummy implementation to allow the test file to be parsed
+    # The actual implementation will be written by the developer.
+    def maximumAmount(coins: List[List[int]]) -> int:
+        """
+        Placeholder implementation for maximumAmount.
+        This function will be replaced by the actual implementation.
+        """
+        # In TDD, tests are written first, so we might not have an implementation.
+        # This dummy function makes the test suite syntactically valid.
+        # It should not be relied upon for correct behavior.
+        # Returning 0 or raising NotImplementedError are common practices.
+        raise NotImplementedError("maximumAmount is not implemented yet.")
+
+
+def test_canonical_example_1():
+    """
+    Test with the first example from the specification.
+    Path: (0,0)->(0,1)->(1,1)->(1,2)->(2,2).
+    Values along the path: 0, 1, -2, 3, 4.
+    The robber at (1,1) with value -2 is neutralized.
+    Total coins = 0 + 1 + 0 (neutralized) + 3 + 4 = 8.
+    """
+    coins = [[0, 1, -1], [1, -2, 3], [2, -3, 4]]
+    assert maximumAmount(coins) == 8
+
+
+def test_canonical_example_2():
+    """
+    Test with the second example from the specification.
+    There are no robbers, so neutralizations are irrelevant.
+    The path sum is maximized by just summing up coins along any path.
+    e.g., path R, R, D: (0,0)->(0,1)->(0,2)->(1,2)
+    Total coins = 10 + 10 + 10 + 10 = 40.
+    """
+    coins = [[10, 10, 10], [10, 10, 10]]
+    assert maximumAmount(coins) == 40
+
+
+def test_single_cell_positive():
+    """
+    Test a 1x1 grid with a positive value. The path is just the single cell.
+    """
+    # Path sum is simply the value in the cell: 100.
+    assert maximumAmount([[100]]) == 100
+
+
+def test_single_cell_negative():
+    """
+    Test a 1x1 grid with a negative value (a robber).
+    The robot can neutralize the robber.
+    """
+    # Path has one robber (-100).
+    # Option 1: Neutralize the robber. Score: 0.
+    # Option 2: Don't neutralize. Score: -100.
+    # The maximum is 0.
+    assert maximumAmount([[-100]]) == 0
+
+
+def test_single_row_no_robbers():
+    """
+    Test a single-row grid with only positive values. There is only one path.
+    """
+    # Path is fixed, sum all elements: 1 + 2 + 3 + 4 = 10.
+    assert maximumAmount([[1, 2, 3, 4]]) == 10
+
+
+def test_single_column_multiple_robbers():
+    """
+    Test a single-column grid with more than two robbers.
+    The robot must choose which two robbers to neutralize.
+    """
+    # Path is fixed: [-1], [-20], [-3], [-40].
+    # There are four robbers. Neutralize the two with the largest absolute values (-40, -20).
+    # Score = -1 + 0 (neutralized -20) + (-3) + 0 (neutralized -40) = -4.
+    coins = [[-1], [-20], [-3], [-40]]
+    assert maximumAmount(coins) == -4
+
+
+def test_all_robbers_grid():
+    """
+    Test a grid where all cells contain robbers.
+    """
+    coins = [[-1, -10], [-100, -1000]]
+    # Path R,D: values are -1, -10, -1000. Neutralize -1000 and -10. Score = -1.
+    # Path D,R: values are -1, -100, -1000. Neutralize -1000 and -100. Score = -1.
+    # The maximum score is -1.
+    assert maximumAmount(coins) == -1
+
+
+def test_path_choice_to_avoid_robbers():
+    """
+    Test a scenario where the optimal path avoids robbers, even if it means
+    collecting smaller positive coin values.
+    """
+    coins = [[1, 1, 100], [1, -10, 1], [100, -10, 1]]
+    # Path R,R,D,D: (0,0)->(0,1)->(0,2)->(1,2)->(2,2). Values: 1, 1, 100, 1, 1. No robbers. Sum = 104.
+    # Path D,D,R,R: (0,0)->(1,0)->(2,0)->(2,1)->(2,2). Values: 1, 1, 100, -10, 1. One robber.
+    # With neutralization, sum = 1+1+100+0+1 = 103.
+    # The optimal path avoids the robber for a total of 104.
+    assert maximumAmount(coins) == 104
+
+
+def test_start_and_end_are_robbers():
+    """
+    Test a grid where both the start and end cells are robbers.
+    """
+    coins = [[-5, 1], [1, -10]]
+    # Path R,D: values -5, 1, -10. Two robbers. Neutralize both. Score = 0 + 1 + 0 = 1.
+    # Path D,R: values -5, 1, -10. Two robbers. Neutralize both. Score = 0 + 1 + 0 = 1.
+    # The maximum is 1.
+    assert maximumAmount(coins) == 1
+
+
+def test_more_than_two_robbers_on_path():
+    """
+    Test a single-path scenario with more than two robbers, forcing a loss.
+    """
+    coins = [[0, -1, -1, -1, 100]]
+    # Only one path. Values: 0, -1, -1, -1, 100. Three robbers.
+    # Neutralize two of them. The loss from the third must be taken.
+    # Score = 0 + (-1) + 0 (neutralized) + 0 (neutralized) + 100 = 99.
+    assert maximumAmount(coins) == 99
+
+
+def test_complex_path_choice_with_neutralization():
+    """
+    Test a grid where the optimal path depends on a careful choice of
+    which robbers to encounter and neutralize.
+    """
+    coins = [[1, -3, 2], [4, -5, 6], [7, -8, 9]]
+    # Path D,D,R,R: (0,0)->(1,0)->(2,0)->(2,1)->(2,2). Values: 1, 4, 7, -8, 9. One robber (-8).
+    # Neutralizing -8 gives: 1 + 4 + 7 + 0 + 9 = 21.
+    # Path R,R,D,D: (0,0)->(0,1)->(0,2)->(1,2)->(2,2). Values: 1, -3, 2, 6, 9. One robber (-3).
+    # Neutralizing -3 gives: 1 + 0 + 2 + 6 + 9 = 18.
+    # Other paths with more robbers yield smaller sums (e.g., path R,D,R,D gives 16).
+    # The maximum is 21.
+    assert maximumAmount(coins) == 21
+```
+
+## Failing implementation
+
+```python
+from typing import List
+
+
+def maximumAmount(coins: List[List[int]]) -> int:
+    m, n = len(coins), len(coins[0])
+    dp = [[[-float('inf')] * 3 for _ in range(n)] for _ in range(m)]
+    dp[0][0][0] = max(coins[0][0], 0)
+
+    for i in range(m):
+        for j in range(n):
+            if i == 0 and j == 0:
+                continue
+            for k in range(3):
+                value = coins[i][j]
+                if value >= 0:
+                    if i > 0:
+                        dp[i][j][k] = max(dp[i][j][k], dp[i - 1][j][k] + value)
+                    if j > 0:
+                        dp[i][j][k] = max(dp[i][j][k], dp[i][j - 1][k] + value)
+                else:  # Robber encountered
+                    if i > 0:
+                        if k > 0:
+                            dp[i][j][k] = max(dp[i][j][k], dp[i - 1][j][k - 1])
+                        dp[i][j][k] = max(dp[i][j][k], dp[i - 1][j][k] - value)
+                    if j > 0:
+                        if k > 0:
+                            dp[i][j][k] = max(dp[i][j][k], dp[i][j - 1][k - 1])
+                        dp[i][j][k] = max(dp[i][j][k], dp[i][j - 1][k] - value)
+
+    result = max(dp[m - 1][n - 1])
+    return max(result, 0)
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmp80qv69cq/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 11 items
+
+tests/test_task.py::test_canonical_example_1 FAILED                      [  9%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 18%]
+tests/test_task.py::test_single_cell_positive PASSED                     [ 27%]
+tests/test_task.py::test_single_cell_negative PASSED                     [ 36%]
+tests/test_task.py::test_single_row_no_robbers PASSED                    [ 45%]
+tests/test_task.py::test_single_column_multiple_robbers FAILED           [ 54%]
+tests/test_task.py::test_all_robbers_grid FAILED                         [ 63%]
+tests/test_task.py::test_path_choice_to_avoid_robbers FAILED             [ 72%]
+tests/test_task.py::test_start_and_end_are_robbers FAILED                [ 81%]
+tests/test_task.py::test_more_than_two_robbers_on_path FAILED            [ 90%]
+tests/test_task.py::test_complex_path_choice_with_neutralization FAILED  [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_1 ___________________________
+tests/test_task.py:32: in test_canonical_example_1
+    assert maximumAmount(coins) == 8
+E   assert 10 == 8
+E    +  where 10 = maximumAmount([[0, 1, -1], [1, -2, 3], [2, -3, 4]])
+_____________________ test_single_column_multiple_robbers ______________________
+tests/test_task.py:84: in test_single_column_multiple_robbers
+    assert maximumAmount(coins) == -4
+E   assert 63 == -4
+E    +  where 63 = maximumAmount([[-1], [-20], [-3], [-40]])
+____________________________ test_all_robbers_grid _____________________________
+tests/test_task.py:95: in test_all_robbers_grid
+    assert maximumAmount(coins) == -1
+E   assert 1100 == -1
+E    +  where 1100 = maximumAmount([[-1, -10], [-100, -1000]])
+______________________ test_path_choice_to_avoid_robbers _______________________
+tests/test_task.py:108: in test_path_choice_to_avoid_robbers
+    assert maximumAmount(coins) == 104
+E   assert 113 == 104
+E    +  where 113 = maximumAmount([[1, 1, 100], [1, -10, 1], [100, -10, 1]])
+________________________ test_start_and_end_are_robbers ________________________
+tests/test_task.py:119: in test_start_and_end_are_robbers
+    assert maximumAmount(coins) == 1
+E   assert 11 == 1
+E    +  where 11 = maximumAmount([[-5, 1], [1, -10]])
+______________________ test_more_than_two_robbers_on_path ______________________
+tests/test_task.py:130: in test_more_than_two_robbers_on_path
+    assert maximumAmount(coins) == 99
+E   assert 103 == 99
+E    +  where 103 = maximumAmount([[0, -1, -1, -1, 100]])
+_________________ test_complex_path_choice_with_neutralization _________________
+tests/test_task.py:145: in test_complex_path_choice_with_neutralization
+    assert maximumAmount(coins) == 21
+E   assert 29 == 21
+E    +  where 29 = maximumAmount([[1, -3, 2], [4, -5, 6], [7, -8, 9]])
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_canonical_example_1 - assert 10 == 8
+FAILED tests/test_task.py::test_single_column_multiple_robbers - assert 63 == -4
+FAILED tests/test_task.py::test_all_robbers_grid - assert 1100 == -1
+FAILED tests/test_task.py::test_path_choice_to_avoid_robbers - assert 113 == 104
+FAILED tests/test_task.py::test_start_and_end_are_robbers - assert 11 == 1
+FAILED tests/test_task.py::test_more_than_two_robbers_on_path - assert 103 == 99
+FAILED tests/test_task.py::test_complex_path_choice_with_neutralization - ass...
+========================= 7 failed, 4 passed in 0.03s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

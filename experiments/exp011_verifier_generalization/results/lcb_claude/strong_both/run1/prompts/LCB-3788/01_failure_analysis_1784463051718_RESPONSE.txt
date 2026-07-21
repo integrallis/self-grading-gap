@@ -1,0 +1,63 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+## Analysis of failing tests
+
+**test_canonical_example_3** — input `[1, 2, -1, -2, 1, 0, -1]`, expected `3`, got `0`
+- Implementation traces: sees 1 (adds 1, sum=1), sees 2 (adds 2, sum=3), sees -1 (adds -1, sum=2), sees -2 (adds -2, sum=0), sees 1 (duplicate, skips), sees 0 (adds 0, sum=0), sees -1 (duplicate, skips)
+- The implementation computes sum=0 by adding all unique values: 1+2+(-1)+(-2)+0 = 0
+- Problem: the implementation adds ALL unique values from the entire array. The test expects selecting only a contiguous subarray `[2, 1]` after deletions, giving sum=3.
+
+**test_all_negative_elements** — input `[-5, -3, -7]`, expected `-3`, got `-15`
+- Implementation traces: sees -5 (adds -5, sum=-5), sees -3 (adds -3, sum=-8), sees -7 (adds -7, sum=-15)
+- The implementation sums all unique values: -5+(-3)+(-7) = -15
+- Problem: the implementation adds all unique values. The test expects selecting only the best single element `-3`, not summing all elements.
+
+**test_mix_positive_and_negative_with_duplicates** — input `[3, -1, 3]`, expected `3`, got `2`
+- Implementation traces: sees 3 (adds 3, sum=3), sees -1 (adds -1, sum=2), sees 3 (duplicate, skips)
+- The implementation sums unique values: 3+(-1) = 2
+- Problem: the implementation adds all unique values. The test expects selecting just `[3]` for sum=3, not including the -1.
+
+**test_alternating_positive_negative** — input `[5, -2, 3, -1]`, expected `6`, got `5`
+- Implementation traces: sees 5 (adds 5, sum=5), sees -2 (adds -2, sum=3), sees 3 (adds 3, sum=6), sees -1 (adds -1, sum=5)
+- The implementation sums all unique values: 5+(-2)+3+(-1) = 5
+- Problem: the implementation adds all unique values. The test expects selecting the contiguous subarray `[5, -2, 3]` for sum=6.
+
+**test_large_values_within_constraint** — input `[100, -100, 100]`, expected `100`, got `0`
+- Implementation traces: sees 100 (adds 100, sum=100), sees -100 (adds -100, sum=0), sees 100 (duplicate, skips)
+- The implementation sums unique values: 100+(-100) = 0
+- Problem: the implementation adds all unique values. The test expects selecting just one `100` element.
+
+**test_subarray_in_middle** — input `[-5, 10, 20, -5]`, expected `30`, got `25`
+- Implementation traces: sees -5 (adds -5, sum=-5), sees 10 (adds 10, sum=5), sees 20 (adds 20, sum=25), sees -5 (duplicate, skips)
+- The implementation sums unique values: -5+10+20 = 25
+- Problem: the implementation adds all unique values. The test expects selecting the contiguous subarray `[10, 20]` for sum=30, excluding the negative value.
+
+**test_need_to_skip_negative** — input `[1, 2, -10, 3, 4]`, expected `10`, got `0`
+- Implementation traces: sees 1 (adds 1, sum=1), sees 2 (adds 2, sum=3), sees -10 (adds -10, sum=-7), sees 3 (adds 3, sum=-4), sees 4 (adds 4, sum=0)
+- The implementation sums all unique values: 1+2+(-10)+3+4 = 0
+- Problem: the implementation adds all unique values. The test expects deleting -10 and then selecting `[1, 2, 3, 4]` for sum=10.
+
+## Root Cause
+
+All failing tests share the same root cause: the current implementation simply sums all unique values from the input array in order. However, the problem requires:
+1. Optionally delete some elements from the array
+2. From the remaining array, select a **contiguous subarray** with all unique elements
+3. Return the maximum possible sum
+
+The implementation completely ignores the "contiguous subarray" constraint and the "maximum" optimization requirement.
+
+## FIX DIRECTIVES:
+
+FIX: Replace the entire `maxSum` function logic. The correct algorithm is:
+1. For each possible pair of deletion positions (left_delete_count, right_delete_count), create a modified array by removing the first `left_delete_count` elements and last `right_delete_count` elements
+2. Within each modified array, find all contiguous subarrays that contain only unique elements
+3. Calculate the sum of each valid contiguous subarray
+4. Return the maximum sum across all possibilities
+
+FIX: Implement a helper to find the maximum sum of any contiguous subarray with unique elements from a given array (use sliding window with a set to track uniqueness)
+
+FIX: Iterate through all deletion possibilities: for `left_delete` from 0 to len(nums), for `right_delete` from 0 to len(nums)-left_delete, apply the helper to `nums[left_delete:len(nums)-right_delete]` (handle empty array case where you must select at least the original array)
+
+FIX: The sliding window approach should expand the window while elements are unique, calculate sum when valid, and contract from the left when a duplicate is encountered

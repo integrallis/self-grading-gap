@@ -1,0 +1,23 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+test_canonical_example_1 — expected `[-1, -11, 1, -12, 11]`, got `[1, -1, 11, -11, -12]`, because the tie-breaking logic in the sort key is incorrect.
+
+The implementation sorts using the key `(sum_of_digits(x), nums.index(x))`. For the input `[1, 11, -1, -11, -12]`, this produces the following keys:
+*   `1`: point value 1, index 0 -> key `(1, 0)`
+*   `-1`: point value 1, index 2 -> key `(1, 2)`
+*   `11`: point value 2, index 1 -> key `(2, 1)`
+*   `-11`: point value 2, index 3 -> key `(2, 3)`
+*   `-12`: point value 3, index 4 -> key `(3, 4)`
+
+Sorting by these keys results in the order `(1, 0)`, `(1, 2)`, `(2, 1)`, `(2, 3)`, `(3, 4)`, which corresponds to the numbers `[1, -1, 11, -11, -12]`. This is a stable sort, preserving the original order of elements with the same point value.
+
+However, the expected output `[-1, -11, 1, -12, 11]` shows a different rule for breaking ties.
+*   For point value 1, the tied numbers are `1` and `-1`. The expected order is `-1, 1`, which is their numerical order.
+*   For point value 2, the tied numbers are `11` and `-11`. The expected order is `-11, 11`, which is also their numerical order.
+
+The computation diverges at the sort key expression `(sum_of_digits(x), nums.index(x))`. The tie-breaker (the second element of the tuple) should be the number's value (`x`), not its original index (`nums.index(x)`).
+
+FIX DIRECTIVES:
+*   FIX: in `order_by_points`, change the `key` in the `sorted` call to use the number's value as the tie-breaker instead of its index. Change `key=lambda x: (sum_of_digits(x), nums.index(x))` to `key=lambda x: (sum_of_digits(x), x)`.

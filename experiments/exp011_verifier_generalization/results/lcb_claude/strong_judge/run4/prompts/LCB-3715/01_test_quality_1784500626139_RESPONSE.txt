@@ -1,0 +1,91 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+# Test Suite Review
+
+## Check 0 — MANDATORY Canonical Example Coverage
+
+**Example 1:** coins = [[8,10,1],[1,3,2],[5,6,4]], k = 4, expected output = 10
+- Present in `test_canonical_example_1()` with exact inputs and output ✓
+
+**Example 2:** coins = [[1,10,3]], k = 2, expected output = 6
+- Present in `test_canonical_example_2()` with exact inputs and output ✓
+
+Both canonical examples are covered correctly.
+
+## Check 1 — Fidelity
+
+Let me verify each test's expected value:
+
+**test_canonical_example_1:** Expected 10
+- Bags [3,4,5,6]: position 3 is in [1,3,2] → 2 coins; position 4 is empty → 0 coins; positions 5,6 are in [5,6,4] → 4+4 coins
+- Total: 2+0+4+4 = 10 ✓
+
+**test_canonical_example_2:** Expected 6
+- Bags [1,2]: both in [1,10,3] → 3+3 = 6 ✓
+
+**test_k_equals_1:** Expected 3
+- Single bag anywhere in [1,5,3] gives 3 coins ✓
+
+**test_k_greater_than_total_range:** Expected 0
+- Segments cover positions 1-3 and 5-7, total 6 positions. With gaps, k=10 consecutive bags cannot all be within or near segments. However, the specification does NOT state that the answer is 0 when k is large. The problem asks for the "maximum amount of coins you can obtain by collecting k consecutive bags" from an **infinite number line**. Any k consecutive bags can be selected anywhere. The worst case would be k bags all in empty positions (0 coins each), giving 0 total. But this test assumes we cannot collect k=10 consecutive bags with any coins, which seems correct since the furthest right segment ends at position 7, and starting at position -2 would give bags [-2,-1,0,1,2,3,4,5,6,7] = 0+0+0+2+2+2+0+4+4+4 = 18 coins. Let me recalculate for all possible windows...
+- Actually, for k=10, the optimal window might start earlier. Starting at position -2: bags from -2 to 7 would be 0+0+0+2+2+2+0+4+4+4 = 18.
+- **This test expects 0 but should expect 18.** ✗
+
+**test_window_in_gap_between_segments:** Expected 10
+- Bags [3,4,5]: position 3 is empty → 0; positions 4,5 are in [4,5,10] → 10+10 = 20
+- **Test expects 10 but should expect 20.** ✗
+
+**test_multiple_segments_optimizing_window:** Expected 20
+- Bags [1,2,4,5,6] - this is not 5 consecutive bags! This appears to skip position 3.
+- k=5 consecutive bags could be [1,2,3,4,5]: 5+5+0+10+10 = 30, or [4,5,6,7,8]: 10+10+0+2+2 = 24
+- **Test comment is wrong (not consecutive) and expected value appears incorrect. Should be 30.** ✗
+
+## Check 2 — No Invented Constraints
+
+No tests add validation or error handling beyond the specification. All tests use inputs within the stated constraints.
+
+## Check 3 — Coverage
+
+Specified behaviors:
+- ✓ Canonical example 1 (tested)
+- ✓ Canonical example 2 (tested)
+- ✓ Single segment with k consecutive bags (tested)
+- ✓ Multiple non-overlapping segments (tested)
+- ✗ k = 1 edge case (tested)
+- ✗ k equals entire segment length (not explicitly tested)
+- ✗ Window spanning multiple segments with gaps (attempted but incorrect)
+- ✗ Large k relative to coordinate space (attempted but incorrect)
+
+The suite attempts good coverage but has calculation errors.
+
+## Check 4 — Sanity
+
+- Imports from `solution` package ✓
+- Function name `maximumCoins` matches specification ✓
+- Signature matches: `maximumCoins(coins: List[List[int]], k: int) -> int` ✓
+- Syntactically valid pytest ✓
+
+## Findings Summary
+
+- **Check 0:** PASSED - both canonical examples present and correct
+- **Check 1:** 3 tests have wrong expected values (test_k_greater_than_total_range, test_window_in_gap_between_segments, test_multiple_segments_optimizing_window)
+- **Check 2:** PASSED - no invented constraints
+- **Check 3:** Coverage is reasonable but some tests are incorrect
+- **Check 4:** PASSED - all sanity checks pass
+
+## Directives
+
+FIX: test_k_greater_than_total_range expects 0 but should expect 18 (window starting at -2 covering bags [-2,-1,0,1,2,3,4,5,6,7] gives 0+0+0+2+2+2+0+4+4+4 = 18)
+
+FIX: test_window_in_gap_between_segments expects 10 but should expect 20 (bags [3,4,5] give 0+10+10 = 20)
+
+FIX: test_multiple_segments_optimizing_window comment mentions non-consecutive bags [1,2,4,5,6]; expects 20 but optimal k=5 consecutive window [1,2,3,4,5] gives 5+5+0+10+10 = 30
+
+## Scoring
+
+Starting from 1.00:
+- Wrong expected values: 3 × 0.30 = 0.90 deduction
+
+Final score: 0.10

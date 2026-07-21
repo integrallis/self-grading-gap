@@ -1,0 +1,227 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784408452674
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: """
+Test suite for the anti_shuffle function.
+
+This test suite is written before the implementation of the anti_shuffle function,
+following the principles of test-driven development (TDD). The tests s...[truncated]
+  impl_code: def anti_shuffle(s):
+    """
+    Write a function that takes a string and returns an ordered version of it.
+    Ordered version of string, is a string where all words (separated by space)
+    are repl...[truncated]
+  task: {'id': 'HumanEval/86', 'use_case_id': 'HumanEval/86', 'story_id': 'HumanEval/86', 'epic_id': 'HUMANEVAL', 'title': 'Implement anti_shuffle()', 'description': "Write a function that takes a string and ...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement anti_shuffle()**
+
+## Tests (the acceptance criterion)
+
+```python
+"""
+Test suite for the anti_shuffle function.
+
+This test suite is written before the implementation of the anti_shuffle function,
+following the principles of test-driven development (TDD). The tests serve as
+the primary specification for the function's behavior.
+"""
+
+import pytest
+from solution import anti_shuffle
+
+# ==============================================================================
+# Canonical Examples from Specification
+# ==============================================================================
+
+def test_canonical_example_1():
+    """
+    Tests the first canonical example from the specification.
+    anti_shuffle('Hi') returns 'Hi'
+    """
+    # spec: anti_shuffle('Hi') -> 'Hi'
+    # sorted('Hi') -> ['H', 'i'] because ord('H')=72 < ord('i')=105
+    assert anti_shuffle('Hi') == 'Hi'
+
+def test_canonical_example_2():
+    """
+    Tests the second canonical example from the specification.
+    anti_shuffle('hello') returns 'ehllo'
+    """
+    # spec: anti_shuffle('hello') -> 'ehllo'
+    # sorted('hello') -> ['e', 'h', 'l', 'l', 'o']
+    assert anti_shuffle('hello') == 'ehllo'
+
+def test_canonical_example_3():
+    """
+    Tests the third canonical example from the specification.
+    anti_shuffle('Hello World!!!') returns 'Hello !!!Wdlor'
+    """
+    # spec: anti_shuffle('Hello World!!!') -> 'Hello !!!Wdlor'
+    # word 1: sorted('Hello') -> ['H', 'e', 'l', 'l', 'o'] -> 'Hello'
+    # word 2: sorted('World!!!') -> ['!', '!', '!', 'W', 'd', 'l', 'o', 'r'] -> '!!!Wdlor'
+    # result: 'Hello' + ' ' + '!!!Wdlor'
+    assert anti_shuffle('Hello World!!!') == 'Hello !!!Wdlor'
+
+# ==============================================================================
+# Additional Test Scenarios
+# ==============================================================================
+
+def test_empty_string():
+    """
+    Tests that an empty string returns an empty string, as there are no words to sort.
+    """
+    # An empty string has no words, so it should return an empty string.
+    assert anti_shuffle('') == ''
+
+def test_string_with_only_spaces():
+    """
+    Tests that a string containing only spaces remains unchanged.
+    """
+    # The string is split into empty strings, which when sorted are still empty.
+    # Joining them back with spaces should yield the original string.
+    # '  '.split(' ') -> ['', '', ''] -> join -> '  '
+    assert anti_shuffle('   ') == '   '
+
+def test_single_long_word_with_mixed_characters():
+    """
+    Tests a single complex word containing letters, numbers, and symbols.
+    """
+    # spec: Characters are arranged in ascending order based on ASCII value.
+    # sorted('Py-thon_123') -> ['-', '_', '1', '2', '3', 'P', 'h', 'n', 'o', 't', 'y']
+    assert anti_shuffle('Py-thon_123') == '-_123Phnoty'
+
+def test_sentence_with_multiple_spaces_between_words():
+    """
+    Tests that multiple spaces between words are preserved in the output.
+    """
+    # spec: keep the order of words and blank spaces in the sentence.
+    # 'python  is fun'.split(' ') -> ['python', '', 'is', 'fun']
+    # sorted('python') -> 'hnopty'
+    # sorted('') -> ''
+    # sorted('is') -> 'is'
+    # sorted('fun') -> 'fnu'
+    # join(['hnopty', '', 'is', 'fnu']) with ' ' -> 'hnopty  is fnu'
+    assert anti_shuffle('python  is fun') == 'hnopty  is fnu'
+
+def test_string_with_leading_and_trailing_spaces():
+    """
+    Tests that leading and trailing spaces are preserved.
+    """
+    # spec: keep the order of words and blank spaces in the sentence.
+    # '  word '.split(' ') -> ['', '', 'word', '']
+    # sorted('word') -> 'dorw'
+    # join(['', '', 'dorw', '']) with ' ' -> '  dorw '
+    assert anti_shuffle('  word ') == '  dorw '
+
+def test_sentence_with_varied_word_structures():
+    """
+    Tests a more complex sentence with varied words.
+    """
+    # A test with multiple words to ensure each is sorted independently.
+    # sorted('The') -> 'Teh'
+    # sorted('quick') -> 'cikqu'
+    # sorted('brown') -> 'bnorw'
+    # sorted('fox') -> 'fox'
+    # sorted('jumps') -> 'jmpsu'
+    assert anti_shuffle('The quick brown fox jumps') == 'Teh cikqu bnorw fox jmpsu'
+
+def test_word_already_in_ascii_order():
+    """
+    Tests a word whose characters are already in ascending ASCII order.
+    """
+    # sorted('effort') -> ['e', 'f', 'f', 'o', 'r', 't']
+    assert anti_shuffle('effort') == 'effort'
+```
+
+## Failing implementation
+
+```python
+def anti_shuffle(s):
+    """
+    Write a function that takes a string and returns an ordered version of it.
+    Ordered version of string, is a string where all words (separated by space)
+    are replaced by a new word where all the characters arranged in
+    ascending order based on ascii value.
+    Note: You should keep the order of words and blank spaces in the sentence.
+
+    For example:
+    anti_shuffle('Hi') returns 'Hi'
+    anti_shuffle('hello') returns 'ehllo'
+    anti_shuffle('Hello World!!!') returns 'Hello !!!Wdlor'
+    """
+    words = s.split(' ')
+    sorted_words = [''.join(sorted(word)) for word in words]
+    return ' '.join(sorted_words)
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpttt0s6qn/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 10 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [ 10%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 20%]
+tests/test_task.py::test_canonical_example_3 PASSED                      [ 30%]
+tests/test_task.py::test_empty_string PASSED                             [ 40%]
+tests/test_task.py::test_string_with_only_spaces PASSED                  [ 50%]
+tests/test_task.py::test_single_long_word_with_mixed_characters FAILED   [ 60%]
+tests/test_task.py::test_sentence_with_multiple_spaces_between_words PASSED [ 70%]
+tests/test_task.py::test_string_with_leading_and_trailing_spaces PASSED  [ 80%]
+tests/test_task.py::test_sentence_with_varied_word_structures PASSED     [ 90%]
+tests/test_task.py::test_word_already_in_ascii_order PASSED              [100%]
+
+=================================== FAILURES ===================================
+_________________ test_single_long_word_with_mixed_characters __________________
+tests/test_task.py:71: in test_single_long_word_with_mixed_characters
+    assert anti_shuffle('Py-thon_123') == '-_123Phnoty'
+E   AssertionError: assert '-123P_hnoty' == '-_123Phnoty'
+E     
+E     - -_123Phnoty
+E     ?  -
+E     + -123P_hnoty
+E     ?      +
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_single_long_word_with_mixed_characters - Asse...
+========================= 1 failed, 9 passed in 0.02s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

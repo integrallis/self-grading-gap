@@ -1,0 +1,138 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+```python
+import pytest
+from solution import Strongest_Extension
+
+#
+# Canonical examples from the specification
+#
+
+def test_canonical_example_1():
+    """
+    Tests the first example from the specification.
+    spec: Strongest_Extension("Slices", ['SErviNGSliCes', 'Cheese', 'StuFfed']) == 'Slices.SErviNGSliCes'
+    """
+    class_name = "Slices"
+    extensions = ['SErviNGSliCes', 'Cheese', 'StuFfed']
+    # 'SErviNGSliCes': CAP=6, SM=7, Strength=6-7=-1
+    # 'Cheese': CAP=1, SM=5, Strength=1-5=-4
+    # 'StuFfed': CAP=2, SM=5, Strength=2-5=-3
+    # Strongest is 'SErviNGSliCes' with strength -1.
+    assert Strongest_Extension(class_name, extensions) == 'Slices.SErviNGSliCes'
+
+def test_canonical_example_2():
+    """
+    Tests the second example from the specification, which involves a tie.
+    spec: Strongest_Extension('my_class', ['AA', 'Be', 'CC']) == 'my_class.AA'
+    """
+    class_name = 'my_class'
+    extensions = ['AA', 'Be', 'CC']
+    # 'AA': CAP=2, SM=0, Strength=2-0=2
+    # 'Be': CAP=1, SM=1, Strength=1-1=0
+    # 'CC': CAP=2, SM=0, Strength=2-0=2
+    # 'AA' and 'CC' are tied for the strongest (strength 2). 'AA' comes first.
+    assert Strongest_Extension(class_name, extensions) == 'my_class.AA'
+
+#
+# Additional tests based on the specification
+#
+
+def test_single_extension():
+    """
+    Tests the case where there is only one extension in the list.
+    """
+    class_name = 'Player'
+    extensions = ['Plugin_1']
+    # 'Plugin_1': CAP=1, SM=5, Strength=1-5=-4. It is the only option.
+    assert Strongest_Extension(class_name, extensions) == 'Player.Plugin_1'
+
+def test_all_uppercase_extensions():
+    """
+    Tests a list of extensions with only uppercase letters.
+    """
+    class_name = 'CONSTANTS'
+    extensions = ['A', 'BB', 'CCC']
+    # 'A': CAP=1, SM=0, Strength=1
+    # 'BB': CAP=2, SM=0, Strength=2
+    # 'CCC': CAP=3, SM=0, Strength=3
+    # Strongest is 'CCC' with strength 3.
+    assert Strongest_Extension(class_name, extensions) == 'CONSTANTS.CCC'
+
+def test_all_lowercase_extensions():
+    """
+    Tests a list of extensions with only lowercase letters, resulting in negative strengths.
+    """
+    class_name = 'text'
+    extensions = ['longer', 'word', 'is', 'a']
+    # 'longer': CAP=0, SM=6, Strength=-6
+    # 'word': CAP=0, SM=4, Strength=-4
+    # 'is': CAP=0, SM=2, Strength=-2
+    # 'a': CAP=0, SM=1, Strength=-1
+    # Strongest is 'a' with strength -1 (since -1 is the greatest value).
+    assert Strongest_Extension(class_name, extensions) == 'text.a'
+
+def test_tie_chooses_first_in_list():
+    """
+    Tests that if multiple extensions have the same maximum strength, the one that appears
+    first in the list is chosen.
+    """
+    class_name = 'TieBreak'
+    extensions = ['aBc', 'dEf', 'gHi']
+    # 'aBc': CAP=1, SM=2, Strength=-1
+    # 'dEf': CAP=1, SM=2, Strength=-1
+    # 'gHi': CAP=1, SM=2, Strength=-1
+    # All have strength -1. 'aBc' is the first in the list.
+    assert Strongest_Extension(class_name, extensions) == 'TieBreak.aBc'
+
+def test_strongest_is_last_in_list():
+    """
+    Tests that the algorithm correctly finds the strongest extension even if it's the last one.
+    """
+    class_name = 'Last'
+    extensions = ['ab', 'cDEf', 'gHIJk']
+    # 'ab': CAP=0, SM=2, Strength=-2
+    # 'cDEf': CAP=2, SM=2, Strength=0
+    # 'gHIJk': CAP=3, SM=2, Strength=1
+    # Strongest is 'gHIJk' with strength 1.
+    assert Strongest_Extension(class_name, extensions) == 'Last.gHIJk'
+
+def test_extensions_with_non_alphabetic_chars():
+    """
+    Tests that numbers, symbols, and other non-alphabetic characters are ignored
+    in the strength calculation.
+    """
+    class_name = 'Data'
+    extensions = ['File1.txt', 'Image.JPEG', 'archive_2023.zip']
+    # 'File1.txt': CAP=1 (F), SM=6 (i,l,e,t,x,t), Strength=1-6=-5
+    # 'Image.JPEG': CAP=5 (I,J,P,E,G), SM=3 (m,a,g,e), Strength=5-3=2
+    # 'archive_2023.zip': CAP=0, SM=9 (a,r,c,h,i,v,e,z,i,p), Strength=-9
+    # Strongest is 'Image.JPEG' with strength 2.
+    assert Strongest_Extension(class_name, extensions) == 'Data.Image.JPEG'
+
+def test_empty_string_extension():
+    """
+    Tests behavior with an empty string in the extensions list.
+    """
+    class_name = 'MyClass'
+    extensions = ['a', '', 'B']
+    # 'a': CAP=0, SM=1, Strength=-1
+    # '': CAP=0, SM=0, Strength=0
+    # 'B': CAP=1, SM=0, Strength=1
+    # Strongest is 'B' with strength 1.
+    assert Strongest_Extension(class_name, extensions) == 'MyClass.B'
+
+def test_empty_string_is_strongest():
+    """
+    Tests a case where an empty string is the strongest extension.
+    """
+    class_name = "EmptyWins"
+    extensions = ["abc", "", "de"]
+    # "abc": CAP=0, SM=3, Strength=-3
+    # "": CAP=0, SM=0, Strength=0
+    # "de": CAP=0, SM=2, Strength=-2
+    # Strongest is "" with strength 0.
+    assert Strongest_Extension(class_name, extensions) == "EmptyWins."
+```

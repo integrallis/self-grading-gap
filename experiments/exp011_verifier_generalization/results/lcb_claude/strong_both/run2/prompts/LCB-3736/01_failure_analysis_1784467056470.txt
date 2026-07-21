@@ -1,0 +1,213 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784467056470
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: import pytest
+from solution import findValidPair
+
+
+def test_canonical_example_1():
+    # spec: s = "2523533" -> "23"
+    # '2' appears 2 times, '3' appears 3 times, "23" is the first valid pair
+    as...[truncated]
+  impl_code: def findValidPair(s: str) -> str:
+    from collections import Counter
+    counts = Counter(s)
+    for i in range(len(s) - 1):
+        a, b = s[i], s[i + 1]
+        if a != b:
+            if counts[a] ...[truncated]
+  task: {'id': 'LCB/3736', 'use_case_id': 'LCB/3736', 'story_id': 'LCB/3736', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement findValidPair()', 'description': 'You are given a string s consisting only of digi...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement findValidPair()**
+
+## Tests (the acceptance criterion)
+
+```python
+import pytest
+from solution import findValidPair
+
+
+def test_canonical_example_1():
+    # spec: s = "2523533" -> "23"
+    # '2' appears 2 times, '3' appears 3 times, "23" is the first valid pair
+    assert findValidPair("2523533") == "23"
+
+
+def test_canonical_example_2():
+    # spec: s = "221" -> "21"
+    # '2' appears 2 times, '1' appears 1 time, "21" is a valid pair
+    assert findValidPair("221") == "21"
+
+
+def test_canonical_example_3():
+    # spec: s = "22" -> ""
+    # No valid adjacent pairs (digits must be different)
+    assert findValidPair("22") == ""
+
+
+def test_minimum_length_valid_pair():
+    # s = "12" where '1' appears 1 time and '2' appears 1 time
+    # Only '1' satisfies the count requirement, '2' does not (appears 1 time but value is 2)
+    # So "12" is not valid
+    assert findValidPair("12") == ""
+
+
+def test_minimum_length_valid_pair_both_satisfy():
+    # s = "21" where '2' appears 1 time and '1' appears 1 time
+    # '1' appears 1 time (matches value), '2' appears 1 time (does not match value 2)
+    # So "21" is not valid
+    assert findValidPair("21") == ""
+
+
+def test_first_pair_not_valid_second_pair_valid():
+    # s = "1223" where '1' appears 1 time, '2' appears 2 times, '3' appears 1 time
+    # "12" at position 0: '1' appears 1 time (valid), '2' appears 2 times (valid) -> valid!
+    assert findValidPair("1223") == "12"
+
+
+def test_multiple_valid_pairs_returns_first():
+    # s = "112233" where '1' appears 2 times, '2' appears 2 times, '3' appears 2 times
+    # None of the digits satisfy the count requirement (all appear 2 times but values are 1, 2, 3)
+    # Actually '2' appears 2 times which matches its value
+    # "12" at position 1: '1' appears 2 times (not valid for value 1), '2' appears 2 times (valid)
+    # Not a valid pair since '1' doesn't satisfy
+    assert findValidPair("112233") == ""
+
+
+def test_digit_appears_more_than_its_value():
+    # s = "111" where '1' appears 3 times
+    # '1' should appear 1 time, but appears 3 times, so no valid pairs
+    assert findValidPair("111") == ""
+
+
+def test_valid_pair_with_digit_nine():
+    # s = "999999999" where '9' appears 9 times
+    # "99" is not valid because digits must be different
+    assert findValidPair("999999999") == ""
+
+
+def test_valid_pair_in_middle():
+    # s = "111233" where '1' appears 3 times, '2' appears 2 times, '3' appears 1 time
+    # "12" at position 2: '1' appears 3 times (not valid), '2' appears 2 times (valid)
+    # "23" at position 3: '2' appears 2 times (valid), '3' appears 1 time (valid) -> valid!
+    assert findValidPair("111233") == "23"
+
+
+def test_all_same_digit():
+    # s = "3333" where '3' appears 4 times
+    # No valid pairs (all adjacent digits are the same)
+    assert findValidPair("3333") == ""
+
+
+def test_longer_string_with_first_valid_pair():
+    # s = "444455522" where '4' appears 4 times, '5' appears 3 times, '2' appears 2 times
+    # "45" at position 3: '4' appears 4 times (valid), '5' appears 3 times (not valid for value 5)
+    # "55" at position 4: same digits (not valid)
+    # "52" at position 6: '5' appears 3 times (not valid), '2' appears 2 times (valid)
+    # "22" at position 7: same digits (not valid)
+    assert findValidPair("444455522") == ""
+
+
+def test_pair_with_different_adjacent_digits():
+    # s = "3332" where '3' appears 3 times, '2' appears 1 time
+    # "33" at positions 0, 1: same digits (not valid)
+    # "32" at position 2: '3' appears 3 times (valid), '2' appears 1 time (not valid for value 2)
+    assert findValidPair("3332") == ""
+
+
+def test_complex_string_first_valid():
+    # s = "44411122" where '4' appears 3 times, '1' appears 3 times, '2' appears 2 times
+    # "44" at position 0: same digits (not valid)
+    # "41" at position 2: '4' appears 3 times (not valid), '1' appears 3 times (not valid)
+    # "11" at position 3: same digits (not valid)
+    # "12" at position 5: '1' appears 3 times (not valid), '2' appears 2 times (valid)
+    # "22" at position 6: same digits (not valid)
+    assert findValidPair("44411122") == ""
+```
+
+## Failing implementation
+
+```python
+def findValidPair(s: str) -> str:
+    from collections import Counter
+    counts = Counter(s)
+    for i in range(len(s) - 1):
+        a, b = s[i], s[i + 1]
+        if a != b:
+            if counts[a] == int(a) and counts[b] == int(b):
+                return a + b
+    return ""
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmp6ha0uamt/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 14 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [  7%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 14%]
+tests/test_task.py::test_canonical_example_3 PASSED                      [ 21%]
+tests/test_task.py::test_minimum_length_valid_pair PASSED                [ 28%]
+tests/test_task.py::test_minimum_length_valid_pair_both_satisfy PASSED   [ 35%]
+tests/test_task.py::test_first_pair_not_valid_second_pair_valid PASSED   [ 42%]
+tests/test_task.py::test_multiple_valid_pairs_returns_first PASSED       [ 50%]
+tests/test_task.py::test_digit_appears_more_than_its_value PASSED        [ 57%]
+tests/test_task.py::test_valid_pair_with_digit_nine PASSED               [ 64%]
+tests/test_task.py::test_valid_pair_in_middle FAILED                     [ 71%]
+tests/test_task.py::test_all_same_digit PASSED                           [ 78%]
+tests/test_task.py::test_longer_string_with_first_valid_pair PASSED      [ 85%]
+tests/test_task.py::test_pair_with_different_adjacent_digits PASSED      [ 92%]
+tests/test_task.py::test_complex_string_first_valid PASSED               [100%]
+
+=================================== FAILURES ===================================
+__________________________ test_valid_pair_in_middle ___________________________
+tests/test_task.py:68: in test_valid_pair_in_middle
+    assert findValidPair("111233") == "23"
+E   AssertionError: assert '' == '23'
+E     
+E     - 23
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_valid_pair_in_middle - AssertionError: assert...
+========================= 1 failed, 13 passed in 0.02s =========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

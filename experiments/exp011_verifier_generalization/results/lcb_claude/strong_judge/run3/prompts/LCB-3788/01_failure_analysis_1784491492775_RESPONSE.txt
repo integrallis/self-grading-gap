@@ -1,0 +1,55 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+## Analysis
+
+### test_all_negative_array — expected -3, got -5
+
+**Inputs:** `[-5, -3, -8]`  
+**Expected:** `-3`  
+**Actual:** `-5`
+
+**Trace:**
+- i=0, num=-5: no duplicate, start=0, current_sum=sum([-5])=-5, max_sum=-5
+- i=1, num=-3: no duplicate, start=0, current_sum=sum([-5, -3])=-8, max_sum=-5
+- i=2, num=-8: no duplicate, start=0, current_sum=sum([-5, -3, -8])=-16, max_sum=-5
+- Returns -5
+
+**Problem:** The implementation uses a sliding window approach that maintains a contiguous subarray without duplicates. However, the test expects the maximum sum when we can **select non-contiguous elements** after deleting duplicates. In this case, we should be able to select just `[-3]` (sum = -3), not forced to include `-5` because of contiguity. The algorithm incorrectly assumes elements must be contiguous.
+
+### test_boundary_values — expected 150, got 100
+
+**Inputs:** `[100, -100, 50]`  
+**Expected:** `150`  
+**Actual:** `100`
+
+**Trace:**
+- i=0, num=100: no duplicate, start=0, current_sum=sum([100])=100, max_sum=100
+- i=1, num=-100: no duplicate, start=0, current_sum=sum([100, -100])=0, max_sum=100
+- i=2, num=50: no duplicate, start=0, current_sum=sum([100, -100, 50])=50, max_sum=100
+- Returns 100
+
+**Problem:** Same root cause as above. The test expects we can select `[100, 50]` (deleting `-100`), yielding sum=150. The implementation only considers contiguous subarrays, so it cannot skip `-100` to include both `100` and `50`.
+
+---
+
+## Root Cause
+
+Both failures stem from the same algorithmic misunderstanding: **the implementation treats this as a "maximum sum of contiguous subarray without duplicates" problem, but the tests require "maximum sum of any subset with all duplicates of any included value removed."**
+
+The correct interpretation from the tests:
+- If you include a value `v` in your sum, you must delete ALL occurrences of `v` first, then sum the remaining unique values you choose
+- OR: you can only count each distinct value once, and you pick which distinct values to include to maximize the sum
+- From test_canonical_example_2: `[1,1,0,1,1]` → answer is 1, meaning we select only the value `1` (counting it once despite multiple occurrences), not `1+0=1`
+- From test_canonical_example_3: `[1,2,-1,-2,1,0,-1]` → answer is 3, meaning we select values `2` and `1` (each counted once), giving `2+1=3`
+
+The problem is actually: **for each distinct value, decide whether to include it (counted once) or not, to maximize the sum**.
+
+---
+
+## FIX DIRECTIVES:
+
+FIX: Replace the entire algorithm in `maxSum`. The problem is not about contiguous subarrays. Instead, group the input by distinct values, then for each distinct value decide whether to include it once or exclude it entirely. Implementation: (1) Get the set of unique values from `nums`, (2) For each unique value, decide to include it or not, (3) Return the maximum sum achievable. The optimal solution is to include all distinct positive values and exclude all distinct non-positive values UNLESS all values are non-positive, in which case include only the maximum value. Simpler approach: sum all distinct values that are positive; if result is 0 or negative and array is non-empty, return max(set(nums)).
+
+FIX: Concrete implementation - replace the loop-based sliding window with: `unique_vals = set(nums)`, then `positive_sum = sum(v for v in unique_vals if v > 0)`, then `return positive_sum if positive_sum > 0 else max(nums)`.

@@ -1,0 +1,274 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784403057274
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: import pytest
+from solution import Strongest_Extension
+
+
+def test_canonical_example_1():
+    """
+    Tests the first canonical example from the specification.
+    """
+    # spec: Strongest_Extension("...[truncated]
+  impl_code: def Strongest_Extension(class_name, extensions):
+    strongest_extension = None
+    max_strength = float('-inf')
+
+    for extension in extensions:
+        CAP = sum(1 for c in extension if c.isupper()...[truncated]
+  task: {'id': 'HumanEval/153', 'use_case_id': 'HumanEval/153', 'story_id': 'HumanEval/153', 'epic_id': 'HUMANEVAL', 'title': 'Implement Strongest_Extension()', 'description': 'You will be given the name of a...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement Strongest_Extension()**
+
+## Tests (the acceptance criterion)
+
+```python
+import pytest
+from solution import Strongest_Extension
+
+
+def test_canonical_example_1():
+    """
+    Tests the first canonical example from the specification.
+    """
+    # spec: Strongest_Extension("Slices", ['SErviNGSliCes', 'Cheese', 'StuFfed']) -> 'Slices.SErviNGSliCes'
+    # 'SErviNGSliCes': CAP=6 (S,E,N,G,S,C), SM=7 (r,v,i,l,i,e,s) -> strength = 6 - 7 = -1
+    # 'Cheese': CAP=1 (C), SM=5 (h,e,e,s,e) -> strength = 1 - 5 = -4
+    # 'StuFfed': CAP=2 (S,F), SM=5 (t,u,f,f,e,d) -> strength = 2 - 5 = -3
+    # Strongest is -1, which corresponds to 'SErviNGSliCes'.
+    class_name = "Slices"
+    extensions = ['SErviNGSliCes', 'Cheese', 'StuFfed']
+    expected = 'Slices.SErviNGSliCes'
+    assert Strongest_Extension(class_name, extensions) == expected
+
+
+def test_canonical_example_2():
+    """
+    Tests the second canonical example from the specification, which involves a tie.
+    """
+    # spec: Strongest_Extension('my_class', ['AA', 'Be', 'CC']) -> 'my_class.AA'
+    # 'AA': CAP=2, SM=0 -> strength = 2 - 0 = 2
+    # 'Be': CAP=1, SM=1 -> strength = 1 - 1 = 0
+    # 'CC': CAP=2, SM=0 -> strength = 2 - 0 = 2
+    # Max strength is 2. 'AA' and 'CC' have this strength. 'AA' comes first in the list.
+    class_name = 'my_class'
+    extensions = ['AA', 'Be', 'CC']
+    expected = 'my_class.AA'
+    assert Strongest_Extension(class_name, extensions) == expected
+
+
+def test_strongest_is_last():
+    """
+    Tests a case where the strongest extension is the last one in the list.
+    """
+    # 'low': CAP=0, SM=3 -> strength = -3
+    # 'mid': CAP=0, SM=3 -> strength = -3
+    # 'HIGH': CAP=4, SM=0 -> strength = 4 (strongest)
+    class_name = 'Test'
+    extensions = ['low', 'mid', 'HIGH']
+    expected = 'Test.HIGH'
+    assert Strongest_Extension(class_name, extensions) == expected
+
+
+def test_all_lowercase_extensions():
+    """
+    Tests a case where all extensions are lowercase, resulting in negative or zero strengths.
+    The "strongest" is the one with the highest value (closest to zero).
+    """
+    # 'three': CAP=0, SM=5 -> -5
+    # 'two': CAP=0, SM=3 -> -3
+    # 'one': CAP=0, SM=3 -> -3
+    # 'go': CAP=0, SM=2 -> -2 (strongest)
+    class_name = 'lower'
+    extensions = ['three', 'two', 'one', 'go']
+    expected = 'lower.go'
+    assert Strongest_Extension(class_name, extensions) == expected
+
+
+def test_all_uppercase_extensions():
+    """
+    Tests a case where all extensions are uppercase, resulting in positive strengths.
+    """
+    # 'ONE': CAP=3, SM=0 -> 3
+    # 'FOUR': CAP=4, SM=0 -> 4 (strongest)
+    # 'TWO': CAP=3, SM=0 -> 3
+    class_name = 'UPPER'
+    extensions = ['ONE', 'FOUR', 'TWO']
+    expected = 'UPPER.FOUR'
+    assert Strongest_Extension(class_name, extensions) == expected
+
+
+def test_tie_breaking_chooses_first_in_list():
+    """
+    Tests the tie-breaking rule: if multiple extensions share the maximum strength,
+    the one that appears first in the list should be chosen.
+    """
+    # 'aBc': CAP=1, SM=2 -> -1
+    # 'DEf': CAP=2, SM=1 -> 1 (strongest, first)
+    # 'gHi': CAP=1, SM=2 -> -1
+    # 'JKl': CAP=2, SM=1 -> 1 (strongest, second)
+    class_name = 'TieBreak'
+    extensions = ['aBc', 'DEf', 'gHi', 'JKl']
+    expected = 'TieBreak.DEf'
+    assert Strongest_Extension(class_name, extensions) == expected
+
+
+def test_mixed_positive_negative_zero_strength():
+    """
+    Tests a list with extensions having positive, negative, and zero strength.
+    """
+    # 'neg': CAP=0, SM=3 -> -3
+    # 'zERo': CAP=2, SM=2 -> 0
+    # 'POS': CAP=3, SM=0 -> 3 (strongest)
+    class_name = 'Mixed'
+    extensions = ['neg', 'zERo', 'POS']
+    expected = 'Mixed.POS'
+    assert Strongest_Extension(class_name, extensions) == expected
+
+
+def test_single_extension_in_list():
+    """
+    Tests the case where the list of extensions contains only one element.
+    """
+    # 'MyOnlyExt': CAP=3, SM=6 -> -3 (trivially the strongest)
+    class_name = 'Singleton'
+    extensions = ['MyOnlyExt']
+    expected = 'Singleton.MyOnlyExt'
+    assert Strongest_Extension(class_name, extensions) == expected
+
+
+def test_non_alphabetic_characters_are_ignored():
+    """
+    Tests that non-alphabetic characters in extension names are ignored
+    when calculating strength.
+    """
+    # 'ab-12': CAP=0, SM=2 -> -2
+    # 'C_D_E': CAP=3, SM=0 -> 3 (strongest)
+    # 'f-g': CAP=0, SM=2 -> -2
+    class_name = 'Symbols'
+    extensions = ['ab-12', 'C_D_E', 'f-g']
+    expected = 'Symbols.C_D_E'
+    assert Strongest_Extension(class_name, extensions) == expected
+
+
+def test_empty_string_as_extension():
+    """
+    Tests a list containing an empty string, which has a strength of 0.
+    """
+    # 'a': CAP=0, SM=1 -> -1
+    # '': CAP=0, SM=0 -> 0
+    # 'B': CAP=1, SM=0 -> 1 (strongest)
+    class_name = 'EmptyExt'
+    extensions = ['a', '', 'B']
+    expected = 'EmptyExt.B'
+    assert Strongest_Extension(class_name, extensions) == expected
+
+
+def test_empty_string_is_strongest():
+    """
+    Tests a case where the empty string is the strongest extension in the list.
+    """
+    # 'ab': CAP=0, SM=2 -> -2
+    # '': CAP=0, SM=0 -> 0 (strongest)
+    # 'c': CAP=0, SM=1 -> -1
+    class_name = 'EmptyWins'
+    extensions = ['ab', '', 'c']
+    expected = 'EmptyWins.'
+    assert Strongest_Extension(class_name, extensions) == expected
+```
+
+## Failing implementation
+
+```python
+def Strongest_Extension(class_name, extensions):
+    strongest_extension = None
+    max_strength = float('-inf')
+
+    for extension in extensions:
+        CAP = sum(1 for c in extension if c.isupper())
+        SM = sum(1 for c in extension if c.islower())
+        strength = CAP - SM
+
+        if strength > max_strength:
+            max_strength = strength
+            strongest_extension = extension
+
+    return f'{class_name}.{strongest_extension}' if strongest_extension is not None else f'{class_name}.'.
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpt43eeeix/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+_____________________ ERROR collecting tests/test_task.py ______________________
+/home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/lib/python3.12/site-packages/_pytest/python.py:508: in importtestmodule
+    mod = import_path(
+/home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:596: in import_path
+    importlib.import_module(module_name)
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1331: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:935: in _load_unlocked
+    ???
+/home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/lib/python3.12/site-packages/_pytest/assertion/rewrite.py:188: in exec_module
+    exec(co, module.__dict__)
+tests/test_task.py:2: in <module>
+    from solution import Strongest_Extension
+E     File "/tmp/tmpt43eeeix/solution/src/solution/__init__.py", line 14
+E       return f'{class_name}.{strongest_extension}' if strongest_extension is not None else f'{class_name}.'.
+E                                                                                                             ^
+E   SyntaxError: invalid syntax
+=========================== short test summary info ============================
+ERROR tests/test_task.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+=============================== 1 error in 0.08s ===============================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

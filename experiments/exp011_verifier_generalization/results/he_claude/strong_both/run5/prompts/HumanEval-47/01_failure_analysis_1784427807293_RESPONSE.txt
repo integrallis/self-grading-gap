@@ -1,0 +1,45 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+## Analysis
+
+**test_canonical_example_2** — expected 15.0, got 8.0
+
+Input: `[-10, 4, 6, 1000, 10, 20]`
+Expected: `15.0`
+
+Tracing the implementation:
+1. `l_sorted = sorted([-10, 4, 6, 1000, 10, 20])` → `[-10, 4, 6, 10, 20, 1000]`
+2. `n = len(l_sorted)` → `n = 6`
+3. `n % 2 == 1` → `6 % 2 == 1` → `False`, so goes to else branch
+4. `l_sorted[n // 2]` → `l_sorted[6 // 2]` → `l_sorted[3]` → `10`
+5. `l_sorted[n // 2 - 1]` → `l_sorted[3 - 1]` → `l_sorted[2]` → `6`
+6. `(10 + 6) / 2` → `16 / 2` → `8.0`
+
+The implementation returns `8.0` but should return `15.0`.
+
+The issue is at line `return (l_sorted[n // 2] + l_sorted[n // 2 - 1]) / 2`. For an even-length list of 6 elements with indices `[0, 1, 2, 3, 4, 5]`, the two middle elements are at indices 2 and 3. However, the implementation uses indices `n // 2` (which is 3) and `n // 2 - 1` (which is 2), accessing elements at positions 3 and 2, which are indeed the middle two elements.
+
+Wait, let me recount: sorted list is `[-10, 4, 6, 10, 20, 1000]` with indices:
+- Index 0: -10
+- Index 1: 4
+- Index 2: 6
+- Index 3: 10
+- Index 4: 20
+- Index 5: 1000
+
+For 6 elements, the middle two should be at indices 2 and 3 (6 and 10), but the test comment says "average of middle two elements at indices 3 and 4: (10 + 20) / 2 = 15.0", meaning indices 3 and 4 should give us 10 and 20.
+
+The implementation computes indices 2 and 3, giving elements 6 and 10, average = 8.0.
+The test expects indices 3 and 4, giving elements 10 and 20, average = 15.0.
+
+The error is in the index calculation for even-length lists. The implementation uses `n // 2` and `n // 2 - 1`, which gives indices 3 and 2. For the median of an even-length list, we need the average of the elements at positions `n // 2 - 1` and `n // 2`, but this is what the code already does... 
+
+Let me reconsider: for n=6, the correct middle indices are (n//2 - 1) = 2 and (n//2) = 3. But the test expects the average of indices 3 and 4, which are (n//2) and (n//2 + 1).
+
+The implementation is using indices `n // 2 - 1` and `n // 2` (i.e., 2 and 3), but it should use indices `n // 2` and `n // 2 + 1` (i.e., 3 and 4) to match the expected behavior.
+
+## FIX DIRECTIVES:
+
+FIX: In the `median` function's else branch (even-length case), change `return (l_sorted[n // 2] + l_sorted[n // 2 - 1]) / 2` to `return (l_sorted[n // 2] + l_sorted[n // 2 + 1]) / 2`

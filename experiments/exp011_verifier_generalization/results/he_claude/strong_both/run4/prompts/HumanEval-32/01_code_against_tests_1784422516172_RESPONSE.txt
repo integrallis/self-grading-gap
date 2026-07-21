@@ -1,0 +1,115 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+Let me trace through each test systematically.
+
+## Import check
+The tests import `poly` and `find_zero` from `solution`. The implementation provides both functions. ✓
+
+## Test-by-test analysis
+
+**test_canonical_example_1:** 
+- Input: `[1, 2]`
+- `find_zero([1, 2])` uses bisection on `poly(xs, x) = 1 + 2x`
+- Initial: low=-1000, high=1000
+- `poly([1,2], -1000) = 1 + 2*(-1000) = -1999` (negative)
+- `poly([1,2], 1000) = 1 + 2*1000 = 2001` (positive)
+- `poly([1,2], 0) = 1` (positive)
+- Bisection narrows to root at x = -0.5 where `1 + 2*(-0.5) = 0`
+- `round(-0.5, 2) = -0.5` ✓
+- **PASS** — bisection converges to -0.5
+
+**test_canonical_example_2:**
+- Input: `[-6, 11, -6, 1]`
+- `poly(xs, x) = -6 + 11x - 6x² + x³`
+- `poly(xs, -1000)` is very negative (dominated by x³)
+- `poly(xs, 1000)` is very positive
+- `poly(xs, 1) = -6 + 11 - 6 + 1 = 0` (exact root)
+- Bisection will converge to x ≈ 1.0
+- `round(1.0, 2) = 1.0` ✓
+- **PASS** — bisection finds root near 1.0
+
+**test_poly_evaluates_constant_polynomial:**
+- `poly([5], 10) = 5 * 10^0 = 5` ✓
+- **PASS**
+
+**test_poly_evaluates_linear_polynomial:**
+- `poly([1, 2], 3) = 1*3^0 + 2*3^1 = 1 + 6 = 7` ✓
+- **PASS**
+
+**test_poly_evaluates_quadratic_polynomial:**
+- `poly([1, 0, 1], 2) = 1*2^0 + 0*2^1 + 1*2^2 = 1 + 0 + 4 = 5` ✓
+- **PASS**
+
+**test_poly_evaluates_cubic_polynomial:**
+- `poly([-6, 11, -6, 1], 2) = -6*2^0 + 11*2^1 + (-6)*2^2 + 1*2^3`
+- `= -6 + 22 - 24 + 8 = 0` ✓
+- **PASS**
+
+**test_find_zero_returns_value_where_poly_equals_zero:**
+- `find_zero([1, 2])` returns ≈ -0.5
+- `poly([1, 2], -0.5) = 1 + 2*(-0.5) = 0`
+- `abs(0) < 1e-6` ✓
+- **PASS**
+
+**test_find_zero_for_quadratic:**
+- `find_zero([1, 0, -1, 0])` for `poly(x) = 1 - x²`
+- Roots at x = ±1
+- `poly([1,0,-1,0], -1000)` ≈ -1000000 (negative)
+- `poly([1,0,-1,0], 1000)` ≈ -1000000 (negative)
+- Both endpoints negative! `poly(low) * poly(high) > 0`, bisection won't bracket properly.
+- The algorithm will keep setting `low = mid` until convergence, ending near high=1000.
+- `poly([1,0,-1,0], 1000) ≈ -999999`, `abs(-999999) < 1e-6` is FALSE ✗
+- **FAIL** — bisection fails when both bounds have same sign
+
+**test_find_zero_for_another_cubic:**
+- Same as test_canonical_example_2, will find root near 1.0
+- `abs(poly([-6,11,-6,1], 1.0)) = abs(0) < 1e-6` ✓
+- **PASS**
+
+**test_find_zero_simple_linear:**
+- `find_zero([3, -1])` for `poly(x) = 3 - x`, root at x=3
+- `poly([3,-1], -1000) = 3 + 1000 = 1003` (positive)
+- `poly([3,-1], 1000) = 3 - 1000 = -997` (negative)
+- Bisection brackets the root, converges to x ≈ 3.0
+- Both assertions pass ✓
+- **PASS**
+
+**test_poly_at_zero:**
+- `poly([1, 2, 3], 0) = 1*0^0 + 2*0^1 + 3*0^2 = 1` ✓
+- **PASS**
+
+**test_poly_with_negative_coefficients:**
+- `poly([-1, -2], 1) = -1*1^0 + (-2)*1^1 = -1 - 2 = -3` ✓
+- **PASS**
+
+**test_find_zero_returns_a_zero:**
+- `find_zero([4, 4])` for `poly(x) = 4 + 4x`, root at x=-1
+- `poly([4,4], -1000) = 4 - 4000 = -3996` (negative)
+- `poly([4,4], 1000) = 4 + 4000 = 4004` (positive)
+- Bisection brackets and finds x ≈ -1.0
+- `abs(poly([4,4], -1)) = abs(0) < 1e-6` ✓
+- **PASS**
+
+## Root cause of failure
+
+The bisection implementation fails when the initial bounds [-1000, 1000] don't bracket a root (i.e., when `poly(low)` and `poly(high)` have the same sign). For `poly(x) = 1 - x²`, both endpoints yield negative values, so the algorithm cannot find the root.
+
+## Summary
+
+test_canonical_example_1: PASS — bisection converges to -0.5
+test_canonical_example_2: PASS — bisection converges to 1.0
+test_poly_evaluates_constant_polynomial: PASS — correct evaluation
+test_poly_evaluates_linear_polynomial: PASS — correct evaluation
+test_poly_evaluates_quadratic_polynomial: PASS — correct evaluation
+test_poly_evaluates_cubic_polynomial: PASS — correct evaluation
+test_find_zero_returns_value_where_poly_equals_zero: PASS — finds correct zero
+test_find_zero_for_quadratic: FAIL — bisection bounds don't bracket root
+test_find_zero_for_another_cubic: PASS — finds correct zero
+test_find_zero_simple_linear: PASS — finds correct zero
+test_poly_at_zero: PASS — correct evaluation
+test_poly_with_negative_coefficients: PASS — correct evaluation
+test_find_zero_returns_a_zero: PASS — finds correct zero
+
+Rating: 0.92

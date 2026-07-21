@@ -1,0 +1,221 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784408305050
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: import pytest
+from solution import total_match
+
+# MANDATORY: Canonical Examples from Specification
+
+
+def test_canonical_example_1():
+    """
+    spec: total_match([], []) ➞ []
+    """
+    # lst1: [], ...[truncated]
+  impl_code: def total_match(lst1, lst2):
+    total_chars_lst1 = sum(len(s) for s in lst1)
+    total_chars_lst2 = sum(len(s) for s in lst2)
+    if total_chars_lst1 < total_chars_lst2:
+        return lst1
+    retur...[truncated]
+  task: {'id': 'HumanEval/74', 'use_case_id': 'HumanEval/74', 'story_id': 'HumanEval/74', 'epic_id': 'HUMANEVAL', 'title': 'Implement total_match()', 'description': "Write a function that accepts two lists of...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement total_match()**
+
+## Tests (the acceptance criterion)
+
+```python
+import pytest
+from solution import total_match
+
+# MANDATORY: Canonical Examples from Specification
+
+
+def test_canonical_example_1():
+    """
+    spec: total_match([], []) ➞ []
+    """
+    # lst1: [], total chars = 0
+    # lst2: [], total chars = 0
+    # Totals are equal (0 == 0), so the first list is returned.
+    assert total_match([], []) == []
+
+
+def test_canonical_example_2():
+    """
+    spec: total_match(['hi', 'admin'], ['hI', 'Hi']) ➞ ['hI', 'Hi']
+    """
+    # lst1: ['hi', 'admin'], total chars = len('hi') + len('admin') = 2 + 5 = 7
+    # lst2: ['hI', 'Hi'], total chars = len('hI') + len('Hi') = 2 + 2 = 4
+    # The total chars of lst2 (4) is less than lst1 (7), so lst2 is returned.
+    assert total_match(['hi', 'admin'], ['hI', 'Hi']) == ['hI', 'Hi']
+
+
+def test_canonical_example_3():
+    """
+    spec: total_match(['hi', 'admin'], ['hi', 'hi', 'admin', 'project']) ➞ ['hi', 'admin']
+    """
+    # lst1: ['hi', 'admin'], total chars = len('hi') + len('admin') = 2 + 5 = 7
+    # lst2: ['hi', 'hi', 'admin', 'project'], total chars = 2 + 2 + 5 + 7 = 16
+    # The total chars of lst1 (7) is less than lst2 (16), so lst1 is returned.
+    assert total_match(['hi', 'admin'], ['hi', 'hi', 'admin', 'project']) == ['hi', 'admin']
+
+
+def test_canonical_example_4():
+    """
+    spec: total_match(['hi', 'admin'], ['hI', 'hi', 'hi']) ➞ ['hI', 'hi', 'hi']
+    """
+    # lst1: ['hi', 'admin'], total chars = len('hi') + len('admin') = 2 + 5 = 7
+    # lst2: ['hI', 'hi', 'hi'], total chars = len('hI') + len('hi') + len('hi') = 2 + 2 + 2 = 6
+    # The total chars of lst2 (6) is less than lst1 (7), so lst2 is returned.
+    assert total_match(['hi', 'admin'], ['hI', 'hi', 'hi']) == ['hI', 'hi', 'hi']
+
+
+def test_canonical_example_5():
+    """
+    spec: total_match(['4'], ['1', '2', '3', '4', '5']) ➞ ['4']
+    """
+    # lst1: ['4'], total chars = 1
+    # lst2: ['1', '2', '3', '4', '5'], total chars = 1 + 1 + 1 + 1 + 1 = 5
+    # The total chars of lst1 (1) is less than lst2 (5), so lst1 is returned.
+    assert total_match(['4'], ['1', '2', '3', '4', '5']) == ['4']
+
+
+# Additional tests to clarify behavior on general cases derived from the specification.
+
+
+def test_equal_total_chars_returns_first_list():
+    """
+    Tests that if both lists have the same total characters, the first list is returned.
+    This provides a non-empty case for the tie-breaker rule.
+    """
+    lst1 = ['a', 'bc']
+    lst2 = ['ab', 'c']
+    # lst1 total chars = len('a') + len('bc') = 1 + 2 = 3
+    # lst2 total chars = len('ab') + len('c') = 2 + 1 = 3
+    # Totals are equal, so the first list is returned.
+    assert total_match(lst1, lst2) == lst1
+
+
+def test_first_list_is_empty():
+    """
+    Tests behavior when the first list is empty, making it the shorter list.
+    """
+    lst1 = []
+    lst2 = ['not', 'empty']
+    # lst1 total chars = 0
+    # lst2 total chars = 3 + 5 = 8
+    # The total chars of lst1 (0) is less than lst2 (8), so lst1 is returned.
+    assert total_match(lst1, lst2) == lst1
+
+
+def test_second_list_is_empty():
+    """
+    Tests behavior when the second list is empty, making it the shorter list.
+    """
+    lst1 = ['not', 'empty']
+    lst2 = []
+    # lst1 total chars = 3 + 5 = 8
+    # lst2 total chars = 0
+    # The total chars of lst2 (0) is less than lst1 (8), so lst2 is returned.
+    assert total_match(lst1, lst2) == lst2
+
+
+def test_empty_string_contributes_zero_to_length():
+    """
+    Tests that empty strings contribute 0 to the total character count,
+    which can affect which list is shorter.
+    """
+    lst1 = ['bb']
+    lst2 = ['a', '']
+    # lst1 total chars = len('bb') = 2
+    # lst2 total chars = len('a') + len('') = 1 + 0 = 1
+    # The total chars of lst2 (1) is less than lst1 (2), so lst2 is returned.
+    assert total_match(lst1, lst2) == lst2
+```
+
+## Failing implementation
+
+```python
+def total_match(lst1, lst2):
+    total_chars_lst1 = sum(len(s) for s in lst1)
+    total_chars_lst2 = sum(len(s) for s in lst2)
+    if total_chars_lst1 < total_chars_lst2:
+        return lst1
+    return lst2
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmph9rtrdjh/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 9 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [ 11%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 22%]
+tests/test_task.py::test_canonical_example_3 PASSED                      [ 33%]
+tests/test_task.py::test_canonical_example_4 PASSED                      [ 44%]
+tests/test_task.py::test_canonical_example_5 PASSED                      [ 55%]
+tests/test_task.py::test_equal_total_chars_returns_first_list FAILED     [ 66%]
+tests/test_task.py::test_first_list_is_empty PASSED                      [ 77%]
+tests/test_task.py::test_second_list_is_empty PASSED                     [ 88%]
+tests/test_task.py::test_empty_string_contributes_zero_to_length PASSED  [100%]
+
+=================================== FAILURES ===================================
+__________________ test_equal_total_chars_returns_first_list ___________________
+tests/test_task.py:70: in test_equal_total_chars_returns_first_list
+    assert total_match(lst1, lst2) == lst1
+E   AssertionError: assert ['ab', 'c'] == ['a', 'bc']
+E     
+E     At index 0 diff: 'ab' != 'a'
+E     
+E     Full diff:
+E       [
+E     -     'a',
+E     +     'ab',...
+E     
+E     ...Full output truncated (5 lines hidden), use '-vv' to show
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_equal_total_chars_returns_first_list - Assert...
+========================= 1 failed, 8 passed in 0.02s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

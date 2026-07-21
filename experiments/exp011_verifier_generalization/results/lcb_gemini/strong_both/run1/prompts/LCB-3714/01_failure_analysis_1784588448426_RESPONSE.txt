@@ -1,0 +1,61 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+Here is the analysis of the failing implementation.
+
+***
+
+### Analysis of Failures
+
+#### `test_large_n_scalability` and `test_large_k_limit`
+
+Both of these tests fail for the same underlying reason: the algorithm is too inefficient for large inputs.
+
+*   `test_large_n_scalability`: `nums` has 10,000 elements, `k=50`.
+*   `test_large_k_limit`: `nums` has 100 elements, `k=70`.
+
+The current implementation calculates the number of times an element `nums[i]` appears as a minimum or maximum by repeatedly computing sums of combinations within the main loop:
+
+```python
+# from minMaxSums function
+for i in range(n):
+    min_coeff_sum = sum(comb(n - 1 - i, j - 1) for j in range(1, k + 1))
+    max_coeff_sum = sum(comb(i, j - 1) for j in range(1, k + 1))
+    ...
+```
+
+The expressions `sum(comb(...))` are the source of the inefficiency. For each of the `n` iterations of the outer loop, these expressions each loop `k` times. Furthermore, the `math.comb(a, b)` function itself takes time proportional to `b`. This results in an approximate time complexity of `O(n * k^2)`, which is too slow for the constraints of the failing tests.
+
+Although the tests report `FAILED` (wrong answer) instead of a `TIMEOUT`, this is a consequence of the inefficient algorithm. The correct approach is to optimize the calculation of these combinatorial sums. The implementation should precompute the necessary sums so that the calculation inside the main loop is fast.
+
+A standard and efficient method for this is to use dynamic programming to build a table of the sums of combinations. Let `S(m, k') = sum_{l=0 to k'} comb(m,l)`. This can be calculated with the recurrence `S(m, k') = S(m-1, k') + S(m-1, k'-1)`. By pre-calculating these values with all arithmetic performed modulo `MOD`, we can look up the coefficients in `O(1)` time inside the main loop, reducing the overall complexity to `O(n*k)` for the precomputation, which is efficient enough to pass all tests.
+
+The current implementation diverges from this correct path at the lines computing `min_coeff_sum` and `max_coeff_sum`, which are computationally expensive and performed repeatedly.
+
+### FIX DIRECTIVES:
+
+1.  In `minMaxSums`, replace the inefficient, repeated calculation of combination sums with a more efficient precomputation using dynamic programming.
+2.  Create a 2D DP table, let's call it `sums_of_combs`, of size `n x k` before the main loop. This table will store partial sums of rows of Pascal's triangle. `sums_of_combs[i][j]` will hold `(sum_{l=0 to j} comb(i, l)) % MOD`.
+3.  Initialize and fill this table using the recurrence relation `sums_of_combs[i][j] = (sums_of_combs[i-1][j] + sums_of_combs[i-1][j-1]) % MOD`.
+
+    ```python
+    # FIX: Add this precomputation block at the start of minMaxSums
+    sums_of_combs = [[0] * k for _ in range(n)]
+    for i in range(n):
+        sums_of_combs[i][0] = 1
+    for j in range(1, k):
+        sums_of_combs[0][j] = 1
+
+    for i in range(1, n):
+        for j in range(1, k):
+            sums_of_combs[i][j] = (sums_of_combs[i-1][j] + sums_of_combs[i-1][j-1]) % MOD
+    ```
+
+4.  In the main `for i in range(n)` loop, replace the `sum(comb(...))` expressions with `O(1)` lookups into your precomputed table.
+
+    ```python
+    # FIX: Replace the existing min_coeff_sum and max_coeff_sum lines with these:
+    min_coeff_sum = sums_of_combs[n - 1 - i][k - 1]
+    max_coeff_sum = sums_of_combs[i][k - 1]
+    ```

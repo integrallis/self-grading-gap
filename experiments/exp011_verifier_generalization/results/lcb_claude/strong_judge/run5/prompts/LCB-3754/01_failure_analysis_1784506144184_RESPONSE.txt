@@ -1,0 +1,83 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+## Analysis of Failing Tests
+
+**test_canonical_example_2** — expected 6, got 5
+
+Inputs: `s = "NSWWEW"`, `k = 3`
+
+Tracing the implementation:
+- Initial: `x=0, y=0, max_distance=0`
+- After 'N': `x=0, y=1`, distance=1, `max_distance=1`
+- After 'S': `x=0, y=0`, distance=0, `max_distance=1`
+- After 'W': `x=-1, y=0`, distance=1, `max_distance=1`
+- After 'W': `x=-2, y=0`, distance=2, `max_distance=2`
+- After 'E': `x=-1, y=0`, distance=1, `max_distance=2`
+- After 'W': `x=-2, y=0`, distance=2, `max_distance=2`
+- Returns: `max_distance + k = 2 + 3 = 5`
+
+Expected: 6 (by changing S→N and E→W to get "NNWWWW", ending at distance 6)
+
+The issue: simply adding `k` to the max distance observed along the original path does not account for the optimal strategy of changing moves. The algorithm assumes changes can only extend distance beyond what was already achieved, but changes can also *prevent backtracking* that reduces distance.
+
+---
+
+**test_k_equals_length** — expected 4, got 8
+
+Inputs: `s = "SSSS"`, `k = 4`
+
+Tracing the implementation:
+- Initial: `x=0, y=0, max_distance=0`
+- After 'S': `x=0, y=-1`, distance=1, `max_distance=1`
+- After 'S': `x=0, y=-2`, distance=2, `max_distance=2`
+- After 'S': `x=0, y=-3`, distance=3, `max_distance=3`
+- After 'S': `x=0, y=-4`, distance=4, `max_distance=4`
+- Returns: `max_distance + k = 4 + 4 = 8`
+
+Expected: 4 (by changing all S→N to get "NNNN", ending at distance 4)
+
+The issue: the formula `max_distance + k` incorrectly assumes that each change adds 1 to the maximum distance. In reality, changing all moves to go in the same optimal direction gives distance equal to the string length, not length + k.
+
+---
+
+**test_opposing_moves** — expected 4, got 3
+
+Inputs: `s = "NSNS"`, `k = 2`
+
+Tracing the implementation:
+- Initial: `x=0, y=0, max_distance=0`
+- After 'N': `x=0, y=1`, distance=1, `max_distance=1`
+- After 'S': `x=0, y=0`, distance=0, `max_distance=1`
+- After 'N': `x=0, y=1`, distance=1, `max_distance=1`
+- After 'S': `x=0, y=0`, distance=0, `max_distance=1`
+- Returns: `max_distance + k = 1 + 2 = 3`
+
+Expected: 4 (by changing both S→N to get "NNNN", ending at distance 4)
+
+The issue: same root cause as above—the formula `max_distance + k` does not correctly model how changes affect the maximum distance.
+
+---
+
+## Root Cause
+
+All three failures stem from the same algorithmic flaw: **the line `return max_distance + k` incorrectly assumes that k changes always add exactly k units to the observed maximum distance**. This is fundamentally wrong because:
+
+1. Changes can prevent backtracking (avoiding moves that reduce distance), not just extend distance
+2. The optimal use of k changes depends on the entire path structure, not just the maximum distance achieved without changes
+3. The maximum achievable distance with k changes may require strategically replacing moves at any point in the sequence
+
+The problem requires finding which k moves to change (and to what direction) to maximize the distance from origin at any point during the traversal, not simply adding k to the baseline maximum.
+
+---
+
+## FIX DIRECTIVES:
+
+FIX: Remove the entire current implementation of `maxDistance`. The formula `max_distance + k` is fundamentally incorrect.
+
+FIX: Implement a search algorithm that considers all possible ways to use k changes. For each subset of positions where changes are made and each choice of replacement direction, simulate the path and track the maximum distance achieved.
+
+FIX: Alternative approach—use dynamic programming or greedy strategy. At each step in the path, consider whether changing that move (and to which direction) would increase the maximum distance achievable, tracking the budget of k remaining changes.
+
+FIX: The solution must evaluate how changes affect the trajectory at every step, not just add k to a pre-computed baseline maximum.

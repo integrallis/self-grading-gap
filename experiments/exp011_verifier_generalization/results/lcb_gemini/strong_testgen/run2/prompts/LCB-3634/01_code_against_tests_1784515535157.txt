@@ -1,0 +1,163 @@
+================================================================================
+TEMPLATE: judge/code_against_tests.j2
+TIMESTAMP: 1784515535157
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_code: import pytest
+from solution import calculateScore
+
+# MANDATORY: Canonical Examples from Specification
+
+def test_canonical_example_1():
+    # spec: s = "aczzx" -> 5
+    # i=2, s[2]='z', mirror='a'. Clo...[truncated]
+  impl_code: def calculateScore(s: str) -> int:
+    score = 0
+    marked = set()
+    mirror = {chr(i): chr(219 - i) for i in range(97, 123)}  # Create a mirror mapping for 'a' to 'z'
+
+    for i in range(len(s)):
+ ...[truncated]
+  task: {'id': 'LCB/3634', 'use_case_id': 'LCB/3634', 'story_id': 'LCB/3634', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement calculateScore()', 'description': 'You are given a string s.\nWe define the mirror...[truncated]
+  recent_commits: []
+================================================================================
+
+You are predicting whether an implementation will pass a specific test suite. Trace the code
+with each test's inputs; do not judge style, design, or robustness — a crude implementation
+that passes every test rates 1.00, an elegant one that fails a test rates lower.
+
+## Task context
+
+**Implement calculateScore()**
+
+## Tests
+
+```python
+import pytest
+from solution import calculateScore
+
+# MANDATORY: Canonical Examples from Specification
+
+def test_canonical_example_1():
+    # spec: s = "aczzx" -> 5
+    # i=2, s[2]='z', mirror='a'. Closest unmarked 'a' is at j=0. score += 2-0=2. Marked {0,2}.
+    # i=4, s[4]='x', mirror='c'. Closest unmarked 'c' is at j=1. score += 4-1=3. Marked {0,1,2,4}.
+    # Total score = 2 + 3 = 5.
+    assert calculateScore("aczzx") == 5
+
+def test_canonical_example_2():
+    # spec: s = "abcdef" -> 0
+    # No character has a mirror present at a preceding index.
+    assert calculateScore("abcdef") == 0
+
+# Scenarios to cover core logic and constraints
+
+def test_single_character():
+    # A string of length 1 has no preceding indices (j < i), so no pairs can be formed.
+    assert calculateScore("a") == 0
+
+def test_no_mirror_pairs_found():
+    # The string contains characters, but no mirror character pairs exist.
+    # Mirror of 'a' is 'z', 'b' is 'y', 'c' is 'x'. None are present.
+    assert calculateScore("abacaba") == 0
+
+def test_multiple_adjacent_pairs():
+    # s = "azbycx"
+    # i=1, pair ('z','a') at (1,0): score += 1-0=1. Marked {0,1}.
+    # i=3, pair ('y','b') at (3,2): score += 3-2=1. Marked {0,1,2,3}.
+    # i=5, pair ('x','c') at (5,4): score += 5-4=1. Marked {0,1,2,3,4,5}.
+    # Total score = 1 + 1 + 1 = 3.
+    assert calculateScore("azbycx") == 3
+
+def test_mn_pairs():
+    # 'm' and 'n' are mirrors of each other.
+    # s = "mnmn"
+    # i=1, pair ('n','m') at (1,0): score += 1-0=1. Marked {0,1}.
+    # i=3, pair ('n','m') at (3,2): score += 3-2=1. Marked {0,1,2,3}.
+    # Total score = 1 + 1 = 2.
+    assert calculateScore("mnmn") == 2
+
+def test_chooses_closest_partner():
+    # s = "abazy"
+    # i=3, s[3]='z', mirror='a'. Unmarked 'a's are at j=0 and j=2. Closest is j=2.
+    # score += 3-2=1. Marked {2,3}.
+    # i=4, s[4]='y', mirror='b'. Unmarked 'b' is at j=1.
+    # score += 4-1=3. Marked {1,2,3,4}.
+    # Total score = 1 + 3 = 4.
+    assert calculateScore("abazy") == 4
+
+def test_skips_already_marked_partner():
+    # s = "azaz"
+    # i=1, s[1]='z', mirror='a' at j=0. score += 1-0=1. Marked {0,1}.
+    # i=2, s[2]='a', mirror='z'. The 'z' at j=1 is marked, so we skip.
+    # i=3, s[3]='z', mirror='a'. The 'a' at j=0 is marked, but 'a' at j=2 is not.
+    # score += 3-2=1. Marked {0,1,2,3}.
+    # Total score = 1 + 1 = 2.
+    assert calculateScore("azaz") == 2
+
+def test_interleaved_pairs():
+    # s = "abzay"
+    # i=2, s[2]='z', mirror='a' at j=0. score += 2-0=2. Marked {0,2}.
+    # i=3, s[3]='a', has no unmarked 'z' before it.
+    # i=4, s[4]='y', mirror='b' at j=1. score += 4-1=3. Marked {0,1,2,4}.
+    # Total score = 2 + 3 = 5.
+    assert calculateScore("abzay") == 5
+
+def test_full_alphabet_mirror_palindrome():
+    # s = "abcdefghijklmnopqrstuvwxyzzyxwutsrqponmlkjihgfedcba" (len 52)
+    # This forms 26 pairs. The distance between each pair of mirror letters is 26.
+    # e.g., ('a' at 0, 'z' at 26), ('b' at 1, 'y' at 27), etc.
+    # The final pair found is ('z' at 25, 'a' at 51), as 'z' at 26 is already marked.
+    # Each of the 26 pairs adds 26 to the score.
+    # Total score = 26 * 26 = 676.
+    s = "abcdefghijklmnopqrstuvwxyzzyxwutsrqponmlkjihgfedcba"
+    assert calculateScore(s) == 676
+```
+
+## Implementation
+
+```python
+def calculateScore(s: str) -> int:
+    score = 0
+    marked = set()
+    mirror = {chr(i): chr(219 - i) for i in range(97, 123)}  # Create a mirror mapping for 'a' to 'z'
+
+    for i in range(len(s)):
+        if i in marked:
+            continue
+        current_char = s[i]
+        mirror_char = mirror[current_char]
+
+        # Find the closest unmarked index j for the mirror character
+        for j in range(i - 1, -1, -1):
+            if j in marked:
+                continue
+            if s[j] == mirror_char:
+                score += i - j
+                marked.add(i)
+                marked.add(j)
+                break
+
+    return score
+
+```
+
+## Method
+
+For EACH test function: state the inputs, trace the implementation's computation step by
+step (do the arithmetic explicitly), state the value the test expects, and conclude PASS or
+FAIL for that test. Check import/name compatibility first: if the tests cannot even import
+the implementation, every test fails.
+
+Also flag test gaming if you see it (hardcoded answers for specific inputs, input
+pattern-matching): report it in one line, but rate on predicted test outcomes only.
+
+## Output format (exactly this structure)
+
+1. One line per test, in this shape:
+   `test_canonical_example_1: PASS — computes 5 for [1,2,1,2,1,1,1], matching the assertion`
+   If you cannot trace a test's outcome from the code, mark it FAIL and say why the trace
+   is blocked — an unverifiable pass prediction is not a pass.
+2. If any FAIL: one short paragraph naming the root cause in the implementation.
+3. The last line must be exactly: `Rating: <predicted fraction of tests passing>` with two
+   decimals, e.g. `Rating: 0.83`

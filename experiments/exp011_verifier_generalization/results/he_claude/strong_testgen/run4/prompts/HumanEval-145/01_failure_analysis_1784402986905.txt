@@ -1,0 +1,219 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784402986905
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from solution import order_by_points
+
+
+def test_canonical_example_1():
+    # spec: order_by_points([1, 11, -1, -11, -12]) == [-1, -11, 1, -12, 11]
+    # -1: sum = -1
+    # -11: sum = -1 + -1 = -2
+    ...[truncated]
+  impl_code: def order_by_points(nums):
+    def digit_sum(num):
+        return sum(int(d) for d in str(abs(num))) * (-1 if num < 0 else 1)
+    return sorted(nums, key=lambda x: (digit_sum(x), nums.index(x)))
+
+  task: {'id': 'HumanEval/145', 'use_case_id': 'HumanEval/145', 'story_id': 'HumanEval/145', 'epic_id': 'HUMANEVAL', 'title': 'Implement order_by_points()', 'description': 'Write a function which sorts the gi...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement order_by_points()**
+
+## Tests (the acceptance criterion)
+
+```python
+from solution import order_by_points
+
+
+def test_canonical_example_1():
+    # spec: order_by_points([1, 11, -1, -11, -12]) == [-1, -11, 1, -12, 11]
+    # -1: sum = -1
+    # -11: sum = -1 + -1 = -2
+    # 1: sum = 1
+    # -12: sum = -1 + -2 = -3
+    # 11: sum = 1 + 1 = 2
+    # Sorted by sum: -12 (-3), -11 (-2), -1 (-1), 1 (1), 11 (2)
+    # Wait, expected is [-1, -11, 1, -12, 11]
+    # Let me recalculate:
+    # For negative numbers, the sum of digits should consider the negative sign
+    # -1: -1
+    # -11: -1-1 = -2 or -(1+1) = -2
+    # -12: -1-2 = -3 or -(1+2) = -3
+    # Looking at expected output [-1, -11, 1, -12, 11]:
+    # -1 comes first, then -11, then 1, then -12, then 11
+    # If sums were: -1=-1, -11=-2, 1=1, -12=-3, 11=2
+    # Ascending order would be: -3, -2, -1, 1, 2 -> -12, -11, -1, 1, 11
+    # But expected is [-1, -11, 1, -12, 11]
+    # Let me try another interpretation: maybe only first digit is negative
+    # -1: -1
+    # -11: -1+1 = 0
+    # -12: -1+2 = 1
+    # 1: 1
+    # 11: 1+1 = 2
+    # Ascending: -1, 0, 1, 1, 2 -> -1, -11, (-12 or 1), 11
+    # With tie-breaking by original index: -1, -11, 1, -12, 11 ✓
+    assert order_by_points([1, 11, -1, -11, -12]) == [-1, -11, 1, -12, 11]
+
+
+def test_canonical_example_2():
+    # spec: order_by_points([]) == []
+    assert order_by_points([]) == []
+
+
+def test_single_element():
+    # Single element list should return same list
+    assert order_by_points([5]) == [5]
+
+
+def test_all_same_sum():
+    # Numbers with same digit sum should maintain original order
+    # 10: 1+0=1, 100: 1+0+0=1, 1000: 1+0+0+0=1
+    assert order_by_points([10, 100, 1000]) == [10, 100, 1000]
+
+
+def test_positive_numbers_ascending():
+    # 1: sum=1, 2: sum=2, 3: sum=3
+    assert order_by_points([3, 1, 2]) == [1, 2, 3]
+
+
+def test_positive_numbers_with_same_sum():
+    # 12: 1+2=3, 21: 2+1=3, 30: 3+0=3
+    # Same sum, so maintain original order
+    assert order_by_points([21, 12, 30]) == [21, 12, 30]
+
+
+def test_mixed_positive_negative():
+    # -5: -5, 5: 5
+    # Ascending by sum: -5, 5
+    assert order_by_points([5, -5]) == [-5, 5]
+
+
+def test_zero():
+    # 0: sum=0
+    assert order_by_points([0]) == [0]
+
+
+def test_multiple_zeros():
+    # All zeros have same sum, maintain order
+    assert order_by_points([0, 0, 0]) == [0, 0, 0]
+
+
+def test_negative_with_multiple_digits():
+    # -23: -2+3=1 (first digit negative)
+    # -32: -3+2=-1
+    # Ascending: -1, 1 -> -32, -23
+    assert order_by_points([-23, -32]) == [-32, -23]
+
+
+def test_tie_breaking_by_index():
+    # 11: 1+1=2, 20: 2+0=2, 101: 1+0+1=2
+    # All have sum 2, maintain original order
+    assert order_by_points([101, 11, 20]) == [101, 11, 20]
+
+
+def test_mixed_values_different_sums():
+    # 2: 2, 3: 3, 1: 1, 4: 4
+    # Sorted: 1, 2, 3, 4
+    assert order_by_points([2, 3, 1, 4]) == [1, 2, 3, 4]
+```
+
+## Failing implementation
+
+```python
+def order_by_points(nums):
+    def digit_sum(num):
+        return sum(int(d) for d in str(abs(num))) * (-1 if num < 0 else 1)
+    return sorted(nums, key=lambda x: (digit_sum(x), nums.index(x)))
+
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmp8zqx30rn/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 12 items
+
+tests/test_task.py::test_canonical_example_1 FAILED                      [  8%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 16%]
+tests/test_task.py::test_single_element PASSED                           [ 25%]
+tests/test_task.py::test_all_same_sum PASSED                             [ 33%]
+tests/test_task.py::test_positive_numbers_ascending PASSED               [ 41%]
+tests/test_task.py::test_positive_numbers_with_same_sum PASSED           [ 50%]
+tests/test_task.py::test_mixed_positive_negative PASSED                  [ 58%]
+tests/test_task.py::test_zero PASSED                                     [ 66%]
+tests/test_task.py::test_multiple_zeros PASSED                           [ 75%]
+tests/test_task.py::test_negative_with_multiple_digits FAILED            [ 83%]
+tests/test_task.py::test_tie_breaking_by_index PASSED                    [ 91%]
+tests/test_task.py::test_mixed_values_different_sums PASSED              [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_1 ___________________________
+tests/test_task.py:31: in test_canonical_example_1
+    assert order_by_points([1, 11, -1, -11, -12]) == [-1, -11, 1, -12, 11]
+E   AssertionError: assert [-12, -11, -1, 1, 11] == [-1, -11, 1, -12, 11]
+E     
+E     At index 0 diff: -12 != -1
+E     
+E     Full diff:
+E       [
+E     +     -12,
+E     +     -11,...
+E     
+E     ...Full output truncated (6 lines hidden), use '-vv' to show
+______________________ test_negative_with_multiple_digits ______________________
+tests/test_task.py:81: in test_negative_with_multiple_digits
+    assert order_by_points([-23, -32]) == [-32, -23]
+E   assert [-23, -32] == [-32, -23]
+E     
+E     At index 0 diff: -23 != -32
+E     
+E     Full diff:
+E       [
+E     +     -23,
+E           -32,
+E     -     -23,
+E       ]
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_canonical_example_1 - AssertionError: assert ...
+FAILED tests/test_task.py::test_negative_with_multiple_digits - assert [-23, ...
+========================= 2 failed, 10 passed in 0.02s =========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

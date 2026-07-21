@@ -1,0 +1,37 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+## Analysis
+
+**test_capacity_exceeds_water** — expected 2, got 1
+
+Inputs: `grid = [[1,0,1], [0,1,0]]`, `capacity = 10`
+
+Expected: 2
+
+Trace:
+- Row 0: `[1,0,1]` has sum = 2 water units
+- Row 1: `[0,1,0]` has sum = 1 water unit
+- Current implementation computes:
+  - `total_water = 2 + 1 = 3`
+  - Returns `(3 + 10 - 1) // 10 = 12 // 10 = 1`
+
+The test comment states "need 2 lowers to empty" — one lower per row (row 0 has 2 units, row 1 has 1 unit).
+
+Looking at all passing tests vs. this failing test:
+- `test_canonical_example_1`: 6 water units total, capacity 1, returns 6 (6 lowers)
+- `test_canonical_example_2`: 9 water units total across 4 rows, capacity 2, returns 5
+  - Row 0: 2 units → 1 lower
+  - Row 1: 0 units → 0 lowers
+  - Row 2: 4 units → 2 lowers
+  - Row 3: 3 units → 2 lowers (ceiling of 3/2)
+  - Total: 1 + 0 + 2 + 2 = 5 lowers ✓
+
+The pattern is clear: **the bucket must be lowered once per row** (even if a row contains some water but less than capacity). The implementation must compute lowers **per row**, not across all water globally.
+
+**Root cause:** The implementation sums all water across all rows and divides by capacity once. The correct algorithm requires computing ceiling division of water per row, then summing those results.
+
+## FIX DIRECTIVES:
+
+FIX: in max_fill, replace the entire function body with a row-by-row approach: initialize `total_lowers = 0`, iterate through each row in grid, for each row compute `water_in_row = sum(row)`, add `(water_in_row + capacity - 1) // capacity` to total_lowers, and return total_lowers.

@@ -1,0 +1,138 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784445692574
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from solution import order_by_points
+
+def test_canonical_example_1():
+    # spec: order_by_points([1, 11, -1, -11, -12]) -> [-1, -11, 1, -12, 11]
+    # sum of digits: |-1|=1, |-11|=2, |1|=1, |-12|=3, ...[truncated]
+  impl_code: def order_by_points(nums):
+    def sum_of_digits(n):
+        return sum(int(d) for d in str(abs(n)))
+    return sorted(nums, key=sum_of_digits)
+  task: {'id': 'HumanEval/145', 'use_case_id': 'HumanEval/145', 'story_id': 'HumanEval/145', 'epic_id': 'HUMANEVAL', 'title': 'Implement order_by_points()', 'description': 'Write a function which sorts the gi...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement order_by_points()**
+
+## Tests (the acceptance criterion)
+
+```python
+from solution import order_by_points
+
+def test_canonical_example_1():
+    # spec: order_by_points([1, 11, -1, -11, -12]) -> [-1, -11, 1, -12, 11]
+    # sum of digits: |-1|=1, |-11|=2, |1|=1, |-12|=3, |11|=2
+    # ordered by sums: [-1, 1] (index 2, 0), [-11, 11] (index 3, 1), [-12]
+    assert order_by_points([1, 11, -1, -11, -12]) == [-1, -11, 1, -12, 11]
+
+def test_canonical_example_2():
+    # spec: order_by_points([]) -> []
+    # empty list
+    assert order_by_points([]) == []
+
+def test_sorting_logic_no_ties():
+    # testing primary sorting logic on a simple case without ties
+    # input: [3, 20, 100]
+    # sum of digits: |3|=3, |20|=2, |100|=1
+    # ordered by sums: [100, 20, 3]
+    assert order_by_points([3, 20, 100]) == [100, 20, 3]
+
+def test_stable_sort_tie_breaker():
+    # testing the stable sort tie-breaking rule
+    # input: [12, 3, 21]
+    # sum of digits: |12|=3, |3|=3, |21|=3
+    # ordered by sums but retains original order: [12, 3, 21]
+    assert order_by_points([12, 3, 21]) == [12, 3, 21]
+
+Final score: 0.60
+```
+
+## Failing implementation
+
+```python
+def order_by_points(nums):
+    def sum_of_digits(n):
+        return sum(int(d) for d in str(abs(n)))
+    return sorted(nums, key=sum_of_digits)
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpa3aw3kfz/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+_____________________ ERROR collecting tests/test_task.py ______________________
+/home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/lib/python3.12/site-packages/_pytest/python.py:508: in importtestmodule
+    mod = import_path(
+/home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:596: in import_path
+    importlib.import_module(module_name)
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1331: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:935: in _load_unlocked
+    ???
+/home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/lib/python3.12/site-packages/_pytest/assertion/rewrite.py:179: in exec_module
+    source_stat, co = _rewrite_test(fn, self.config)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/lib/python3.12/site-packages/_pytest/assertion/rewrite.py:348: in _rewrite_test
+    tree = ast.parse(source, filename=strfn)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/ast.py:52: in parse
+    return compile(source, filename, mode, flags,
+E     File "/tmp/tmpa3aw3kfz/solution/tests/test_task.py", line 28
+E       Final score: 0.60
+E             ^^^^^
+E   SyntaxError: invalid syntax
+=========================== short test summary info ============================
+ERROR tests/test_task.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+=============================== 1 error in 0.09s ===============================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

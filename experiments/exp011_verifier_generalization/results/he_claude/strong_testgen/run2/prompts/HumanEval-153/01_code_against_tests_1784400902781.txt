@@ -1,0 +1,163 @@
+================================================================================
+TEMPLATE: judge/code_against_tests.j2
+TIMESTAMP: 1784400902781
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_code: from solution import Strongest_Extension
+
+
+def test_canonical_example_1():
+    # spec: Strongest_Extension('my_class', ['AA', 'Be', 'CC']) == 'my_class.AA'
+    # 'AA': CAP=2, SM=0, strength=2-0=2
+    ...[truncated]
+  impl_code: def Strongest_Extension(class_name, extensions):
+    strongest_extension = None
+    strongest_strength = float('-inf')
+
+    for extension in extensions:
+        CAP = sum(1 for c in extension if c.isu...[truncated]
+  task: {'id': 'HumanEval/153', 'use_case_id': 'HumanEval/153', 'story_id': 'HumanEval/153', 'epic_id': 'HUMANEVAL', 'title': 'Implement Strongest_Extension()', 'description': 'You will be given the name of a...[truncated]
+  recent_commits: []
+================================================================================
+
+You are predicting whether an implementation will pass a specific test suite. Trace the code
+with each test's inputs; do not judge style, design, or robustness — a crude implementation
+that passes every test rates 1.00, an elegant one that fails a test rates lower.
+
+## Task context
+
+**Implement Strongest_Extension()**
+
+## Tests
+
+```python
+from solution import Strongest_Extension
+
+
+def test_canonical_example_1():
+    # spec: Strongest_Extension('my_class', ['AA', 'Be', 'CC']) == 'my_class.AA'
+    # 'AA': CAP=2, SM=0, strength=2-0=2
+    # 'Be': CAP=1, SM=1, strength=1-1=0
+    # 'CC': CAP=2, SM=0, strength=2-0=2
+    # 'AA' and 'CC' have same strength 2, 'AA' comes first
+    assert Strongest_Extension('my_class', ['AA', 'Be', 'CC']) == 'my_class.AA'
+
+
+def test_canonical_example_2():
+    # spec: Strongest_Extension('Slices', ['SErviNGSliCes', 'Cheese', 'StuFfed']) == 'Slices.SErviNGSliCes'
+    # 'SErviNGSliCes': CAP=5 (S,E,N,G,C), SM=8 (r,v,i,l,i,e,s), strength=5-8=-3
+    # Wait, spec says strength is -1 for 'SErviNGSliCes'
+    # Let me recount: S(cap)E(cap)r(low)v(low)i(low)N(cap)G(cap)S(cap)l(low)i(low)C(cap)e(low)s(low)
+    # CAP: S,E,N,G,S,C = 6
+    # SM: r,v,i,l,i,e,s = 7
+    # strength = 6-7 = -1 ✓
+    # 'Cheese': C(cap)h(low)e(low)e(low)s(low)e(low) -> CAP=1, SM=5, strength=1-5=-4
+    # 'StuFfed': S(cap)t(low)u(low)F(cap)f(low)e(low)d(low) -> CAP=2, SM=5, strength=2-5=-3
+    # Strongest is 'SErviNGSliCes' with strength -1
+    assert Strongest_Extension('Slices', ['SErviNGSliCes', 'Cheese', 'StuFfed']) == 'Slices.SErviNGSliCes'
+
+
+def test_single_extension():
+    # Only one extension, should return it regardless of strength
+    # 'abc': CAP=0, SM=3, strength=0-3=-3
+    assert Strongest_Extension('MyClass', ['abc']) == 'MyClass.abc'
+
+
+def test_all_uppercase_extension():
+    # 'HELLO': CAP=5, SM=0, strength=5-0=5
+    # 'world': CAP=0, SM=5, strength=0-5=-5
+    # Strongest is 'HELLO'
+    assert Strongest_Extension('Test', ['HELLO', 'world']) == 'Test.HELLO'
+
+
+def test_all_lowercase_extension():
+    # 'hello': CAP=0, SM=5, strength=0-5=-5
+    # 'WORLD': CAP=5, SM=0, strength=5-0=5
+    # Strongest is 'WORLD'
+    assert Strongest_Extension('Test', ['hello', 'WORLD']) == 'Test.WORLD'
+
+
+def test_tie_first_wins():
+    # 'AB': CAP=2, SM=0, strength=2-0=2
+    # 'CD': CAP=2, SM=0, strength=2-0=2
+    # 'EF': CAP=2, SM=0, strength=2-0=2
+    # All have same strength, first one 'AB' should win
+    assert Strongest_Extension('Class', ['AB', 'CD', 'EF']) == 'Class.AB'
+
+
+def test_mixed_case_extensions():
+    # 'AbC': CAP=2 (A,C), SM=1 (b), strength=2-1=1
+    # 'aBc': CAP=1 (B), SM=2 (a,c), strength=1-2=-1
+    # 'ABC': CAP=3, SM=0, strength=3-0=3
+    # Strongest is 'ABC' with strength 3
+    assert Strongest_Extension('Foo', ['AbC', 'aBc', 'ABC']) == 'Foo.ABC'
+
+
+def test_extension_with_non_alphabetic_characters():
+    # Extension names may contain non-alphabetic characters (not restricted in spec)
+    # 'A1B': CAP=2 (A,B), SM=0, strength=2-0=2 (1 is neither upper nor lower)
+    # 'a2b': CAP=0, SM=2 (a,b), strength=0-2=-2
+    # Strongest is 'A1B'
+    assert Strongest_Extension('Class', ['A1B', 'a2b']) == 'Class.A1B'
+
+
+def test_negative_strength_extensions():
+    # 'abc': CAP=0, SM=3, strength=0-3=-3
+    # 'def': CAP=0, SM=3, strength=0-3=-3
+    # 'ghi': CAP=0, SM=3, strength=0-3=-3
+    # All have same strength -3, first one 'abc' should win
+    assert Strongest_Extension('Test', ['abc', 'def', 'ghi']) == 'Test.abc'
+
+
+def test_positive_strength_extensions():
+    # 'ABC': CAP=3, SM=0, strength=3-0=3
+    # 'DEF': CAP=3, SM=0, strength=3-0=3
+    # All have same strength 3, first one 'ABC' should win
+    assert Strongest_Extension('Test', ['ABC', 'DEF']) == 'Test.ABC'
+
+
+def test_zero_strength_extension():
+    # 'Aa': CAP=1, SM=1, strength=1-1=0
+    # 'Bb': CAP=1, SM=1, strength=1-1=0
+    # Both have strength 0, first one 'Aa' should win
+    assert Strongest_Extension('Zero', ['Aa', 'Bb']) == 'Zero.Aa'
+```
+
+## Implementation
+
+```python
+def Strongest_Extension(class_name, extensions):
+    strongest_extension = None
+    strongest_strength = float('-inf')
+
+    for extension in extensions:
+        CAP = sum(1 for c in extension if c.isupper())
+        SM = sum(1 for c in extension if c.islower())
+        strength = CAP - SM
+
+        if strength > strongest_strength:
+            strongest_strength = strength
+            strongest_extension = extension
+
+    return f'{class_name}.{strongest_extension}'
+```
+
+## Method
+
+For EACH test function: state the inputs, trace the implementation's computation step by
+step (do the arithmetic explicitly), state the value the test expects, and conclude PASS or
+FAIL for that test. Check import/name compatibility first: if the tests cannot even import
+the implementation, every test fails.
+
+Also flag test gaming if you see it (hardcoded answers for specific inputs, input
+pattern-matching): report it in one line, but rate on predicted test outcomes only.
+
+## Output format (exactly this structure)
+
+1. One line per test, in this shape:
+   `test_canonical_example_1: PASS — computes 5 for [1,2,1,2,1,1,1], matching the assertion`
+   If you cannot trace a test's outcome from the code, mark it FAIL and say why the trace
+   is blocked — an unverifiable pass prediction is not a pass.
+2. If any FAIL: one short paragraph naming the root cause in the implementation.
+3. The last line must be exactly: `Rating: <predicted fraction of tests passing>` with two
+   decimals, e.g. `Rating: 0.83`

@@ -1,0 +1,214 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784401362688
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: import pytest
+from solution import fizz_buzz
+
+
+#
+# Canonical Examples from the Specification
+#
+
+def test_canonical_example_1():
+    """Test the first example from the specification."""
+    # spec: fiz...[truncated]
+  impl_code: def fizz_buzz(n: int):
+    count = 0
+    seen = set()
+    for i in range(n):
+        if i % 11 == 0 or i % 13 == 0:
+            if i not in seen:
+                count += str(i).count('7')
+           ...[truncated]
+  task: {'id': 'HumanEval/36', 'use_case_id': 'HumanEval/36', 'story_id': 'HumanEval/36', 'epic_id': 'HUMANEVAL', 'title': 'Implement fizz_buzz()', 'description': 'Return the number of times the digit 7 appea...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement fizz_buzz()**
+
+## Tests (the acceptance criterion)
+
+```python
+import pytest
+from solution import fizz_buzz
+
+
+#
+# Canonical Examples from the Specification
+#
+
+def test_canonical_example_1():
+    """Test the first example from the specification."""
+    # spec: fizz_buzz(50) -> 0
+    # Integers less than 50 divisible by 11 or 13:
+    # 0, 11, 13, 22, 26, 33, 39, 44
+    # None of these numbers contain the digit 7.
+    assert fizz_buzz(50) == 0
+
+def test_canonical_example_2():
+    """Test the second example from the specification."""
+    # spec: fizz_buzz(78) -> 2
+    # Integers less than 78 divisible by 11 or 13 include 77.
+    # 77 is divisible by 11. It contains the digit 7 two times.
+    # No other such number up to 77 contains a 7.
+    assert fizz_buzz(78) == 2
+
+def test_canonical_example_3():
+    """Test the third example from the specification."""
+    # spec: fizz_buzz(79) -> 3
+    # Integers less than 79 divisible by 11 or 13 include 77 and 78.
+    # 77 (divisible by 11) contains two '7's.
+    # 78 (divisible by 13) contains one '7'.
+    # Total = 2 + 1 = 3.
+    assert fizz_buzz(79) == 3
+
+
+#
+# Additional tests covering various scenarios based on the specification
+#
+
+def test_n_is_zero():
+    """Test with n=0, where the range of integers is empty."""
+    # The range of integers less than 0 is empty.
+    # The count should be 0.
+    assert fizz_buzz(0) == 0
+
+def test_n_is_one():
+    """Test with n=1, where the range contains only 0."""
+    # The only integer less than 1 is 0.
+    # 0 is divisible by 11 and 13, but contains no '7's.
+    # The count should be 0.
+    assert fizz_buzz(1) == 0
+
+def test_no_multiples_in_range_except_zero():
+    """Test a small n where no numbers (other than 0) are divisible by 11 or 13."""
+    # Integers less than 11: 0, 1, ..., 10.
+    # Only 0 is divisible by 11 or 13. It has no '7's.
+    assert fizz_buzz(11) == 0
+
+def test_first_number_with_seven_is_not_divisible():
+    """Test a range that includes 7, but 7 is not divisible by 11 or 13."""
+    # Integers less than 8: 0, 1, ..., 7.
+    # Only 0 is divisible by 11 or 13.
+    # The number 7 is not considered as it is not divisible by 11 or 13.
+    assert fizz_buzz(8) == 0
+
+def test_boundary_before_first_hit():
+    """Test with n=77. The range is up to 76, so 77 is not included."""
+    # Integers less than 77 divisible by 11 or 13:
+    # {0, 11, 13, 22, 26, 33, 39, 44, 52, 55, 65, 66}.
+    # None contain the digit 7.
+    assert fizz_buzz(77) == 0
+
+def test_multiple_occurrences_from_different_divisors():
+    """Test a range that includes multiple numbers containing '7' from both divisors."""
+    # Integers less than 120.
+    # Numbers divisible by 11 or 13 containing '7':
+    # - 77 (divisible by 11): two '7's
+    # - 78 (divisible by 13): one '7'
+    # - 117 (divisible by 13): one '7'
+    # Total = 2 + 1 + 1 = 4.
+    assert fizz_buzz(120) == 4
+
+def test_number_divisible_by_both_11_and_13():
+    """Test a range that includes a number divisible by both 11 and 13."""
+    # Integers less than 144.
+    # Numbers divisible by 11 or 13 containing '7':
+    # - 77: two '7's
+    # - 78: one '7'
+    # - 117: one '7'
+    # The number 143 is 11 * 13, but contains no '7's.
+    # Total = 2 + 1 + 1 = 4.
+    assert fizz_buzz(144) == 4
+
+def test_large_n_with_multiple_sevens():
+    """Test a larger n with more complex numbers containing '7'."""
+    # Integers less than 800.
+    # Divisible by 11 with '7's: 77 (2), 176 (1), 275 (1), 374 (1), 473 (1),
+    # 572 (1), 671 (1), 737 (2), 770 (2). Total from 11s: 12.
+    # Divisible by 13 with '7's (and not by 11): 78 (1), 117 (1), 247 (1),
+    # 273 (1), 377 (2), 637 (1), 767 (2), 793 (1). Total from 13s: 10.
+    # Total = 12 + 10 = 22.
+    assert fizz_buzz(800) == 22
+```
+
+## Failing implementation
+
+```python
+def fizz_buzz(n: int):
+    count = 0
+    seen = set()
+    for i in range(n):
+        if i % 11 == 0 or i % 13 == 0:
+            if i not in seen:
+                count += str(i).count('7')
+                seen.add(i)
+    return count
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmptk_nr8ax/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 11 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [  9%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 18%]
+tests/test_task.py::test_canonical_example_3 PASSED                      [ 27%]
+tests/test_task.py::test_n_is_zero PASSED                                [ 36%]
+tests/test_task.py::test_n_is_one PASSED                                 [ 45%]
+tests/test_task.py::test_no_multiples_in_range_except_zero PASSED        [ 54%]
+tests/test_task.py::test_first_number_with_seven_is_not_divisible PASSED [ 63%]
+tests/test_task.py::test_boundary_before_first_hit PASSED                [ 72%]
+tests/test_task.py::test_multiple_occurrences_from_different_divisors PASSED [ 81%]
+tests/test_task.py::test_number_divisible_by_both_11_and_13 PASSED       [ 90%]
+tests/test_task.py::test_large_n_with_multiple_sevens FAILED             [100%]
+
+=================================== FAILURES ===================================
+______________________ test_large_n_with_multiple_sevens _______________________
+tests/test_task.py:101: in test_large_n_with_multiple_sevens
+    assert fizz_buzz(800) == 22
+E   assert 41 == 22
+E    +  where 41 = fizz_buzz(800)
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_large_n_with_multiple_sevens - assert 41 == 22
+========================= 1 failed, 10 passed in 0.02s =========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

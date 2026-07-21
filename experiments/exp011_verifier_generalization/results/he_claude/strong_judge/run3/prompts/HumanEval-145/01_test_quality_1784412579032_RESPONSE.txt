@@ -1,0 +1,121 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+## Check 0 — Canonical Example Coverage
+
+The specification provides two worked examples:
+1. `order_by_points([1, 11, -1, -11, -12]) == [-1, -11, 1, -12, 11]`
+2. `order_by_points([]) == []`
+
+Both examples appear verbatim in the test suite:
+- `test_canonical_example_1` tests the first example with exact inputs and outputs
+- `test_canonical_example_2` tests the second example with exact inputs and outputs
+
+✓ All canonical examples are covered with exact values.
+
+## Check 1 — Fidelity
+
+**test_canonical_example_1:**
+Recomputing the expected value for `[1, 11, -1, -11, -12]`:
+- `1`: sum of digits = 1
+- `11`: sum of digits = 1 + 1 = 2
+- `-1`: For negative numbers, the spec example shows -1 has sum 1 (treating the negative sign specially on first digit only: -1 → -1, giving sum = -1... but the expected output shows [-1, -11, 1, -12, 11] which suggests -1 and 1 both have sum 1, grouped together)
+
+Let me reconsider. Looking at the expected output `[-1, -11, 1, -12, 11]`:
+- Group with sum 1: [-1, 1] (preserving original order: -1 appears at index 2, 1 at index 0, so -1 comes first)
+- Group with sum 2: [-11, 11] (preserving original order: -11 at index 3, 11 at index 1... wait, that would put 11 first)
+
+Let me trace through more carefully with original indices:
+- Index 0: 1, sum = 1
+- Index 1: 11, sum = 2
+- Index 2: -1, sum = 1
+- Index 3: -11, sum = 2
+- Index 4: -12, sum = 3
+
+Expected: `[-1, -11, 1, -12, 11]`
+
+This suggests:
+- -1 (index 2, sum 1) comes first
+- -11 (index 3, sum 2) comes second
+- 1 (index 0, sum 1) comes third
+- -12 (index 4, sum 3) comes fourth
+- 11 (index 1, sum 2) comes fifth
+
+This ordering doesn't make sense with "order them based on their index in original list" for ties. Let me reconsider the sum calculation for negatives.
+
+Perhaps for negative numbers: -11 → -(1+1) = -2, -12 → -(1+2) = -3, -1 → -1
+
+With this interpretation:
+- 1: sum = 1
+- 11: sum = 2
+- -1: sum = -1
+- -11: sum = -2
+- -12: sum = -3
+
+Sorted by sum: -12 (-3), -11 (-2), -1 (-1), 1 (1), 11 (2)
+But expected is: [-1, -11, 1, -12, 11]
+
+That doesn't match either. Let me try: the negative sign only affects the first digit.
+- -1: -1 (first and only digit is negative)
+- -11: -1 + 1 = 0
+- -12: -1 + 2 = 1
+
+With this:
+- -1: sum = -1
+- -11: sum = 0
+- 1: sum = 1
+- -12: sum = 1
+- 11: sum = 2
+
+Sorted: -1 (-1), -11 (0), 1 (1), -12 (1, index 4), 11 (2)
+Expected: [-1, -11, 1, -12, 11]
+
+This matches! ✓ The test expected value is correct.
+
+**test_canonical_example_2:**
+Empty list returns empty list. ✓ Correct.
+
+## Check 2 — No Invented Constraints
+
+Both tests only verify the behavior shown in the canonical examples. No additional validation, error handling, or constraints are tested. ✓ No invented constraints.
+
+## Check 3 — Coverage
+
+Specified behaviors:
+1. ✓ Sort integers by sum of their digits (ascending)
+2. ✓ Negative numbers handled (first digit takes the sign)
+3. ✓ Stable sort: preserve original index order for equal sums
+4. ✓ Empty list handled
+
+However, the suite only tests the two canonical examples. Missing:
+- Single element list
+- All elements with same digit sum (to verify stable sort more thoroughly)
+- Positive numbers only
+- Larger numbers
+- Mix of single and multi-digit numbers beyond the example
+
+The specification states "Write a function which sorts the given list of integers" but only provides two examples. The test suite covers exactly those examples but lacks additional coverage of the general algorithm's edge cases.
+
+## Check 4 — Sanity
+
+- ✓ Imports from `solution` package
+- ✓ Function name matches: `order_by_points`
+- ✓ Syntactically valid pytest
+- ✓ Parameter name matches (`nums`)
+
+## Findings Summary
+
+1. **Fidelity:** Both assertions have correct expected values matching the specification examples.
+2. **No invented constraints:** No extra validation or constraints tested.
+3. **Coverage:** Only the two canonical examples are tested. Missing: single-element lists, all-same-sum lists for better stable-sort verification, positive-only lists, and other general cases. (Deduction: 0.20 × 4 = 0.80)
+4. **Sanity:** All checks pass.
+
+## Directives
+
+ADD: a test with a single-element list, e.g., `order_by_points([42]) == [42]`
+ADD: a test with all positive numbers to verify basic sorting, e.g., `order_by_points([123, 21, 3]) == [3, 21, 123]` (sums: 6, 3, 3 → [21, 3, 123] by stable sort → [3, 21, 123] by ascending)
+ADD: a test with multiple numbers having the same digit sum to verify stable sort preservation, e.g., `order_by_points([5, 14, 23]) == [5, 14, 23]` (all sum to 5)
+ADD: a test with larger multi-digit numbers
+
+Final score: 0.20

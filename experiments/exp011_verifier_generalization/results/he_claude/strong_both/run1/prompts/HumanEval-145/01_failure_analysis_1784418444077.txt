@@ -1,0 +1,257 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784418444077
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from solution import order_by_points
+
+
+def test_canonical_example_1():
+    # spec: order_by_points([1, 11, -1, -11, -12]) == [-1, -11, 1, -12, 11]
+    # -1: sum = -1
+    # -11: sum = -1 + -1 = -2
+    ...[truncated]
+  impl_code: def order_by_points(nums):
+    def digit_sum(n):
+        return sum(int(digit) for digit in str(abs(n)))
+    return sorted(nums, key=lambda x: (digit_sum(x), nums.index(x)))
+  task: {'id': 'HumanEval/145', 'use_case_id': 'HumanEval/145', 'story_id': 'HumanEval/145', 'epic_id': 'HUMANEVAL', 'title': 'Implement order_by_points()', 'description': 'Write a function which sorts the gi...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement order_by_points()**
+
+## Tests (the acceptance criterion)
+
+```python
+from solution import order_by_points
+
+
+def test_canonical_example_1():
+    # spec: order_by_points([1, 11, -1, -11, -12]) == [-1, -11, 1, -12, 11]
+    # -1: sum = -1
+    # -11: sum = -1 + -1 = -2
+    # 1: sum = 1
+    # -12: sum = -1 + -2 = -3
+    # 11: sum = 1 + 1 = 2
+    # Sorted by sum: -12 (-3), -11 (-2), -1 (-1), 1 (1), 11 (2)
+    # Wait, let me recalculate based on the expected output [-1, -11, 1, -12, 11]
+    # -1 comes first, -11 second, 1 third, -12 fourth, 11 fifth
+    # For negative numbers, the first digit carries the sign
+    # -1: sum = -1
+    # -11: sum = -1 + 1 = 0
+    # 1: sum = 1
+    # -12: sum = -1 + 2 = 1
+    # 11: sum = 1 + 1 = 2
+    # Sorted: -1 (-1), -11 (0), 1 (1), -12 (1), 11 (2)
+    # With ties preserving original order: -1, -11, 1, -12, 11
+    assert order_by_points([1, 11, -1, -11, -12]) == [-1, -11, 1, -12, 11]
+
+
+def test_canonical_example_2():
+    # spec: order_by_points([]) == []
+    assert order_by_points([]) == []
+
+
+def test_single_element():
+    # Single element list should return the same list
+    assert order_by_points([5]) == [5]
+
+
+def test_all_same_digit_sum():
+    # When all numbers have the same digit sum, preserve original order
+    # 10: 1+0=1, 100: 1+0+0=1, 1000: 1+0+0+0=1
+    assert order_by_points([10, 100, 1000]) == [10, 100, 1000]
+
+
+def test_positive_numbers_ascending():
+    # 1: sum=1, 2: sum=2, 3: sum=3
+    assert order_by_points([3, 2, 1]) == [1, 2, 3]
+
+
+def test_positive_numbers_different_sums():
+    # 123: 1+2+3=6, 45: 4+5=9, 7: 7
+    assert order_by_points([123, 45, 7]) == [7, 123, 45]
+
+
+def test_negative_single_digit():
+    # -5: sum=-5, -3: sum=-3, -1: sum=-1
+    assert order_by_points([-5, -3, -1]) == [-5, -3, -1]
+
+
+def test_mixed_positive_and_negative():
+    # 5: sum=5, -5: sum=-5
+    assert order_by_points([5, -5]) == [-5, 5]
+
+
+def test_negative_multi_digit():
+    # -23: sum=-2+3=1, -32: sum=-3+2=-1
+    assert order_by_points([-23, -32]) == [-32, -23]
+
+
+def test_preserve_order_on_tie():
+    # 12: 1+2=3, 21: 2+1=3, 30: 3+0=3
+    # All have sum 3, so preserve original order
+    assert order_by_points([12, 21, 30]) == [12, 21, 30]
+
+
+def test_zero():
+    # 0: sum=0
+    assert order_by_points([0]) == [0]
+
+
+def test_zero_with_others():
+    # -1: sum=-1, 0: sum=0, 1: sum=1
+    assert order_by_points([-1, 0, 1]) == [-1, 0, 1]
+
+
+def test_multiple_zeros():
+    # All zeros have sum 0, preserve order
+    assert order_by_points([0, 0, 0]) == [0, 0, 0]
+```
+
+## Failing implementation
+
+```python
+def order_by_points(nums):
+    def digit_sum(n):
+        return sum(int(digit) for digit in str(abs(n)))
+    return sorted(nums, key=lambda x: (digit_sum(x), nums.index(x)))
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpibazgtjl/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 13 items
+
+tests/test_task.py::test_canonical_example_1 FAILED                      [  7%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 15%]
+tests/test_task.py::test_single_element PASSED                           [ 23%]
+tests/test_task.py::test_all_same_digit_sum PASSED                       [ 30%]
+tests/test_task.py::test_positive_numbers_ascending PASSED               [ 38%]
+tests/test_task.py::test_positive_numbers_different_sums FAILED          [ 46%]
+tests/test_task.py::test_negative_single_digit FAILED                    [ 53%]
+tests/test_task.py::test_mixed_positive_and_negative FAILED              [ 61%]
+tests/test_task.py::test_negative_multi_digit FAILED                     [ 69%]
+tests/test_task.py::test_preserve_order_on_tie PASSED                    [ 76%]
+tests/test_task.py::test_zero PASSED                                     [ 84%]
+tests/test_task.py::test_zero_with_others FAILED                         [ 92%]
+tests/test_task.py::test_multiple_zeros PASSED                           [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_1 ___________________________
+tests/test_task.py:22: in test_canonical_example_1
+    assert order_by_points([1, 11, -1, -11, -12]) == [-1, -11, 1, -12, 11]
+E   AssertionError: assert [1, -1, 11, -11, -12] == [-1, -11, 1, -12, 11]
+E     
+E     At index 0 diff: 1 != -1
+E     
+E     Full diff:
+E       [
+E     +     1,
+E           -1,...
+E     
+E     ...Full output truncated (6 lines hidden), use '-vv' to show
+_____________________ test_positive_numbers_different_sums _____________________
+tests/test_task.py:48: in test_positive_numbers_different_sums
+    assert order_by_points([123, 45, 7]) == [7, 123, 45]
+E   AssertionError: assert [123, 7, 45] == [7, 123, 45]
+E     
+E     At index 0 diff: 123 != 7
+E     
+E     Full diff:
+E       [
+E     +     123,
+E           7,...
+E     
+E     ...Full output truncated (3 lines hidden), use '-vv' to show
+__________________________ test_negative_single_digit __________________________
+tests/test_task.py:53: in test_negative_single_digit
+    assert order_by_points([-5, -3, -1]) == [-5, -3, -1]
+E   AssertionError: assert [-1, -3, -5] == [-5, -3, -1]
+E     
+E     At index 0 diff: -1 != -5
+E     
+E     Full diff:
+E       [
+E     +     -1,
+E     +     -3,...
+E     
+E     ...Full output truncated (4 lines hidden), use '-vv' to show
+_______________________ test_mixed_positive_and_negative _______________________
+tests/test_task.py:58: in test_mixed_positive_and_negative
+    assert order_by_points([5, -5]) == [-5, 5]
+E   assert [5, -5] == [-5, 5]
+E     
+E     At index 0 diff: 5 != -5
+E     
+E     Full diff:
+E       [
+E     +     5,
+E           -5,
+E     -     5,
+E       ]
+__________________________ test_negative_multi_digit ___________________________
+tests/test_task.py:63: in test_negative_multi_digit
+    assert order_by_points([-23, -32]) == [-32, -23]
+E   assert [-23, -32] == [-32, -23]
+E     
+E     At index 0 diff: -23 != -32
+E     
+E     Full diff:
+E       [
+E     +     -23,
+E           -32,
+E     -     -23,
+E       ]
+____________________________ test_zero_with_others _____________________________
+tests/test_task.py:79: in test_zero_with_others
+    assert order_by_points([-1, 0, 1]) == [-1, 0, 1]
+E   AssertionError: assert [0, -1, 1] == [-1, 0, 1]
+E     
+E     At index 0 diff: 0 != -1
+E     
+E     Full diff:
+E       [
+E     +     0,
+E           -1,...
+E     
+E     ...Full output truncated (3 lines hidden), use '-vv' to show
+=========================== shor
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

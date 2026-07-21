@@ -1,0 +1,156 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+```python
+import pytest
+from solution import Strongest_Extension
+
+# Test suite for Strongest_Extension, developed in the RED phase of TDD.
+# These tests are the specification for the function.
+
+def test_canonical_example_1():
+    """
+    Tests the first example from the specification.
+    'SErviNGSliCes' is the strongest extension.
+    """
+    class_name = "Slices"
+    extensions = ['SErviNGSliCes', 'Cheese', 'StuFfed']
+    # 'SErviNGSliCes': CAP=6, SM=7 -> Strength = -1 (strongest)
+    # 'Cheese': CAP=1, SM=5 -> Strength = -4
+    # 'StuFfed': CAP=2, SM=5 -> Strength = -3
+    expected = 'Slices.SErviNGSliCes'
+    assert Strongest_Extension(class_name, extensions) == expected
+
+def test_canonical_example_2():
+    """
+    Tests the second example from the specification, which involves a tie.
+    'AA' and 'CC' have the same strength, but 'AA' comes first.
+    """
+    class_name = "my_class"
+    extensions = ['AA', 'Be', 'CC']
+    # 'AA': CAP=2, SM=0 -> Strength = 2 (strongest, comes first)
+    # 'Be': CAP=1, SM=1 -> Strength = 0
+    # 'CC': CAP=2, SM=0 -> Strength = 2
+    expected = 'my_class.AA'
+    assert Strongest_Extension(class_name, extensions) == expected
+
+def test_single_extension_in_list():
+    """
+    Tests the case where there is only one extension in the list.
+    It must be the strongest by default.
+    """
+    class_name = "File"
+    extensions = ['Document']
+    # 'Document': CAP=1, SM=7 -> Strength = -6. Only option.
+    expected = 'File.Document'
+    assert Strongest_Extension(class_name, extensions) == expected
+
+def test_all_uppercase_extensions():
+    """
+    Tests a case where all extensions are fully uppercase.
+    'DDD' has the highest strength.
+    """
+    class_name = "Constants"
+    extensions = ['A', 'BB', 'DDD']
+    # 'A': CAP=1, SM=0 -> Strength = 1
+    # 'BB': CAP=2, SM=0 -> Strength = 2
+    # 'DDD': CAP=3, SM=0 -> Strength = 3 (strongest)
+    expected = 'Constants.DDD'
+    assert Strongest_Extension(class_name, extensions) == expected
+
+def test_all_lowercase_extensions():
+    """
+    Tests a case where all extensions are fully lowercase.
+    'a' has the highest (least negative) strength.
+    """
+    class_name = "variables"
+    extensions = ['abc', 'ab', 'a']
+    # 'abc': CAP=0, SM=3 -> Strength = -3
+    # 'ab': CAP=0, SM=2 -> Strength = -2
+    # 'a': CAP=0, SM=1 -> Strength = -1 (strongest)
+    expected = 'variables.a'
+    assert Strongest_Extension(class_name, extensions) == expected
+
+def test_tie_breaking_is_first_in_list():
+    """
+    Confirms that in a tie, the extension that appears first in the list is chosen.
+    """
+    class_name = "Loader"
+    extensions = ['aB', 'CD', 'eF']
+    # 'aB': CAP=1, SM=1 -> Strength = 0
+    # 'CD': CAP=2, SM=0 -> Strength = 2 (strongest, comes first)
+    # 'eF': CAP=1, SM=1 -> Strength = 0
+    # Another extension with same strength as 'CD'
+    extensions.append('GH')
+    # 'GH': CAP=2, SM=0 -> Strength = 2
+    expected = 'Loader.CD'
+    assert Strongest_Extension(class_name, extensions) == expected
+
+def test_negative_strengths():
+    """
+    Tests a case where all extensions have negative strength.
+    The one with the least negative strength should be chosen.
+    """
+    class_name = "Weak"
+    extensions = ['aBcDe', 'abCDE', 'abcde']
+    # 'aBcDe': CAP=2, SM=3 -> Strength = -1 (strongest)
+    # 'abCDE': CAP=3, SM=2 -> Strength = 1. Oh, that's not negative.
+    # Let's retry the test case design.
+    # 'aBcDe': CAP=2, SM=3 -> Strength = -1 (strongest)
+    # 'abcD': CAP=1, SM=3 -> Strength = -2
+    # 'abcde': CAP=0, SM=5 -> Strength = -5
+    extensions = ['aBcDe', 'abcD', 'abcde']
+    expected = 'Weak.aBcDe'
+    assert Strongest_Extension(class_name, extensions) == expected
+    
+def test_tie_with_negative_strength():
+    """
+    Tests a tie-breaker where the strongest extensions have negative strength.
+    'aBc' should be chosen as it comes before 'abC'.
+    """
+    class_name = "Data"
+    extensions = ['abc', 'aBc', 'abC']
+    # 'abc': CAP=0, SM=3 -> Strength = -3
+    # 'aBc': CAP=1, SM=2 -> Strength = -1 (strongest, comes first)
+    # 'abC': CAP=1, SM=2 -> Strength = -1
+    expected = 'Data.aBc'
+    assert Strongest_Extension(class_name, extensions) == expected
+
+def test_extensions_with_non_alphabetic_chars():
+    """
+    Tests extensions containing numbers and symbols. These characters should be ignored
+    when calculating strength.
+    """
+    class_name = "Code"
+    extensions = ['v1.0', 'V2_0', 'V3-Final!']
+    # 'v1.0': CAP=0, SM=1 -> Strength = -1 (numbers/symbols ignored)
+    # 'V2_0': CAP=1, SM=0 -> Strength = 1 (strongest)
+    # 'V3-Final!': CAP=2, SM=4 -> Strength = -2
+    expected = 'Code.V2_0'
+    assert Strongest_Extension(class_name, extensions) == expected
+
+def test_extension_is_empty_string():
+    """
+    Tests that an empty string has a strength of 0 and is handled correctly.
+    """
+    class_name = "EmptyTest"
+    extensions = ['ab', '', 'Cde']
+    # 'ab': CAP=0, SM=2 -> Strength = -2
+    # '': CAP=0, SM=0 -> Strength = 0 (strongest)
+    # 'Cde': CAP=1, SM=2 -> Strength = -1
+    expected = 'EmptyTest.' # ClassName.StrongestExtensionName -> 'EmptyTest' + '.' + ''
+    assert Strongest_Extension(class_name, extensions) == expected
+
+def test_zero_strength_is_strongest():
+    """
+    Tests a case where the strongest extension has a strength of zero.
+    """
+    class_name = "Neutral"
+    extensions = ['a', 'bB', 'cCc']
+    # 'a': CAP=0, SM=1 -> Strength = -1
+    # 'bB': CAP=1, SM=1 -> Strength = 0 (strongest)
+    # 'cCc': CAP=1, SM=2 -> Strength = -1
+    expected = 'Neutral.bB'
+    assert Strongest_Extension(class_name, extensions) == expected
+```

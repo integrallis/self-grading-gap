@@ -1,0 +1,187 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784511622644
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: import pytest
+from solution import maxDifference
+
+
+def test_canonical_example_1():
+    # spec: "aaaaabbc" -> 3
+    # 'a' has frequency 5 (odd), 'b' has frequency 2 (even)
+    # max difference = 5 - 2 ...[truncated]
+  impl_code: from collections import Counter
+
+def maxDifference(s: str) -> int:
+    freq = Counter(s)
+    odd_freqs = [count for count in freq.values() if count % 2 == 1]
+    even_freqs = [count for count in freq....[truncated]
+  task: {'id': 'LCB/3753', 'use_case_id': 'LCB/3753', 'story_id': 'LCB/3753', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maxDifference()', 'description': 'You are given a string s consisting of lowercase...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement maxDifference()**
+
+## Tests (the acceptance criterion)
+
+```python
+import pytest
+from solution import maxDifference
+
+
+def test_canonical_example_1():
+    # spec: "aaaaabbc" -> 3
+    # 'a' has frequency 5 (odd), 'b' has frequency 2 (even)
+    # max difference = 5 - 2 = 3
+    assert maxDifference("aaaaabbc") == 3
+
+
+def test_canonical_example_2():
+    # spec: "abcabcab" -> 1
+    # 'a' has frequency 3 (odd), 'c' has frequency 2 (even)
+    # max difference = 3 - 2 = 1
+    assert maxDifference("abcabcab") == 1
+
+
+def test_single_odd_single_even_minimum_length():
+    # s = "aab": 'a' freq 2 (even), 'b' freq 1 (odd)
+    # max difference = 1 - 2 = -1
+    assert maxDifference("aab") == -1
+
+
+def test_multiple_odd_multiple_even():
+    # s = "aaabbb": 'a' freq 3 (odd), 'b' freq 3 (odd)
+    # But we need one odd and one even. This violates constraint.
+    # s = "aaaabbbb": 'a' freq 4 (even), 'b' freq 4 (even)
+    # This also violates constraint.
+    # s = "aaaabbb": 'a' freq 4 (even), 'b' freq 3 (odd)
+    # max difference = 3 - 4 = -1
+    assert maxDifference("aaaabbb") == -1
+
+
+def test_max_odd_min_even():
+    # s = "aaaaaaaab": 'a' freq 8 (even), 'b' freq 1 (odd)
+    # max difference = 1 - 8 = -7
+    # s = "aaaaaaaaab": 'a' freq 9 (odd), 'b' freq 1 (odd)
+    # s = "aaaaaaaaabc": 'a' freq 9 (odd), 'b' freq 1 (odd), 'c' freq 1 (odd)
+    # s = "aaaaaaaabbc": 'a' freq 9 (odd), 'b' freq 2 (even), 'c' freq 1 (odd)
+    # max difference = 9 - 2 = 7
+    assert maxDifference("aaaaaaaabbc") == 7
+
+
+def test_all_different_characters():
+    # s = "abcd": 'a' freq 1 (odd), 'b' freq 1 (odd), 'c' freq 1 (odd), 'd' freq 1 (odd)
+    # No even frequency, violates constraint
+    # s = "aabcd": 'a' freq 2 (even), 'b' freq 1 (odd), 'c' freq 1 (odd), 'd' freq 1 (odd)
+    # max difference = 1 - 2 = -1
+    assert maxDifference("aabcd") == -1
+
+
+def test_even_greater_than_odd():
+    # s = "aaaaab": 'a' freq 5 (odd), 'b' freq 1 (odd)
+    # s = "aaaaaab": 'a' freq 6 (even), 'b' freq 1 (odd)
+    # max difference = 1 - 6 = -5
+    assert maxDifference("aaaaaab") == -5
+
+
+def test_multiple_characters_with_different_frequencies():
+    # s = "aaabbbcccc": 'a' freq 3 (odd), 'b' freq 3 (odd), 'c' freq 4 (even)
+    # max difference = 3 - 4 = -1
+    assert maxDifference("aaabbbcccc") == -1
+
+
+def test_large_odd_small_even():
+    # s = "aaaaaaaaaaaaaaaaaabb": 'a' freq 18 (even), 'b' freq 2 (even)
+    # s = "aaaaaaaaaaaaaaaaaaaab": 'a' freq 20 (even), 'b' freq 1 (odd)
+    # max difference = 1 - 20 = -19
+    # s = "aaaaaaaaaaaaaaaaaaabb": 'a' freq 19 (odd), 'b' freq 2 (even)
+    # max difference = 19 - 2 = 17
+    assert maxDifference("aaaaaaaaaaaaaaaaaaabb") == 17
+
+
+def test_three_characters_mixed_parities():
+    # s = "aaabbccc": 'a' freq 3 (odd), 'b' freq 2 (even), 'c' freq 3 (odd)
+    # max difference candidates: 3 - 2 = 1
+    assert maxDifference("aaabbccc") == 1
+```
+
+## Failing implementation
+
+```python
+from collections import Counter
+
+def maxDifference(s: str) -> int:
+    freq = Counter(s)
+    odd_freqs = [count for count in freq.values() if count % 2 == 1]
+    even_freqs = [count for count in freq.values() if count % 2 == 0]
+    max_diff = float('-inf')
+    for odd in odd_freqs:
+        for even in even_freqs:
+            max_diff = max(max_diff, odd - even)
+    return max_diff
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmptuitu6w_/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 10 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [ 10%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 20%]
+tests/test_task.py::test_single_odd_single_even_minimum_length PASSED    [ 30%]
+tests/test_task.py::test_multiple_odd_multiple_even PASSED               [ 40%]
+tests/test_task.py::test_max_odd_min_even FAILED                         [ 50%]
+tests/test_task.py::test_all_different_characters PASSED                 [ 60%]
+tests/test_task.py::test_even_greater_than_odd PASSED                    [ 70%]
+tests/test_task.py::test_multiple_characters_with_different_frequencies PASSED [ 80%]
+tests/test_task.py::test_large_odd_small_even PASSED                     [ 90%]
+tests/test_task.py::test_three_characters_mixed_parities PASSED          [100%]
+
+=================================== FAILURES ===================================
+____________________________ test_max_odd_min_even _____________________________
+tests/test_task.py:42: in test_max_odd_min_even
+    assert maxDifference("aaaaaaaabbc") == 7
+E   AssertionError: assert -1 == 7
+E    +  where -1 = maxDifference('aaaaaaaabbc')
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_max_odd_min_even - AssertionError: assert -1 ...
+========================= 1 failed, 9 passed in 0.02s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

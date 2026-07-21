@@ -1,0 +1,133 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784446439805
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from solution import Strongest_Extension
+
+def test_canonical_example_1():
+    # spec: Strongest_Extension('Slices', ['SErviNGSliCes', 'Cheese', 'StuFfed']) 
+    # strength of SErviNGSliCes = 5 - 6 = -...[truncated]
+  impl_code: def Strongest_Extension(class_name, extensions):
+    strongest_extension = None
+    strongest_strength = float('-inf')
+
+    for extension in extensions:
+        CAP = sum(1 for c in extension if c.isu...[truncated]
+  task: {'id': 'HumanEval/153', 'use_case_id': 'HumanEval/153', 'story_id': 'HumanEval/153', 'epic_id': 'HUMANEVAL', 'title': 'Implement Strongest_Extension()', 'description': 'You will be given the name of a...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement Strongest_Extension()**
+
+## Tests (the acceptance criterion)
+
+```python
+from solution import Strongest_Extension
+
+def test_canonical_example_1():
+    # spec: Strongest_Extension('Slices', ['SErviNGSliCes', 'Cheese', 'StuFfed']) 
+    # strength of SErviNGSliCes = 5 - 6 = -1, Cheese = 1 - 5 = -4, StuFfed = 3 - 4 = -1
+    # Strongest is SErviNGSliCes (first of those with strongest strength)
+    assert Strongest_Extension('Slices', ['SErviNGSliCes', 'Cheese', 'StuFfed']) == 'Slices.SErviNGSliCes'
+
+def test_canonical_example_2():
+    # spec: Strongest_Extension('my_class', ['AA', 'Be', 'CC']) 
+    # strength of AA = 2 - 0 = 2, Be = 1 - 1 = 0, CC = 2 - 0 = 2
+    # Strongest is AA (first of those with strongest strength)
+    assert Strongest_Extension('my_class', ['AA', 'Be', 'CC']) == 'my_class.AA'
+
+def test_non_alphabetic_characters():
+    # Testing with non-alphabetic characters in extension names
+    # spec: Strongest_Extension('C', ['a-b', 'C']) 
+    # strength of a-b = 0 - 2 = -2, C = 1 - 0 = 1
+    # Strongest is C
+    assert Strongest_Extension('C', ['a-b', 'C']) == 'C.C'
+
+def test_empty_extension():
+    # Testing with an empty string in the extensions list
+    # spec: Strongest_Extension('C', ['a', '']) 
+    # strength of a = 1 - 0 = 1, '' = 0 - 0 = 0
+    # Strongest is a
+    assert Strongest_Extension('C', ['a', '']) == 'C.a'
+```
+
+## Failing implementation
+
+```python
+def Strongest_Extension(class_name, extensions):
+    strongest_extension = None
+    strongest_strength = float('-inf')
+
+    for extension in extensions:
+        CAP = sum(1 for c in extension if c.isupper())
+        SM = sum(1 for c in extension if c.islower())
+        strength = CAP - SM
+        if strength > strongest_strength:
+            strongest_strength = strength
+            strongest_extension = extension
+
+    return f'{class_name}.{strongest_extension}'
+
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpvr95uloy/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 4 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [ 25%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 50%]
+tests/test_task.py::test_non_alphabetic_characters PASSED                [ 75%]
+tests/test_task.py::test_empty_extension FAILED                          [100%]
+
+=================================== FAILURES ===================================
+_____________________________ test_empty_extension _____________________________
+tests/test_task.py:27: in test_empty_extension
+    assert Strongest_Extension('C', ['a', '']) == 'C.a'
+E   AssertionError: assert 'C.' == 'C.a'
+E     
+E     - C.a
+E     ?   -
+E     + C.
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_empty_extension - AssertionError: assert 'C.'...
+========================= 1 failed, 3 passed in 0.02s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

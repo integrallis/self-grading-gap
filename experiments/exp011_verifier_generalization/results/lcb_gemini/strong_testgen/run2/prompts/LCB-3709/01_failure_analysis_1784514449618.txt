@@ -1,0 +1,272 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784514449618
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: # test_has_special_substring.py
+import pytest
+from typing import List
+from solution import hasSpecialSubstring
+
+#
+# MANDATORY: Canonical Examples from Specification
+#
+
+def test_canonical_example_1():
+...[truncated]
+  impl_code: def hasSpecialSubstring(s: str, k: int) -> bool:
+    n = len(s)
+    if k > n:
+        return False
+    for i in range(n - k + 1):
+        substring = s[i:i + k]
+        if len(set(substring)) == 1:
+  ...[truncated]
+  task: {'id': 'LCB/3709', 'use_case_id': 'LCB/3709', 'story_id': 'LCB/3709', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement hasSpecialSubstring()', 'description': 'You are given a string s and an integer k....[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement hasSpecialSubstring()**
+
+## Tests (the acceptance criterion)
+
+```python
+# test_has_special_substring.py
+import pytest
+from typing import List
+from solution import hasSpecialSubstring
+
+#
+# MANDATORY: Canonical Examples from Specification
+#
+
+def test_canonical_example_1():
+    """
+    Test with the first canonical example from the specification.
+    s = "aaabaaa", k = 3
+    Expected: true
+    Explanation: The substring s[4:7] == "aaa" has length 3, is uniform,
+    is preceded by 'b' (different), and has no character after it.
+    """
+    assert hasSpecialSubstring("aaabaaa", 3) is True
+
+def test_canonical_example_2():
+    """
+    Test with the second canonical example from the specification.
+    s = "abc", k = 2
+    Expected: false
+    Explanation: There are no substrings of length 2 that consist of one distinct character.
+    """
+    assert hasSpecialSubstring("abc", 2) is False
+
+#
+# Additional Test Scenarios
+#
+
+def test_match_in_the_middle():
+    """
+    A valid substring is found in the middle of the string, surrounded by different characters.
+    """
+    # Substring "ccc" at s[2:5] is valid.
+    # It has length 3. It is uniform.
+    # The character before is 'b', which is different.
+    # The character after is 'd', which is different.
+    assert hasSpecialSubstring("abcccd", 3) is True
+
+def test_match_at_start():
+    """
+    A valid substring is found at the beginning of the string.
+    """
+    # Substring "aaa" at s[0:3] is valid.
+    # It has length 3. It is uniform.
+    # There is no character before it.
+    # The character after is 'b', which is different.
+    assert hasSpecialSubstring("aaab", 3) is True
+
+def test_match_at_end():
+    """
+    A valid substring is found at the end of the string.
+    """
+    # Substring "bbb" at s[1:4] is valid.
+    # It has length 3. It is uniform.
+    # The character before is 'a', which is different.
+    # There is no character after it.
+    assert hasSpecialSubstring("abbb", 3) is True
+
+def test_match_is_entire_string():
+    """
+    The entire string is a valid substring.
+    """
+    # Substring "zzzz" is the entire string.
+    # It has length 4 and is uniform.
+    # There are no characters before or after it.
+    assert hasSpecialSubstring("zzzz", 4) is True
+
+def test_fail_due_to_right_neighbor():
+    """
+    A uniform substring of correct length exists, but the character after it is the same.
+    """
+    # Candidate "aaa" at s[0:3].
+    # The character after is s[3] == 'a', which is the same, invalidating this candidate.
+    # No other valid candidates exist.
+    assert hasSpecialSubstring("aaab", 2) is False
+
+def test_fail_due_to_left_neighbor():
+    """
+    A uniform substring of correct length exists, but the character before it is the same.
+    """
+    # Candidate "bbb" at s[1:4].
+    # The character before is s[0] == 'b', which is the same, invalidating this candidate.
+    # No other valid candidates exist.
+    assert hasSpecialSubstring("bbba", 3) is False
+
+def test_fail_due_to_neighbors_on_internal_candidates():
+    """
+    Test case where multiple uniform substrings exist, but none satisfy the neighbor conditions.
+    """
+    # s = "cddddc", k = 3
+    # Candidate "ddd" at s[1:4]. Before is 'c' (ok), but after is 'd' (fail).
+    # Candidate "ddd" at s[2:5]. Before is 'd' (fail), but after is 'c' (ok).
+    # No single candidate is valid.
+    assert hasSpecialSubstring("cddddc", 3) is False
+
+def test_k_is_one_success():
+    """
+    A valid substring of length 1 is found.
+    """
+    # Substring "b" at s[1:2] is valid.
+    # Before is 'a' (different), after is 'c' (different).
+    assert hasSpecialSubstring("abc", 1) is True
+
+def test_k_is_one_fail():
+    """
+    No valid substring of length 1 exists because all single characters are surrounded by identical characters.
+    """
+    # s = "aaa", k = 1
+    # 'a' at index 0: after is 'a' (fail).
+    # 'a' at index 1: before is 'a', after is 'a' (fail).
+    # 'a' at index 2: before is 'a' (fail).
+    assert hasSpecialSubstring("aaa", 1) is False
+
+def test_no_uniform_substring_of_length_k():
+    """
+    The string does not contain any uniform substring of the required length.
+    """
+    # Substrings of length 3: "aba", "bac", "aca", "cab", "aba". None are uniform.
+    assert hasSpecialSubstring("abacaba", 3) is False
+
+def test_single_char_string_k_is_one():
+    """
+    The entire string is a single character, and k is 1.
+    """
+    # Substring "a" is the entire string. It is uniform, length 1. No neighbors.
+    assert hasSpecialSubstring("a", 1) is True
+
+def test_multiple_candidates_one_is_valid():
+    """
+    The string contains multiple uniform substrings, but only one is valid.
+    """
+    # s = "aaabbbccc", k = 3
+    # "aaa" at s[0:3] fails (after is 'a').
+    # "bbb" at s[3:6] fails (before is 'a', after is 'c' - wait this is a match).
+    # Let's refine the test: s = "aaabbbaaccc"
+    # "aaa" at s[0:3] fails (after is 'a').
+    # "bbb" at s[3:6] is a match (before 'a', after 'a').
+    # Let's refine again: s = "baaabbb"
+    # "aaa" at s[1:4] fails (before 'a').
+    # "bbb" at s[4:7] is a match (before 'a', after none).
+    assert hasSpecialSubstring("baaabbb", 3) is True
+
+def test_string_shorter_than_k():
+    """
+    The problem constraints state 1 <= k <= s.length, so we do not test s.length < k.
+    This test is omitted as per instructions not to test outside stated constraints.
+    """
+    pass
+```
+
+## Failing implementation
+
+```python
+def hasSpecialSubstring(s: str, k: int) -> bool:
+    n = len(s)
+    if k > n:
+        return False
+    for i in range(n - k + 1):
+        substring = s[i:i + k]
+        if len(set(substring)) == 1:
+            left_neighbor = s[i - 1] if i > 0 else None
+            right_neighbor = s[i + k] if i + k < n else None
+            if (left_neighbor is None or left_neighbor != substring[0]) and (right_neighbor is None or right_neighbor != substring[0]):
+                return True
+    return False
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpmc35wfde/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 15 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [  6%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 13%]
+tests/test_task.py::test_match_in_the_middle PASSED                      [ 20%]
+tests/test_task.py::test_match_at_start PASSED                           [ 26%]
+tests/test_task.py::test_match_at_end PASSED                             [ 33%]
+tests/test_task.py::test_match_is_entire_string PASSED                   [ 40%]
+tests/test_task.py::test_fail_due_to_right_neighbor PASSED               [ 46%]
+tests/test_task.py::test_fail_due_to_left_neighbor FAILED                [ 53%]
+tests/test_task.py::test_fail_due_to_neighbors_on_internal_candidates PASSED [ 60%]
+tests/test_task.py::test_k_is_one_success PASSED                         [ 66%]
+tests/test_task.py::test_k_is_one_fail PASSED                            [ 73%]
+tests/test_task.py::test_no_uniform_substring_of_length_k PASSED         [ 80%]
+tests/test_task.py::test_single_char_string_k_is_one PASSED              [ 86%]
+tests/test_task.py::test_multiple_candidates_one_is_valid PASSED         [ 93%]
+tests/test_task.py::test_string_shorter_than_k PASSED                    [100%]
+
+=================================== FAILURES ===================================
+________________________ test_fail_due_to_left_neighbor ________________________
+tests/test_task.py:88: in test_fail_due_to_left_neighbor
+    assert hasSpecialSubstring("bbba", 3) is False
+E   AssertionError: assert True is False
+E    +  where True = hasSpecialSubstring('bbba', 3)
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_fail_due_to_left_neighbor - AssertionError: a...
+========================= 1 failed, 14 passed in 0.03s =========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

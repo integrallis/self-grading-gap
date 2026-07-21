@@ -1,0 +1,184 @@
+================================================================================
+TEMPLATE: agents/code/python_generate_from_tests.j2
+TIMESTAMP: 1784505077868
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  task: {'id': 'HumanEval/86', 'use_case_id': 'HumanEval/86', 'story_id': 'HumanEval/86', 'epic_id': 'HUMANEVAL', 'title': 'Implement anti_shuffle()', 'description': "Write a function that takes a string and ...[truncated]
+  test_code: from solution import anti_shuffle
+
+def test_canonical_example_1():
+    # spec: anti_shuffle('Hi') -> 'Hi' (no change, already ordered)
+    assert anti_shuffle('Hi') == 'Hi'
+
+def test_canonical_example...[truncated]
+  existing_impl_files: {'src/solution/__init__.py': "import re\n\ndef anti_shuffle(s):\n    parts = re.split(r'(\\s+)', s)\n    new_parts = []\n    first_word_encountered = False\n    for part in parts:\n        if part.str...[truncated]
+  existing_implementation: 
+  project_name: solution
+  project_brief: 
+HumanEval Problem: HumanEval/86
+
+Function: anti_shuffle
+Signature: def anti_shuffle(s):
+
+Task: Write a function that takes a string and returns an ordered version of it.
+    Ordered version of string...[truncated]
+  recent_commits: []
+  judge_feedback: `test_canonical_example_2` — expected `'ehllo'`, got `'hello'`, because the implementation's logic does not sort the first non-whitespace part of a string, but this test requires sorting for a single-...[truncated]
+  previous_attempt: import re
+
+def anti_shuffle(s):
+    parts = re.split(r'(\s+)', s)
+    new_parts = []
+    first_word_encountered = False
+    for part in parts:
+        if part.strip():  # Check if the part is not just...[truncated]
+  rag_patterns: 
+  json_error_feedback: 
+================================================================================
+
+You are implementing Python code whose only acceptance criterion is the test suite below
+(test-driven development, GREEN phase). Write the simplest correct, general implementation
+that passes every test.
+
+## Task
+
+**Implement anti_shuffle()**
+
+Implement every function below with its exact signature:
+- def anti_shuffle(s)
+
+Implement a general algorithm. Do not hardcode results for specific inputs or pattern-match
+test cases; every line must serve the general solution. Do not add constraints, validation,
+or edge-case behavior the specification does not state.
+
+Full specification:
+
+
+def anti_shuffle(s):
+    """
+    Write a function that takes a string and returns an ordered version of it.
+    Ordered version of string, is a string where all words (separated by space)
+    are replaced by a new word where all the characters arranged in
+    ascending order based on ascii value.
+    Note: You should keep the order of words and blank spaces in the sentence.
+
+    For example:
+    anti_shuffle('Hi') returns 'Hi'
+    anti_shuffle('hello') returns 'ehllo'
+    anti_shuffle('Hello World!!!') returns 'Hello !!!Wdlor'
+    """
+
+
+## Tests to satisfy
+
+```python
+from solution import anti_shuffle
+
+def test_canonical_example_1():
+    # spec: anti_shuffle('Hi') -> 'Hi' (no change, already ordered)
+    assert anti_shuffle('Hi') == 'Hi'
+
+def test_canonical_example_2():
+    # spec: anti_shuffle('hello') -> 'ehllo' (characters sorted in ascending order)
+    assert anti_shuffle('hello') == 'ehllo'
+
+def test_canonical_example_3():
+    # spec: anti_shuffle('Hello World!!!') -> 'Hello !!!Wdlor' (characters of "World" sorted)
+    assert anti_shuffle('Hello World!!!') == 'Hello !!!Wdlor'
+
+def test_empty_string():
+    # spec: anti_shuffle('') -> '' (empty string remains unchanged)
+    assert anti_shuffle('') == ''
+
+def test_complex_whitespace():
+    # spec: anti_shuffle('  a b  ') -> '  a b  ' (whitespace is preserved, words remain unchanged)
+    assert anti_shuffle('  a b  ') == '  a b  '
+
+ADD: a test for an input string containing only whitespace, e.g., anti_shuffle('   ') -> '   '.
+def test_only_whitespace():
+    # spec: anti_shuffle('   ') -> '   ' (only whitespace is preserved)
+    assert anti_shuffle('   ') == '   '
+
+ADD: a test to confirm non-space separators are part of a word, e.g., anti_shuffle('c-b-a') -> '--abc'.
+def test_non_space_separators():
+    # spec: anti_shuffle('c-b-a') -> '--abc' (non-space characters are sorted within the word)
+    assert anti_shuffle('c-b-a') == '--abc'
+```
+
+## Existing implementation files (preserve working code; extend, don't clobber)
+
+`src/solution/__init__.py`:
+```python
+import re
+
+def anti_shuffle(s):
+    parts = re.split(r'(\s+)', s)
+    new_parts = []
+    first_word_encountered = False
+    for part in parts:
+        if part.strip():  # Check if the part is not just whitespace
+            if not first_word_encountered:
+                new_parts.append(part)  # Append the first word unchanged
+                first_word_encountered = True
+            else:
+                new_parts.append(''.join(sorted(part)))  # Sort subsequent words
+        else:
+            new_parts.append(part)  # Preserve whitespace
+    return ''.join(new_parts)
+```
+
+## Rules
+
+1. Implement a GENERAL algorithm. Never special-case specific test inputs or hardcode
+   expected outputs — that is test memorization, not implementation.
+2. Implement every function with the exact specified signature.
+3. Keep it minimal: no features, validation, or error handling beyond what the tests and
+   specification require.
+4. The tests import from the `solution` package; place code accordingly.
+
+## Feedback on your previous attempt
+
+`test_canonical_example_2` — expected `'ehllo'`, got `'hello'`, because the implementation's logic does not sort the first non-whitespace part of a string, but this test requires sorting for a single-word input. The code at `if not first_word_encountered:` incorrectly appends the word `'hello'` unchanged.
+
+`test_non_space_separators` — expected `'--abc'`, got `'c-b-a'`, because of the same root cause as the failure in `test_canonical_example_2`. The implementation does not sort single-word inputs, but this test requires it.
+
+FIX DIRECTIVES:
+The current logic fails because it treats single-word inputs the same as the first word of a multi-word input, but the test specifications require different behaviors for these two cases. The function must first determine how many "words" the input contains.
+
+FIX: In `anti_shuffle`, before iterating through `parts`, pre-calculate the number of words: `num_words = len([p for p in parts if p.strip()])`.
+FIX: In `anti_shuffle`, modify the conditional logic inside the loop. A word (`part`) should be appended without sorting only if `num_words > 1` and it is the first word being processed. All other words, including the word in a single-word input, must be sorted.
+
+## Your previous attempt
+
+```python
+import re
+
+def anti_shuffle(s):
+    parts = re.split(r'(\s+)', s)
+    new_parts = []
+    first_word_encountered = False
+    for part in parts:
+        if part.strip():  # Check if the part is not just whitespace
+            if not first_word_encountered:
+                new_parts.append(part)  # Append the first word unchanged
+                first_word_encountered = True
+            else:
+                new_parts.append(''.join(sorted(part)))  # Sort subsequent words
+        else:
+            new_parts.append(part)  # Preserve whitespace
+    return ''.join(new_parts)
+```
+
+## Output
+
+Return exactly one JSON object in a fenced block and nothing else. Escape the code string
+correctly (newlines as \n, quotes as \").
+
+```json
+{
+  "impl_file_path": "src/solution/__init__.py",
+  "action": "update",
+  "content": "<the complete implementation file as one JSON string>",
+  "reasoning": "<one sentence>"
+}
+```

@@ -1,0 +1,182 @@
+================================================================================
+TEMPLATE: judge/code_against_tests.j2
+TIMESTAMP: 1784625860540
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_code: # test_min_costs.py
+from typing import List
+from solution import minCosts
+
+
+def test_canonical_example_1():
+    """
+    Tests the first example from the specification.
+    spec: minCosts([5, 3, 4, 1, ...[truncated]
+  impl_code: from typing import List
+
+def minCosts(cost: List[int]) -> List[int]:
+    n = len(cost)
+    answer = [0] * n
+    min_cost = float('inf')
+    for i in range(n):
+        min_cost = min(min_cost, cost[i])...[truncated]
+  task: {'id': 'LCB/3832', 'use_case_id': 'LCB/3832', 'story_id': 'LCB/3832', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement minCosts()', 'description': 'You are given an integer array cost of size n. You ar...[truncated]
+  recent_commits: []
+================================================================================
+
+You are predicting whether an implementation will pass a specific test suite. Trace the code
+with each test's inputs; do not judge style, design, or robustness — a crude implementation
+that passes every test rates 1.00, an elegant one that fails a test rates lower.
+
+## Task context
+
+**Implement minCosts()**
+
+## Tests
+
+```python
+# test_min_costs.py
+from typing import List
+from solution import minCosts
+
+
+def test_canonical_example_1():
+    """
+    Tests the first example from the specification.
+    spec: minCosts([5, 3, 4, 1, 3, 2]) -> [5, 3, 3, 1, 1, 1]
+    """
+    # The minimum cost to reach position i is the minimum of costs to swap
+    # with any person j where j <= i. After paying cost[j], we are at position j,
+    # and can move to any position i > j for free.
+    # answer[i] = min(cost[0...i])
+    # i=0: min(5) = 5
+    # i=1: min(5, 3) = 3
+    # i=2: min(5, 3, 4) = 3
+    # i=3: min(5, 3, 4, 1) = 1
+    # i=4: min(5, 3, 4, 1, 3) = 1
+    # i=5: min(5, 3, 4, 1, 3, 2) = 1
+    cost = [5, 3, 4, 1, 3, 2]
+    expected = [5, 3, 3, 1, 1, 1]
+    assert minCosts(cost) == expected
+
+
+def test_canonical_example_2():
+    """
+    Tests the second example from the specification.
+    spec: minCosts([1, 2, 4, 6, 7]) -> [1, 1, 1, 1, 1]
+    """
+    # The minimum cost to reach any position i is min(cost[0...i]).
+    # Since cost[0] is 1, the minimum of any prefix of the cost array will be 1.
+    # i=0: min(1) = 1
+    # i=1: min(1, 2) = 1
+    # i=2: min(1, 2, 4) = 1
+    # i=3: min(1, 2, 4, 6) = 1
+    # i=4: min(1, 2, 4, 6, 7) = 1
+    cost = [1, 2, 4, 6, 7]
+    expected = [1, 1, 1, 1, 1]
+    assert minCosts(cost) == expected
+
+
+def test_single_element_list():
+    """
+    Tests the smallest possible input size as per constraints (n=1).
+    """
+    # For a single person at position 0, the only way to reach that
+    # position is to pay cost[0].
+    # answer[0] = min(cost[0]) = 42
+    cost = [42]
+    expected = [42]
+    assert minCosts(cost) == expected
+
+
+def test_strictly_decreasing_costs():
+    """
+    Tests a scenario where costs are strictly decreasing.
+    The running minimum should change at each step.
+    """
+    # answer[i] = min(cost[0...i]). For a decreasing array, min(cost[0...i]) is cost[i].
+    # i=0: min(10) = 10
+    # i=1: min(10, 8) = 8
+    # i=2: min(10, 8, 6) = 6
+    # i=3: min(10, 8, 6, 4) = 4
+    # i=4: min(10, 8, 6, 4, 2) = 2
+    cost = [10, 8, 6, 4, 2]
+    expected = [10, 8, 6, 4, 2]
+    assert minCosts(cost) == expected
+
+
+def test_minimum_cost_in_the_middle():
+    """
+    Tests a scenario where the minimum cost appears in the middle of the array.
+    """
+    # After the minimum is found, the cost to reach subsequent positions
+    # should remain that minimum.
+    # i=0: min(10) = 10
+    # i=1: min(10, 20) = 10
+    # i=2: min(10, 20, 5) = 5
+    # i=3: min(10, 20, 5, 15) = 5
+    # i=4: min(10, 20, 5, 15, 8) = 5
+    cost = [10, 20, 5, 15, 8]
+    expected = [10, 10, 5, 5, 5]
+    assert minCosts(cost) == expected
+
+
+def test_all_costs_are_identical():
+    """
+    Tests a scenario where all costs are the same.
+    """
+    # If all costs are identical, the running minimum is always that cost.
+    cost = [7, 7, 7, 7]
+    expected = [7, 7, 7, 7]
+    assert minCosts(cost) == expected
+
+
+def test_max_constraints_with_late_minimum():
+    """
+    Tests behavior with max list length (n=100) and max cost values (100),
+    with the minimum value appearing late in the list.
+    """
+    # The cost list has n=100 elements.
+    # The first 99 elements are 100, the last is 1.
+    # answer[i] for i < 99 will be 100.
+    # answer[99] will be min(100, ..., 100, 1) = 1.
+    cost = [100] * 99 + [1]
+    expected = [100] * 99 + [1]
+    assert minCosts(cost) == expected
+```
+
+## Implementation
+
+```python
+from typing import List
+
+def minCosts(cost: List[int]) -> List[int]:
+    n = len(cost)
+    answer = [0] * n
+    min_cost = float('inf')
+    for i in range(n):
+        min_cost = min(min_cost, cost[i])
+        answer[i] = min_cost
+    return answer
+
+```
+
+## Method
+
+For EACH test function: state the inputs, trace the implementation's computation step by
+step (do the arithmetic explicitly), state the value the test expects, and conclude PASS or
+FAIL for that test. Check import/name compatibility first: if the tests cannot even import
+the implementation, every test fails.
+
+Also flag test gaming if you see it (hardcoded answers for specific inputs, input
+pattern-matching): report it in one line, but rate on predicted test outcomes only.
+
+## Output format (exactly this structure)
+
+1. One line per test, in this shape:
+   `test_canonical_example_1: PASS — computes 5 for [1,2,1,2,1,1,1], matching the assertion`
+   If you cannot trace a test's outcome from the code, mark it FAIL and say why the trace
+   is blocked — an unverifiable pass prediction is not a pass.
+2. If any FAIL: one short paragraph naming the root cause in the implementation.
+3. The last line must be exactly: `Rating: <predicted fraction of tests passing>` with two
+   decimals, e.g. `Rating: 0.83`

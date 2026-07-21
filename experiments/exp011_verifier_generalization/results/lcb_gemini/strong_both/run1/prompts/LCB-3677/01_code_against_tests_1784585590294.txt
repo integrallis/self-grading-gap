@@ -1,0 +1,293 @@
+================================================================================
+TEMPLATE: judge/code_against_tests.j2
+TIMESTAMP: 1784585590294
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_code: import pytest
+from typing import List
+
+# Import the function to be tested
+from solution import maximumAmount
+
+#
+# Canonical examples from the specification
+#
+
+def test_canonical_example_1():
+    """
+ ...[truncated]
+  impl_code: from typing import List
+
+
+def maximumAmount(coins: List[List[int]]) -> int:
+    m = len(coins)
+    n = len(coins[0]) if m > 0 else 0
+
+    # dp[i][j][k] will be the max coins collected when reaching ce...[truncated]
+  task: {'id': 'LCB/3677', 'use_case_id': 'LCB/3677', 'story_id': 'LCB/3677', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maximumAmount()', 'description': "You are given an m x n grid. A robot starts at t...[truncated]
+  recent_commits: []
+================================================================================
+
+You are predicting whether an implementation will pass a specific test suite. Trace the code
+with each test's inputs; do not judge style, design, or robustness — a crude implementation
+that passes every test rates 1.00, an elegant one that fails a test rates lower.
+
+## Task context
+
+**Implement maximumAmount()**
+
+## Tests
+
+```python
+import pytest
+from typing import List
+
+# Import the function to be tested
+from solution import maximumAmount
+
+#
+# Canonical examples from the specification
+#
+
+def test_canonical_example_1():
+    """
+    Test with the first example from the specification.
+    An optimal path is (0,0)->(0,1)->(1,1)->(1,2)->(2,2), neutralizing the robber at (1,1).
+    """
+    coins = [[0, 1, -1], [1, -2, 3], [2, -3, 4]]
+    # Path (0,0)->(0,1)->(1,1)->(1,2)->(2,2):
+    # Coins on path: 0, 1, -2, 3, 4
+    # Neutralize -2 at (1,1).
+    # Total = 0 + 1 + 0 (neutralized) + 3 + 4 = 8
+    expected = 8
+    assert maximumAmount(coins) == expected
+
+def test_canonical_example_2():
+    """
+    Test with the second example from the specification, which has no robbers.
+    An optimal path is (0,0)->(0,1)->(0,2)->(1,2).
+    """
+    coins = [[10, 10, 10], [10, 10, 10]]
+    # Any path collects coins from 4 cells.
+    # Path (0,0)->(0,1)->(0,2)->(1,2):
+    # Total = 10 + 10 + 10 + 10 = 40
+    expected = 40
+    assert maximumAmount(coins) == expected
+
+#
+# Edge cases and specific scenarios
+#
+
+def test_1x1_grid_positive_coin():
+    """Test a 1x1 grid with a positive value."""
+    coins = [[100]]
+    # The robot is already at the destination.
+    # Total = 100
+    expected = 100
+    assert maximumAmount(coins) == expected
+
+def test_1x1_grid_negative_coin():
+    """Test a 1x1 grid with a negative value (robber)."""
+    coins = [[-100]]
+    # The robot is at the destination but there's a robber.
+    # Neutralize the robber.
+    # Total = 0
+    expected = 0
+    assert maximumAmount(coins) == expected
+
+def test_single_row_no_robbers():
+    """Test a single-row grid with only positive coins."""
+    coins = [[1, 2, 3, 4, 5]]
+    # The only path is to move right.
+    # Total = 1 + 2 + 3 + 4 + 5 = 15
+    expected = 15
+    assert maximumAmount(coins) == expected
+
+def test_single_row_with_two_robbers_and_two_neutralizations():
+    """Test a single-row grid with two robbers, using both neutralizations."""
+    coins = [[1, -10, 100, -20, 1]]
+    # The only path is to move right.
+    # Robbers at -10 and -20. Two neutralizations available.
+    # Total = 1 + 0 (neutralized) + 100 + 0 (neutralized) + 1 = 102
+    expected = 102
+    assert maximumAmount(coins) == expected
+
+def test_single_row_must_choose_which_robbers_to_neutralize():
+    """Test a single-row grid with three robbers, choosing the two best to neutralize."""
+    coins = [[1, -10, 100, -20, -30, 1]]
+    # The only path is to move right.
+    # Robbers: -10, -20, -30. Two neutralizations available.
+    # Neutralize the largest losses: -20 and -30.
+    # Total = 1 - 10 + 100 + 0 (neutralized) + 0 (neutralized) + 1 = 92
+    expected = 92
+    assert maximumAmount(coins) == expected
+
+def test_single_column_with_neutralization():
+    """Test a single-column grid with robbers that can be neutralized."""
+    coins = [[1], [-10], [100], [-20], [1]]
+    # The only path is to move down.
+    # Robbers at -10 and -20. Two neutralizations available.
+    # Total = 1 + 0 (neutralized) + 100 + 0 (neutralized) + 1 = 102
+    expected = 102
+    assert maximumAmount(coins) == expected
+
+def test_avoiding_robbers_is_better_than_neutralizing():
+    """Test a scenario where the optimal path avoids robbers altogether."""
+    coins = [[1, -100, 1], [1, 1, 1], [1, -100, 1]]
+    # Path D->R->R->D: (0,0)->(1,0)->(1,1)->(1,2)->(2,2)
+    # Coins on this path: 1, 1, 1, 1, 1. No robbers.
+    # Total = 1 + 1 + 1 + 1 + 1 = 5.
+    # Any other path encounters at least one -100 robber.
+    # E.g., R->R->D->D: 1, -100, 1, 1, 1. Neutralizing -100 gives 1+0+1+1+1=4.
+    # So, 5 is the maximum.
+    expected = 5
+    assert maximumAmount(coins) == expected
+
+def test_all_paths_have_robbers_must_choose_neutralizations():
+    """Test a grid where all paths have robbers, requiring strategic neutralization."""
+    coins = [[0, -1, -100], [-2, -3, -4], [-5, -6, -7]]
+    # Path R->D->R->D: (0,0)->(0,1)->(1,1)->(1,2)->(2,2)
+    # Coins: 0, -1, -3, -4, -7. Robbers: -1, -3, -4, -7.
+    # Neutralize -4, -7. Total = 0 - 1 - 3 + 0 + 0 = -4.
+    # Path R->D->D->R: (0,0)->(0,1)->(1,1)->(2,1)->(2,2)
+    # Coins: 0, -1, -3, -6, -7. Neutralize -7, -6. Total = 0 - 1 - 3 = -4.
+    # Path D->R->D->R: (0,0)->(1,0)->(1,1)->(2,1)->(2,2)
+    # Coins: 0, -2, -3, -6, -7. Robbers: -2, -3, -6, -7.
+    # Neutralize -6, -7. Total = 0 - 2 - 3 + 0 + 0 = -5.
+    # The best paths yield -4.
+    expected = -4
+    assert maximumAmount(coins) == expected
+
+def test_start_is_robber():
+    """Test a grid where the starting cell is a robber."""
+    coins = [[-1000, 10], [10, 10]]
+    # Must start at (0,0), so must deal with the -1000 robber.
+    # Neutralize it. Path R->D: 0 (neutralized) + 10 + 10 = 20.
+    # Path D->R: 0 (neutralized) + 10 + 10 = 20.
+    expected = 20
+    assert maximumAmount(coins) == expected
+
+def test_end_is_robber():
+    """Test a grid where the ending cell is a robber."""
+    coins = [[10, 10], [10, -1000]]
+    # Must end at (1,1), so must deal with the -1000 robber.
+    # Neutralize it. Path R->D: 10 + 10 + 0 (neutralized) = 20.
+    # Path D->R: 10 + 10 + 0 (neutralized) = 20.
+    expected = 20
+    assert maximumAmount(coins) == expected
+
+def test_total_can_be_negative():
+    """Test a scenario where the maximum possible profit is a negative number."""
+    coins = [[-10, -100], [-100, -100]]
+    # Start at -10. Path R->D: cells (-10, -100, -100).
+    # Neutralize the two -100s.
+    # Total = -10 + 0 + 0 = -10.
+    # Path D->R: cells (-10, -100, -100). Same result.
+    expected = -10
+    assert maximumAmount(coins) == expected
+
+def test_no_neutralizations_needed():
+    """Test a grid with robbers, but the best path avoids them all."""
+    coins = [[10, 10, 10], [-1, -1, 10], [10, 10, 10]]
+    # Path R->D->R->D: (0,0)->(0,1)->(1,1)->(1,2)->(2,2) -> 10+10-1+10+10=39
+    # Path D->D->R->R: (0,0)->(1,0)->(2,0)->(2,1)->(2,2) -> 10-1+10+10+10=39
+    # Path R->R->D->D: (0,0)->(0,1)->(0,2)->(1,2)->(2,2) -> 10+10+10+10+10=50
+    # The optimal path R,R,D,D avoids all robbers.
+    expected = 50
+    assert maximumAmount(coins) == expected
+
+def test_zero_value_cells():
+    """Test a grid containing zero-value cells."""
+    coins = [[1, 0, -1], [0, -2, 0], [1, 0, 1]]
+    # Path D,D,R,R: 1, 0, 1, 0, 1. Total = 3
+    # Path R,R,D,D: 1, 0, -1, 0, 1. Neutralize -1. Total = 1+0+0+0+1 = 2
+    # Path D,R,D,R: 1, 0, -2, 0, 1. Neutralize -2. Total = 1+0+0+0+1 = 2
+    # Maximum is 3.
+    expected = 3
+    assert maximumAmount(coins) == expected
+
+#
+# New tests based on review feedback
+#
+
+def test_upper_bound_coin_value():
+    """Test the maximum possible coin value based on constraints."""
+    coins = [[1000]]
+    # 1x1 grid, robot is at destination.
+    # Total = 1000
+    expected = 1000
+    assert maximumAmount(coins) == expected
+
+def test_moderately_large_grid_for_performance():
+    """
+    Test with a 10x10 grid to ensure the solution is not brute-force.
+    A brute-force solution would be too slow for the m, n <= 500 constraint.
+    """
+    # Create a 10x10 grid with all values being 10.
+    coins = [[10 for _ in range(10)] for _ in range(10)]
+    # A path from (0,0) to (9,9) involves (9) down moves and (9) right moves.
+    # The total number of cells visited is 1 (start) + 9 (down) + 9 (right) = 19.
+    # Since all cells have a value of 10 and there are no robbers,
+    # the maximum amount is 19 * 10 = 190.
+    expected = 190
+    assert maximumAmount(coins) == expected
+```
+
+## Implementation
+
+```python
+from typing import List
+
+
+def maximumAmount(coins: List[List[int]]) -> int:
+    m = len(coins)
+    n = len(coins[0]) if m > 0 else 0
+
+    # dp[i][j][k] will be the max coins collected when reaching cell (i,j) with k neutralizations used
+    dp = [[[-float('inf')] * 3 for _ in range(n)] for _ in range(m)]
+    dp[0][0][0] = max(0, coins[0][0]) if coins[0][0] >= 0 else 0  # Initialize the starting point
+
+    for i in range(m):
+        for j in range(n):
+            for k in range(3):
+                if i == 0 and j == 0:
+                    continue
+                # Collect coins from the top cell
+                if i > 0:
+                    if coins[i][j] >= 0:
+                        dp[i][j][k] = max(dp[i][j][k], dp[i - 1][j][k] + coins[i][j])
+                    elif k > 0:
+                        dp[i][j][k] = max(dp[i][j][k], dp[i - 1][j][k - 1])
+                # Collect coins from the left cell
+                if j > 0:
+                    if coins[i][j] >= 0:
+                        dp[i][j][k] = max(dp[i][j][k], dp[i][j - 1][k] + coins[i][j])
+                    elif k > 0:
+                        dp[i][j][k] = max(dp[i][j][k], dp[i][j - 1][k - 1])
+
+    result = -float('inf')
+    for k in range(3):
+        result = max(result, dp[m - 1][n - 1][k])
+    return result
+
+```
+
+## Method
+
+For EACH test function: state the inputs, trace the implementation's computation step by
+step (do the arithmetic explicitly), state the value the test expects, and conclude PASS or
+FAIL for that test. Check import/name compatibility first: if the tests cannot even import
+the implementation, every test fails.
+
+Also flag test gaming if you see it (hardcoded answers for specific inputs, input
+pattern-matching): report it in one line, but rate on predicted test outcomes only.
+
+## Output format (exactly this structure)
+
+1. One line per test, in this shape:
+   `test_canonical_example_1: PASS — computes 5 for [1,2,1,2,1,1,1], matching the assertion`
+   If you cannot trace a test's outcome from the code, mark it FAIL and say why the trace
+   is blocked — an unverifiable pass prediction is not a pass.
+2. If any FAIL: one short paragraph naming the root cause in the implementation.
+3. The last line must be exactly: `Rating: <predicted fraction of tests passing>` with two
+   decimals, e.g. `Rating: 0.83`

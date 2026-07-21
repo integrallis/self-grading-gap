@@ -1,0 +1,26 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+`test_canonical_example_1` — expected `[-1, -11, 1, -12, 11]`, got `[-1, 1, -11, 11, -12]`, because the tie-breaking logic is incorrect.
+
+The implementation sorts using the key `(digit_sum(x), x)`. This means it sorts primarily by the digit sum, and secondarily by the number's numeric value to break ties.
+
+Let's trace this with the input `[1, 11, -1, -11, -12]`:
+1.  **Calculate keys (digit sum, value):**
+    *   `1` -> `(1, 1)`
+    *   `11` -> `(2, 11)`
+    *   `-1` -> `(1, -1)`
+    *   `-11` -> `(2, -11)`
+    *   `-12` -> `(3, -12)`
+2.  **Sort based on these keys:**
+    *   The two keys with digit sum `1` are `(1, 1)` and `(1, -1)`. The secondary sort by value places `(1, -1)` before `(1, 1)`. Resulting order: `[-1, 1]`.
+    *   The two keys with digit sum `2` are `(2, 11)` and `(2, -11)`. The secondary sort by value places `(2, -11)` before `(2, 11)`. Resulting order: `[-11, 11]`.
+    *   The key with digit sum `3` is `(3, -12)`.
+3.  **Combine sorted groups:** The final list is `[-1, 1, -11, 11, -12]`.
+
+The expression `key=lambda x: (digit_sum(x), x)` is the point of divergence. The passing test `test_all_same_digit_sum` specifies that for ties in digit sum, the original order should be preserved ("order by index"). This requires a stable sort on just the digit sum. By adding `x` as a secondary key, you are incorrectly forcing a numeric sort for ties instead of preserving the original order.
+
+### FIX DIRECTIVES:
+*   In `order_by_points`, change the sort key to perform a stable sort based only on the digit sum. Remove the number itself (`x`) as the secondary tie-breaker from the key.
+    `FIX: in order_by_points, change 'sorted(nums, key=lambda x: (digit_sum(x), x))' to 'sorted(nums, key=digit_sum)'`

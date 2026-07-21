@@ -1,0 +1,157 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+```python
+#
+# Test-driven development:
+#
+# 1. RED: Write a failing test that represents a new feature.
+#
+# 2. GREEN: Write the simplest code to make the test pass.
+#
+# 3. REFACTOR: Refine the code, ensuring all tests still pass.
+#
+# This file is the RED phase for the `maximumCoins` function.
+#
+
+from typing import List
+import pytest
+from solution import maximumCoins
+
+
+def test_canonical_example_1():
+    """
+    Tests the first example from the specification.
+    The input segments are unsorted.
+    The optimal window spans across a gap and two different segments.
+    """
+    coins = [[8, 10, 1], [1, 3, 2], [5, 6, 4]]
+    k = 4
+    # The optimal window is [3, 4, 5, 6].
+    # Bag 3: from segment [1, 3, 2], has 2 coins.
+    # Bag 4: in a gap, has 0 coins.
+    # Bags 5, 6: from segment [5, 6, 4], have 4 coins each.
+    # Total = 2 + 0 + 4 + 4 = 10.
+    assert maximumCoins(coins, k) == 10
+
+
+def test_canonical_example_2():
+    """
+    Tests the second example from the specification.
+    The optimal window is fully contained within a single large segment.
+    """
+    coins = [[1, 10, 3]]
+    k = 2
+    # Any window of size 2 within [1, 10] is optimal.
+    # For example, window [1, 2].
+    # Bags 1, 2: from segment [1, 10, 3], have 3 coins each.
+    # Total = 3 + 3 = 6.
+    assert maximumCoins(coins, k) == 6
+
+
+def test_window_fully_inside_densest_segment():
+    """
+    Tests when k is smaller than segment lengths, so the optimal window
+    should be entirely within the segment with the most coins per bag.
+    """
+    coins = [[1, 10, 5], [20, 30, 8]]
+    k = 3
+    # The segment [20, 30, 8] is "denser" (8 coins/bag) than [1, 10, 5] (5 coins/bag).
+    # The optimal window of size 3 will be fully inside the denser segment.
+    # Total = 3 * 8 = 24.
+    assert maximumCoins(coins, k) == 24
+
+
+def test_window_spans_adjacent_segments():
+    """
+    Tests a window that bridges two segments that are directly next to each other.
+    """
+    coins = [[1, 3, 10], [4, 5, 20]]
+    k = 3
+    # Windows to check:
+    # [1, 2, 3]: 10 + 10 + 10 = 30
+    # [2, 3, 4]: 10 + 10 + 20 = 40
+    # [3, 4, 5]: 10 + 20 + 20 = 50
+    # [4, 5, 6]: 20 + 20 + 0 = 40
+    # The maximum is 50.
+    assert maximumCoins(coins, k) == 50
+
+
+def test_k_large_enough_to_cover_all_coins():
+    """
+    Tests when k is large enough to contain all specified coin segments.
+    The result should be the total number of coins available.
+    """
+    coins = [[10, 11, 100], [20, 21, 200]]
+    k = 100
+    # The window of size 100 can easily cover the range from 10 to 21.
+    # Total coins in segment 1: (11 - 10 + 1) * 100 = 2 * 100 = 200.
+    # Total coins in segment 2: (21 - 20 + 1) * 200 = 2 * 200 = 400.
+    # Max coins = 200 + 400 = 600.
+    assert maximumCoins(coins, k) == 600
+
+
+def test_single_point_segments():
+    """
+    Tests when all segments are of length 1 (l_i == r_i).
+    """
+    coins = [[1, 1, 10], [3, 3, 20], [5, 5, 10]]
+    k = 3
+    # Windows to check:
+    # [1, 2, 3]: 10 (at 1) + 0 (at 2) + 20 (at 3) = 30.
+    # [2, 3, 4]: 0 (at 2) + 20 (at 3) + 0 (at 4) = 20.
+    # [3, 4, 5]: 20 (at 3) + 0 (at 4) + 10 (at 5) = 30.
+    # The maximum is 30.
+    assert maximumCoins(coins, k) == 30
+
+
+def test_k_is_one():
+    """
+    Tests when k is 1. The result should be the maximum coin value in any single bag.
+    """
+    coins = [[1, 10, 100], [20, 30, 500], [40, 50, 200]]
+    k = 1
+    # We are looking for the coins in a single bag, which is the max of c_i.
+    # max(100, 500, 200) = 500.
+    assert maximumCoins(coins, k) == 500
+
+
+def test_minimal_input():
+    """
+    Tests with the minimal number of segments allowed by the constraints.
+    """
+    coins = [[10, 20, 5]]
+    k = 3
+    # The window is fully inside the single segment.
+    # Total = 3 * 5 = 15.
+    assert maximumCoins(coins, k) == 15
+
+
+def test_single_segment_shorter_than_k():
+    """
+    Tests when there is only one segment and its length is less than k.
+    The max coins will be the total coins in that segment.
+    """
+    coins = [[10, 12, 100]]
+    k = 5
+    # The segment [10, 12] has length 3, which is less than k=5.
+    # Any window of size 5 that covers this segment will get all the coins.
+    # e.g., window [10, 11, 12, 13, 14] -> 100 + 100 + 100 + 0 + 0 = 300.
+    # Total coins = (12 - 10 + 1) * 100 = 3 * 100 = 300.
+    assert maximumCoins(coins, k) == 300
+
+
+def test_large_coordinates():
+    """
+    Tests that the implementation handles large coordinate values up to the constraint limit.
+    """
+    coins = [[10**9 - 2, 10**9, 100]]
+    k = 2
+    # Segment is [999999998, 1000000000], coins = 100. k = 2.
+    # Window [999999998, 999999999]: 100 + 100 = 200.
+    # Window [999999999, 1000000000]: 100 + 100 = 200.
+    # Window [1000000000, 1000000001]: 100 + 0 = 100.
+    # Maximum is 200.
+    assert maximumCoins(coins, k) == 200
+```

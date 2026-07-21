@@ -1,0 +1,37 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+Here is the analysis of the failing implementation.
+
+***
+
+`test_simple_root_at_zero` — expected `0.0 ± 1e-9`, got `2.91...e-08`, because the bisection algorithm incorrectly handles the case where the midpoint is the exact root.
+The test uses `xs = [0, 1]`, which defines the polynomial `f(x) = x`. The root is `x=0`.
+The implementation traces as follows:
+1.  The search starts with `low = -1000`, `high = 1000`.
+2.  In the first iteration, `mid` is calculated as `(low + high) / 2 = 0`.
+3.  The value of the polynomial at the midpoint is calculated: `poly([0, 1], 0)` returns `0`.
+4.  The code then evaluates the condition `if poly(xs, mid) > 0:`. Since `0 > 0` is `False`, the `else` branch is taken.
+5.  The line `low = mid` is executed, setting `low` to `0`. The search interval becomes `[0, 1000]`.
+This is the point of divergence. The algorithm found the exact root (`mid = 0`) but incorrectly discarded it and continued searching in the interval `[0, 1000]`. The search then converges toward `0`, but because of the final averaging step and floating-point arithmetic, it returns a small positive number (`~2.9e-08`) that is outside the test's required precision (`1e-9`). The algorithm's update logic is also fundamentally flawed as it only works for increasing functions, but this specific test fails due to the mishandling of an exact zero at the midpoint.
+
+### FIX DIRECTIVES:
+*   FIX: in `find_zero`, the bisection logic in the `while` loop is incorrect. It assumes the function is always increasing and fails when the midpoint is an exact root. Replace the `if/else` block with a standard bisection method that compares the sign of the function at the midpoint with its sign at a boundary. You will need to evaluate `poly(xs, low)` once before the loop.
+*   FIX: in `find_zero`, modify the `while` loop to be:
+    ```python
+    y_low = poly(xs, low)
+    while high - low > 1e-9: # Precision must be tighter than the test's requirement
+        mid = (low + high) / 2
+        y_mid = poly(xs, mid)
+
+        if y_mid == 0:
+            return mid
+
+        # If y_mid and y_low have the same sign, the root must be in the other half.
+        if y_mid * y_low > 0:
+            low = mid
+            y_low = y_mid
+        else:
+            high = mid
+    ```

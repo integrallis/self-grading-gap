@@ -1,0 +1,137 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+I'll trace through each test with the given implementation.
+
+**Import check**: The tests import `anti_shuffle` from `solution`, and the implementation provides `anti_shuffle`. ✓
+
+**Implementation analysis**: The code splits by single space `' '`, then for each word it:
+1. Extracts leading non-alphabetic characters
+2. Extracts trailing non-alphabetic characters  
+3. Sorts the middle alphabetic characters case-insensitively (by `str.lower`)
+4. Concatenates leading + sorted + trailing
+
+Let me trace each test:
+
+**test_canonical_example_1**: Input `'Hi'`
+- Split by `' '`: `['Hi']`
+- `sort_word('Hi')`: no leading/trailing non-alpha, sort 'Hi' case-insensitively → 'hH'... wait, `sorted('Hi', key=str.lower)` gives `['H', 'i']` → `'Hi'`
+- Result: `'Hi'` — Expected: `'Hi'` — **PASS**
+
+**test_canonical_example_2**: Input `'hello'`
+- Split: `['hello']`
+- `sort_word('hello')`: sort 'hello' → `['e','h','l','l','o']` → `'ehllo'`
+- Result: `'ehllo'` — Expected: `'ehllo'` — **PASS**
+
+**test_canonical_example_3**: Input `'Hello World!!!'`
+- Split: `['Hello', 'World!!!']`
+- `sort_word('Hello')`: sort 'Hello' case-insensitively → `['e','H','l','l','o']` → `'eHllo'`
+- `sort_word('World!!!')`: trailing `'!!!'`, sort 'World' → `['d','l','o','r','W']` → `'dlorW'`, result: `'dlorW!!!'`
+- Result: `'eHllo dlorW!!!'` — Expected: `'Hello !!!Wdlor'` — **FAIL**
+
+**test_empty_string**: Input `''`
+- Split: `['']`
+- `sort_word('')`: returns `''`
+- Result: `''` — Expected: `''` — **PASS**
+
+**test_single_character**: Input `'a'`
+- Split: `['a']`
+- `sort_word('a')`: returns `'a'`
+- Result: `'a'` — Expected: `'a'` — **PASS**
+
+**test_word_with_all_same_characters**: Input `'aaa'`
+- Split: `['aaa']`
+- `sort_word('aaa')`: returns `'aaa'`
+- Result: `'aaa'` — Expected: `'aaa'` — **PASS**
+
+**test_lowercase_word_simple**: Input `'dcba'`
+- Split: `['dcba']`
+- `sort_word('dcba')`: returns `'abcd'`
+- Result: `'abcd'` — Expected: `'abcd'` — **PASS**
+
+**test_multiple_words_separated_by_single_space**: Input `'world hello'`
+- Split: `['world', 'hello']`
+- `sort_word('world')`: `'dlorw'`
+- `sort_word('hello')`: `'ehllo'`
+- Result: `'dlorw ehllo'` — Expected: `'dlorw ehllo'` — **PASS**
+
+**test_multiple_spaces_between_words**: Input `'ab  cd'`
+- Split by `' '`: `['ab', '', 'cd']`
+- Results: `['ab', '', 'cd']`
+- Join with `' '`: `'ab  cd'`
+- Result: `'ab  cd'` — Expected: `'ab  cd'` — **PASS**
+
+**test_word_with_numbers**: Input `'a1b2'`
+- Split: `['a1b2']`
+- `sort_word('a1b2')`: `'1'` and `'2'` are not alpha, leading=`'1'`, but the loop continues... Actually, the while loop extracts leading non-alpha one by one until hitting alpha. Leading: `''` (stops at 'a'), trailing extracts from end: `'2'`, then `'1'` making trailing `'12'`... wait, let me retrace.
+- Leading loop: `'a'` is alpha, stops. Leading = `''`
+- Trailing loop: `'2'` not alpha, trailing=`'2'`, word=`'a1b'`. Then `'b'` is alpha, stops. Trailing=`'2'`
+- Sort `'a1b'`: `'1'` not alpha... but we're only sorting the word variable which is now `'a1b'`. Wait, the middle part should only be alphabetic. Let me re-read the code.
+
+Actually, I misread. After extracting leading/trailing, it sorts `word` which may still contain non-alpha. The implementation sorts whatever remains, not just alphabetic characters. For `'a1b2'`: leading=`''`, trailing=`'2'`, middle=`'a1b'`. Sorted case-insensitively: `['1','a','b']` → `'1ab'`. Result: `'1ab2'` — Expected: `'12ab'` — **FAIL**
+
+**test_word_with_mixed_case**: Input `'aBc'`
+- `sort_word('aBc')`: case-insensitive sort → `['a','B','c']` → `'aBc'`
+- Result: `'aBc'` — Expected: `'Bac'` — **FAIL**
+
+**test_word_with_punctuation**: Input `'z!a'`
+- Leading: `''`, trailing: `''` (middle `'!'` stops the trailing loop)
+- Sort `'z!a'`: `['!','a','z']` → `'!az'`
+- Result: `'!az'` — Expected: `'!az'` — **PASS**
+
+**test_sentence_with_multiple_words_and_punctuation**: Input `'Good morning!'`
+- Split: `['Good', 'morning!']`
+- `sort_word('Good')`: case-insensitive → `'dGoo'`
+- `sort_word('morning!')`: trailing=`'!'`, sort `'morning'` → `'gimnnor'`, result: `'gimnnor!'`
+- Result: `'dGoo gimnnor!'` — Expected: `'dGoo gimmnnor!'` — **FAIL**
+
+**test_trailing_space**: Input `'hello '`
+- Split: `['hello', '']`
+- Result: `'ehllo '`
+- Expected: `'ehllo '` — **PASS**
+
+**test_leading_space**: Input `' hello'`
+- Split: `['', 'hello']`
+- Result: `' ehllo'`
+- Expected: `' ehllo'` — **PASS**
+
+**test_only_spaces**: Input `'   '`
+- Split: `['', '', '', '']`
+- Result: `'   '`
+- Expected: `'   '` — **PASS**
+
+**test_single_space**: Input `' '`
+- Split: `['', '']`
+- Result: `' '`
+- Expected: `' '` — **PASS**
+
+**test_word_with_special_characters**: Input `'z@a#'`
+- Leading: `''`, trailing: `'#'`, middle: `'z@a'`
+- Sort `'z@a'`: `['@','a','z']` → `'@az'`
+- Result: `'@az#'` — Expected: `'#@az'` — **FAIL**
+
+**Root cause**: The implementation sorts characters case-insensitively and attempts to separate leading/trailing non-alphabetic characters, but the expected behavior is to sort ALL characters in each word by ASCII value. The case-insensitive sorting and the leading/trailing extraction logic don't match the specification.
+
+test_canonical_example_1: PASS — computes 'Hi', matching the assertion
+test_canonical_example_2: PASS — computes 'ehllo', matching the assertion
+test_canonical_example_3: FAIL — computes 'eHllo dlorW!!!' but expects 'Hello !!!Wdlor'
+test_empty_string: PASS — computes '', matching the assertion
+test_single_character: PASS — computes 'a', matching the assertion
+test_word_with_all_same_characters: PASS — computes 'aaa', matching the assertion
+test_lowercase_word_simple: PASS — computes 'abcd', matching the assertion
+test_multiple_words_separated_by_single_space: PASS — computes 'dlorw ehllo', matching the assertion
+test_multiple_spaces_between_words: PASS — computes 'ab  cd', matching the assertion
+test_word_with_numbers: FAIL — computes '1ab2' but expects '12ab'
+test_word_with_mixed_case: FAIL — computes 'aBc' but expects 'Bac'
+test_word_with_punctuation: PASS — computes '!az', matching the assertion
+test_sentence_with_multiple_words_and_punctuation: FAIL — computes 'dGoo gimnnor!' but expects 'dGoo gimmnnor!'
+test_trailing_space: PASS — computes 'ehllo ', matching the assertion
+test_leading_space: PASS — computes ' ehllo', matching the assertion
+test_only_spaces: PASS — computes '   ', matching the assertion
+test_single_space: PASS — computes ' ', matching the assertion
+test_word_with_special_characters: FAIL — computes '@az#' but expects '#@az'
+
+The implementation uses case-insensitive sorting and attempts to preserve leading/trailing non-alphabetic characters, but the tests expect strict ASCII-value sorting of all characters within each word (split by spaces), without any special treatment of non-alphabetic characters.
+
+Rating: 0.61

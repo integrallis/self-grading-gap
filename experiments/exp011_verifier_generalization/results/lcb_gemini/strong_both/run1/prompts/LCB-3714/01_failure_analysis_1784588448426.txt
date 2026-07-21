@@ -1,0 +1,312 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784588448426
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: import pytest
+from typing import List
+
+# Import the function to be tested
+from solution import minMaxSums
+
+# The modulo constant defined in the problem
+MOD = 10**9 + 7
+
+def test_canonical_example_1():...[truncated]
+  impl_code: from typing import List
+
+MOD = 10**9 + 7
+
+from math import comb
+
+def minMaxSums(nums: List[int], k: int) -> int:
+    n = len(nums)
+    nums.sort()
+    total_sum = 0
+
+    for i in range(n):
+        # C...[truncated]
+  task: {'id': 'LCB/3714', 'use_case_id': 'LCB/3714', 'story_id': 'LCB/3714', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement minMaxSums()', 'description': 'You are given an integer array nums and a positive ...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement minMaxSums()**
+
+## Tests (the acceptance criterion)
+
+```python
+import pytest
+from typing import List
+
+# Import the function to be tested
+from solution import minMaxSums
+
+# The modulo constant defined in the problem
+MOD = 10**9 + 7
+
+def test_canonical_example_1():
+    """
+    Test with the first example from the specification.
+    nums = [1, 2, 3], k = 2
+    """
+    # Specification: minMaxSums([1, 2, 3], 2) -> 24
+    # Subsequences of size at most 2:
+    # [1]: min=1, max=1, sum=2
+    # [2]: min=2, max=2, sum=4
+    # [3]: min=3, max=3, sum=6
+    # [1, 2]: min=1, max=2, sum=3
+    # [1, 3]: min=1, max=3, sum=4
+    # [2, 3]: min=2, max=3, sum=5
+    # Total sum = 2 + 4 + 6 + 3 + 4 + 5 = 24
+    assert minMaxSums([1, 2, 3], 2) == 24
+
+def test_canonical_example_2():
+    """
+    Test with the second example from the specification.
+    nums = [5, 0, 6], k = 1
+    """
+    # Specification: minMaxSums([5, 0, 6], 1) -> 22
+    # Subsequences of size at most 1:
+    # [5]: min=5, max=5, sum=10
+    # [0]: min=0, max=0, sum=0
+    # [6]: min=6, max=6, sum=12
+    # Total sum = 10 + 0 + 12 = 22
+    assert minMaxSums([5, 0, 6], 1) == 22
+
+def test_canonical_example_3():
+    """
+    Test with the third example from the specification, which includes duplicates.
+    nums = [1, 1, 1], k = 2
+    """
+    # Specification: minMaxSums([1, 1, 1], 2) -> 12
+    # Subsequences of size 1 (3 of them): [1], [1], [1]. Each has min=1, max=1. Sum = 3 * (1+1) = 6.
+    # Subsequences of size 2 (3 of them): [1,1], [1,1], [1,1]. Each has min=1, max=1. Sum = 3 * (1+1) = 6.
+    # Total sum = 6 + 6 = 12.
+    assert minMaxSums([1, 1, 1], 2) == 12
+
+def test_minimal_input_n1_k1():
+    """
+    Test with the smallest possible input array according to constraints.
+    """
+    # nums = [42], k = 1.
+    # Only one subsequence: [42].
+    # min=42, max=42. Sum = 42 + 42 = 84.
+    assert minMaxSums([42], 1) == 84
+
+def test_k_is_one():
+    """
+    Test when k=1, which means only subsequences of size 1 are considered.
+    """
+    # nums = [10, 20, 30], k = 1
+    # Subsequences: [10], [20], [30]
+    # Sums: (10+10) + (20+20) + (30+30) = 20 + 40 + 60 = 120
+    assert minMaxSums([10, 20, 30], 1) == 120
+
+def test_k_equals_n():
+    """
+    Test case where k is equal to the length of the array.
+    """
+    # nums = [10, 20], k = 2
+    # Subsequences of size at most 2:
+    # [10]: min=10, max=10, sum=20
+    # [20]: min=20, max=20, sum=40
+    # [10, 20]: min=10, max=20, sum=30
+    # Total sum = 20 + 40 + 30 = 90
+    assert minMaxSums([10, 20], 2) == 90
+
+def test_k_equals_n_with_duplicates():
+    """
+    Test case where k equals n and there are duplicate numbers.
+    """
+    # nums = [10, 20, 10], k = 3
+    # Subsequences (treating same values at different indices as distinct):
+    # size 1: [10_a], [20], [10_b]. Sums: (10+10) + (20+20) + (10+10) = 80
+    # size 2: [10_a, 20], [10_a, 10_b], [20, 10_b]. Sums: (10+20) + (10+10) + (10+20) = 30 + 20 + 30 = 80
+    # size 3: [10_a, 20, 10_b]. Sum: (10+20) = 30
+    # Total sum = 80 + 80 + 30 = 190
+    assert minMaxSums([10, 20, 10], 3) == 190
+
+def test_input_with_zero():
+    """
+    Test with an input array containing zero.
+    """
+    # nums = [1, 0, 2], k = 2
+    # Subsequences of size at most 2:
+    # [1]: sum=2
+    # [0]: sum=0
+    # [2]: sum=4
+    # [1,0]: min=0, max=1, sum=1
+    # [1,2]: min=1, max=2, sum=3
+    # [0,2]: min=0, max=2, sum=2
+    # Total sum = 2+0+4+1+3+2 = 12
+    assert minMaxSums([1, 0, 2], 2) == 12
+
+def test_unsorted_input():
+    """
+    Test with a general unsorted input.
+    """
+    # nums = [100, 200, 50, 400], k = 3. n=4.
+    # Sorted nums: [50, 100, 200, 400]
+    # Let's count how many times each element is a min or max in a subsequence of size <= 3.
+    # A number s_i is min of a subsequence of size L if we pick it and L-1 numbers
+    # from the n-1-i numbers greater than it. Number of ways: C(n-1-i, L-1).
+    # A number s_i is max ... from the i numbers smaller. Number of ways: C(i, L-1).
+    # Total contribution is s_i * (sum_{L=1 to k} C(n-1-i, L-1) + sum_{L=1 to k} C(i, L-1))
+    # Here k=3, so we sum for L=1,2,3.
+    # Let coeff(m) = C(m,0)+C(m,1)+C(m,2)
+    #
+    # 50 (i=0): 50 * (coeff(3) + coeff(0)) = 50 * ((1+3+3) + 1) = 50 * 8 = 400
+    # 100 (i=1): 100 * (coeff(2) + coeff(1)) = 100 * ((1+2+1) + (1+1)) = 100 * (4+2) = 600
+    # 200 (i=2): 200 * (coeff(1) + coeff(2)) = 200 * ((1+1) + (1+2+1)) = 200 * (2+4) = 1200
+    # 400 (i=3): 400 * (coeff(0) + coeff(3)) = 400 * (1 + (1+3+3)) = 400 * 8 = 3200
+    # Total = 400 + 600 + 1200 + 3200 = 5400
+    assert minMaxSums([100, 200, 50, 400], 3) == 5400
+
+def test_large_numbers_trigger_modulo():
+    """
+    Test with large numbers to ensure modulo arithmetic is handled.
+    """
+    # nums = [10^9, 10^9, 10^9], k = 3. n=3.
+    # Let num = 10^9. Sorted array is [num, num, num].
+    # We use the same combinatorial approach as in test_unsorted_input. k=3.
+    # Let coeff(m) = C(m,0)+C(m,1)+C(m,2)
+    #
+    # elem 1 (i=0): num * (coeff(2) + coeff(0)) = num * ((1+2+1) + 1) = num * 5
+    # elem 2 (i=1): num * (coeff(1) + coeff(1)) = num * ((1+1) + (1+1)) = num * 4
+    # elem 3 (i=2): num * (coeff(0) + coeff(2)) = num * (1 + (1+2+1)) = num * 5
+    # Total = 5 * num + 4 * num + 5 * num = 14 * num = 14 * 10^9
+    #
+    # Modulo calculation: MOD = 10^9 + 7
+    # 10^9 = (10^9 + 7) - 7, so 10^9 % MOD = -7
+    # 14 * 10^9 % MOD = (14 * -7) % MOD = -98 % MOD
+    # -98 % MOD = -98 + MOD = -98 + 1000000007 = 999999909
+    large_num = 10**9
+    assert minMaxSums([large_num, large_num, large_num], 3) == 999999909
+
+def test_large_n_scalability():
+    """
+    Tests scalability with a large input array (n=10000) to ensure any
+    solution is efficient enough to pass within typical time limits.
+    """
+    # Specification: Test with a large array to ensure the solution is scalable.
+    # n = 10000, k = 50. nums = [1, 2, ..., 10000].
+    # The expected value is calculated based on the combinatorial formula:
+    # total = sum_{i=0 to n-1} (s_i * (sum_{j=0 to k-1} C(n-1-i, j) + sum_{j=0 to k-1} C(i, j))) % MOD
+    # A script pre-calculated this value to be 131230403.
+    nums = list(range(1, 10001))
+    k = 50
+    expected = 131230403
+    assert minMaxSums(nums, k) == expected
+
+def test_large_k_limit():
+    """
+    Tests with k at its maximum constraint value of 70.
+    """
+    # Specification: Test with k at its upper limit.
+    # n = 100, k = 70. nums = [1, 2, ..., 100].
+    # The expected value is calculated using the same combinatorial formula as above.
+    # A script pre-calculated this value to be 755711680.
+    nums = list(range(1, 101))
+    k = 70
+    expected = 755711680
+    assert minMaxSums(nums, k) == expected
+```
+
+## Failing implementation
+
+```python
+from typing import List
+
+MOD = 10**9 + 7
+
+from math import comb
+
+def minMaxSums(nums: List[int], k: int) -> int:
+    n = len(nums)
+    nums.sort()
+    total_sum = 0
+
+    for i in range(n):
+        # Calculate contributions as min
+        min_coeff_sum = sum(comb(n - 1 - i, j - 1) for j in range(1, k + 1))
+        # Calculate contributions as max
+        max_coeff_sum = sum(comb(i, j - 1) for j in range(1, k + 1))
+        
+        term = (nums[i] * (min_coeff_sum + max_coeff_sum)) % MOD
+        total_sum = (total_sum + term) % MOD
+
+    return total_sum % MOD
+
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpn82uafte/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 12 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [  8%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 16%]
+tests/test_task.py::test_canonical_example_3 PASSED                      [ 25%]
+tests/test_task.py::test_minimal_input_n1_k1 PASSED                      [ 33%]
+tests/test_task.py::test_k_is_one PASSED                                 [ 41%]
+tests/test_task.py::test_k_equals_n PASSED                               [ 50%]
+tests/test_task.py::test_k_equals_n_with_duplicates PASSED               [ 58%]
+tests/test_task.py::test_input_with_zero PASSED                          [ 66%]
+tests/test_task.py::test_unsorted_input PASSED                           [ 75%]
+tests/test_task.py::test_large_numbers_trigger_modulo PASSED             [ 83%]
+tests/test_task.py::test_large_n_scalability FAILED                      [ 91%]
+tests/test_task.py::test_large_k_limit FAILED                            [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_large_n_scalability ___________________________
+tests/test_task.py:162: in test_large_n_scalability
+    assert minMaxSums(nums, k) == expected
+E   assert 241483927 == 131230403
+E    +  where 241483927 = minMaxSums([1, 2, 3, 4, 5, 6, ...], 50)
+______________________________ test_large_k_limit ______________________________
+tests/test_task.py:175: in test_large_k_limit
+    assert minMaxSums(nums, k) == expected
+E   assert 913257662 == 755711680
+E    +  where 913257662 = minMaxSums([1, 2, 3, 4, 5, 6, ...], 70)
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_large_n_scalability - assert 241483927 == 131...
+FAILED tests/test_task.py::test_large_k_limit - assert 913257662 == 755711680
+========================= 2 failed, 10 passed in 0.42s =========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

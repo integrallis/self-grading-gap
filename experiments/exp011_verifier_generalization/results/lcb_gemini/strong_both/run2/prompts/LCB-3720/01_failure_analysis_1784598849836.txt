@@ -1,0 +1,338 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784598849836
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from typing import List
+from solution import minMaxWeight
+
+def test_canonical_example_1():
+    """
+    Tests the first example from the specification.
+    spec: n = 5, edges = [[1,0,1],[2,0,2],[3,0,1]...[truncated]
+  impl_code: from typing import List
+import collections
+
+
+def minMaxWeight(n: int, edges: List[List[int]], threshold: int) -> int:
+    edges.sort(key=lambda x: x[2])  # Sort edges by weight
+    low, high = 1, 10**...[truncated]
+  task: {'id': 'LCB/3720', 'use_case_id': 'LCB/3720', 'story_id': 'LCB/3720', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement minMaxWeight()', 'description': 'You are given two integers, n and threshold, as w...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement minMaxWeight()**
+
+## Tests (the acceptance criterion)
+
+```python
+from typing import List
+from solution import minMaxWeight
+
+def test_canonical_example_1():
+    """
+    Tests the first example from the specification.
+    spec: n = 5, edges = [[1,0,1],[2,0,2],[3,0,1],[4,3,1],[2,1,1]], threshold = 2 -> 1
+    Explanation:
+    A valid graph with max weight 1 can be formed.
+    Edges with weight <= 1 are: [1,0,1], [3,0,1], [4,3,1], [2,1,1].
+    Out-degrees in this subgraph: node 1:1, 2:1, 3:1, 4:1. All are <= threshold=2.
+    Reachability to 0:
+    1 -> 0
+    2 -> 1 -> 0
+    3 -> 0
+    4 -> 3 -> 0
+    All nodes can reach 0. So, max weight 1 is possible. Since 1 is the minimum weight, it's the answer.
+    """
+    n = 5
+    edges = [[1, 0, 1], [2, 0, 2], [3, 0, 1], [4, 3, 1], [2, 1, 1]]
+    threshold = 2
+    expected = 1
+    assert minMaxWeight(n, edges, threshold) == expected
+
+def test_canonical_example_2():
+    """
+    Tests the second example from the specification.
+    spec: n = 5, edges = [[0,1,1],[0,2,2],[0,3,1],[0,4,1],[1,2,1],[1,4,1]], threshold = 1 -> -1
+    Explanation:
+    It is impossible for all nodes to reach 0.
+    In the given graph, no edge points to node 0, so no other node can reach it.
+    """
+    n = 5
+    edges = [[0, 1, 1], [0, 2, 2], [0, 3, 1], [0, 4, 1], [1, 2, 1], [1, 4, 1]]
+    threshold = 1
+    expected = -1
+    assert minMaxWeight(n, edges, threshold) == expected
+
+def test_canonical_example_3():
+    """
+    Tests the third example from the specification.
+    spec: n = 5, edges = [[1,2,1],[1,3,3],[1,4,5],[2,3,2],[3,4,2],[4,0,1]], threshold = 1 -> 2
+    Explanation:
+    - Try max_weight = 1: edges are [1,2,1], [4,0,1]. Node 2 and 3 can't reach 0. Impossible.
+    - Try max_weight = 2: edges are [1,2,1], [2,3,2], [3,4,2], [4,0,1].
+      Out-degrees: deg(1)=1, deg(2)=1, deg(3)=1, deg(4)=1. All <= threshold=1.
+      Reachability: 1->2->3->4->0. All nodes can reach 0. Possible.
+    Since 1 was not possible, 2 is the minimum possible max weight.
+    """
+    n = 5
+    edges = [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [3, 4, 2], [4, 0, 1]]
+    threshold = 1
+    expected = 2
+    assert minMaxWeight(n, edges, threshold) == expected
+
+def test_canonical_example_4():
+    """
+    Tests the fourth example from the specification.
+    spec: n = 5, edges = [[1,2,1],[1,3,3],[1,4,5],[2,3,2],[4,0,1]], threshold = 1 -> -1
+    Explanation:
+    Even with all edges (max_weight = 5):
+    The edges are [1,2,1], [1,3,3], [1,4,5], [2,3,2], [4,0,1].
+    Node 3 has an out-degree of 0, so it can never reach any other node, including 0.
+    Thus, it's impossible.
+    """
+    n = 5
+    edges = [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [4, 0, 1]]
+    threshold = 1
+    expected = -1
+    assert minMaxWeight(n, edges, threshold) == expected
+
+def test_no_path_to_zero_at_all():
+    """
+    Tests a graph where no node has a path to node 0.
+    """
+    n = 4
+    edges = [[1, 2, 5], [2, 3, 5]]
+    threshold = 1
+    # No node has a path to 0.
+    expected = -1
+    assert minMaxWeight(n, edges, threshold) == expected
+
+def test_high_threshold_is_not_a_constraint():
+    """
+    Tests a case where the threshold is high enough to not be a limiting factor.
+    """
+    n = 3
+    edges = [[1, 0, 10], [2, 1, 5]]
+    threshold = 2
+    # Out-degrees are d(1)=1, d(2)=1, both <= 2.
+    # Path exists for node 2: 2->1->0. Path for 1: 1->0.
+    # Max weight on these paths is 10.
+    expected = 10
+    assert minMaxWeight(n, edges, threshold) == expected
+
+def test_low_threshold_makes_it_impossible():
+    """
+    Tests a case where a path exists, but a low threshold makes it unusable.
+    """
+    n = 3
+    edges = [[1, 0, 5], [2, 0, 8], [1, 2, 10]]
+    threshold = 1
+    # To minimize max weight, we'd want to achieve 8.
+    # For W=8, edges are [1,0,5] and [2,0,8]. Out-degrees are d(1)=1, d(2)=1 <= threshold=1.
+    # Paths: 1->0, 2->0. All nodes reach 0. So 8 is possible.
+    # Try W=5. Edge [1,0,5]. Node 2 is stranded.
+    # The minimum max weight is 8.
+    expected = 8
+    assert minMaxWeight(n, edges, threshold) == expected
+
+def test_simple_line_path():
+    """
+    Tests a simple linear path to node 0.
+    """
+    n = 4
+    edges = [[3, 2, 10], [2, 1, 20], [1, 0, 30]]
+    threshold = 1
+    # The only way for all nodes to reach 0 is to use all edges.
+    # The maximum weight in this set is 30.
+    expected = 30
+    assert minMaxWeight(n, edges, threshold) == expected
+
+def test_multiple_edges_between_nodes():
+    """
+    Tests multiple edges between the same two nodes.
+    """
+    n = 2
+    edges = [[1, 0, 10], [1, 0, 20]]
+    threshold = 1
+    # Node 1 has two outgoing edges to 0, but threshold is 1. We must pick one.
+    # To minimize the max weight, we choose the edge with weight 10.
+    expected = 10
+    assert minMaxWeight(n, edges, threshold) == expected
+
+def test_cycle_not_involving_zero():
+    """
+    Tests a graph with a cycle that does not include node 0.
+    """
+    n = 4
+    edges = [[1, 0, 1], [2, 1, 1], [2, 3, 1], [3, 2, 1]]
+    threshold = 2
+    # Path to 0 exists for all nodes (e.g., 3->2->1->0, 2->1->0, 1->0).
+    # Out-degrees: d(1)=1, d(2)=2, d(3)=1. All are <= threshold=2.
+    # Max weight in the full graph is 1, so that's the best possible.
+    expected = 1
+    assert minMaxWeight(n, edges, threshold) == expected
+
+def test_n_is_2_minimal_case():
+    """
+    Tests the smallest possible 'n' according to constraints.
+    """
+    n = 2
+    edges = [[1, 0, 100]]
+    threshold = 1
+    expected = 100
+    assert minMaxWeight(n, edges, threshold) == expected
+
+def test_impossible_due_to_unconnected_component():
+    """
+    Tests a case where a node is in a disconnected component with no path to 0.
+    """
+    n = 3
+    edges = [[1, 0, 5]]
+    threshold = 1
+    # Node 2 has no incoming or outgoing edges, so it cannot reach 0.
+    expected = -1
+    assert minMaxWeight(n, edges, threshold) == expected
+```
+
+## Failing implementation
+
+```python
+from typing import List
+import collections
+
+
+def minMaxWeight(n: int, edges: List[List[int]], threshold: int) -> int:
+    edges.sort(key=lambda x: x[2])  # Sort edges by weight
+    low, high = 1, 10**6  # The weights are in the range [1, 10^6]
+
+    def canAchieve(max_weight: int) -> bool:
+        graph = collections.defaultdict(list)
+        in_degree = [0] * n
+        for u, v, w in edges:
+            if w <= max_weight:
+                graph[v].append(u)  # Reverse the graph for reachability check
+                in_degree[u] += 1
+                if in_degree[u] > threshold:
+                    return False
+        visited = [False] * n
+        queue = collections.deque([0])  # Start BFS from node 0
+        while queue:
+            node = queue.popleft()
+            for neighbor in graph[node]:  # Check incoming edges to 0
+                if not visited[neighbor]:
+                    visited[neighbor] = True
+                    queue.append(neighbor)
+        return all(visited[i] for i in range(1, n))  # Check if all nodes can reach 0
+
+    while low < high:
+        mid = (low + high) // 2
+        if canAchieve(mid):
+            high = mid
+        else:
+            low = mid + 1
+
+    return -1 if low > 10**6 else low
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpw68kypsw/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 12 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [  8%]
+tests/test_task.py::test_canonical_example_2 FAILED                      [ 16%]
+tests/test_task.py::test_canonical_example_3 FAILED                      [ 25%]
+tests/test_task.py::test_canonical_example_4 FAILED                      [ 33%]
+tests/test_task.py::test_no_path_to_zero_at_all FAILED                   [ 41%]
+tests/test_task.py::test_high_threshold_is_not_a_constraint PASSED       [ 50%]
+tests/test_task.py::test_low_threshold_makes_it_impossible FAILED        [ 58%]
+tests/test_task.py::test_simple_line_path PASSED                         [ 66%]
+tests/test_task.py::test_multiple_edges_between_nodes FAILED             [ 75%]
+tests/test_task.py::test_cycle_not_involving_zero PASSED                 [ 83%]
+tests/test_task.py::test_n_is_2_minimal_case PASSED                      [ 91%]
+tests/test_task.py::test_impossible_due_to_unconnected_component FAILED  [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_2 ___________________________
+tests/test_task.py:37: in test_canonical_example_2
+    assert minMaxWeight(n, edges, threshold) == expected
+E   assert 1000000 == -1
+E    +  where 1000000 = minMaxWeight(5, [[0, 1, 1], [0, 3, 1], [0, 4, 1], [1, 2, 1], [1, 4, 1], [0, 2, 2]], 1)
+___________________________ test_canonical_example_3 ___________________________
+tests/test_task.py:54: in test_canonical_example_3
+    assert minMaxWeight(n, edges, threshold) == expected
+E   assert 1000000 == 2
+E    +  where 1000000 = minMaxWeight(5, [[1, 2, 1], [4, 0, 1], [2, 3, 2], [3, 4, 2], [1, 3, 3], [1, 4, 5]], 1)
+___________________________ test_canonical_example_4 ___________________________
+tests/test_task.py:70: in test_canonical_example_4
+    assert minMaxWeight(n, edges, threshold) == expected
+E   assert 1000000 == -1
+E    +  where 1000000 = minMaxWeight(5, [[1, 2, 1], [4, 0, 1], [2, 3, 2], [1, 3, 3], [1, 4, 5]], 1)
+_________________________ test_no_path_to_zero_at_all __________________________
+tests/test_task.py:81: in test_no_path_to_zero_at_all
+    assert minMaxWeight(n, edges, threshold) == expected
+E   assert 1000000 == -1
+E    +  where 1000000 = minMaxWeight(4, [[1, 2, 5], [2, 3, 5]], 1)
+____________________ test_low_threshold_makes_it_impossible ____________________
+tests/test_task.py:109: in test_low_threshold_makes_it_impossible
+    assert minMaxWeight(n, edges, threshold) == expected
+E   assert 1000000 == 8
+E    +  where 1000000 = minMaxWeight(3, [[1, 0, 5], [2, 0, 8], [1, 2, 10]], 1)
+______________________ test_multiple_edges_between_nodes _______________________
+tests/test_task.py:133: in test_multiple_edges_between_nodes
+    assert minMaxWeight(n, edges, threshold) == expected
+E   assert 1000000 == 10
+E    +  where 1000000 = minMaxWeight(2, [[1, 0, 10], [1, 0, 20]], 1)
+_________________ test_impossible_due_to_unconnected_component _________________
+tests/test_task.py:167: in test_impossible_due_to_unconnected_component
+    assert minMaxWeight(n, edges, threshold) == expected
+E   assert 1000000 == -1
+E    +  where 1000000 = minMaxWeight(3, [[1, 0, 5]], 1)
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_canonical_example_2 - assert 1000000 == -1
+FAILED tests/test_task.py::test_canonical_example_3 - assert 1000000 == 2
+FAILED tests/test_task.py::test_canonical_example_4 - assert 1000000 == -1
+FAILED tests/test_task.py::test_no_path_to_zero_at_all - assert 1000000 == -1
+FAILED tests/test_task.py::test_low_threshold_makes_it_impossible - assert 10...
+FAILED tests/test_task.py::test_multiple_edges_between_nodes - assert 1000000...
+FAILED tests/test_task.py::test_impossible_due_to_unconnected_component - ass...
+========================= 7 failed, 5 passed in 0.03s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

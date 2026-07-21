@@ -1,0 +1,238 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784520111237
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: import pytest
+from solution import maxDistance
+
+
+def test_canonical_example_1():
+    # spec: s = "NWSE", k = 1 -> 3
+    # Change s[2] from 'S' to 'N' to get "NWNE"
+    # Path: (0,0) -> N:(0,1) -> W:(-...[truncated]
+  impl_code: def maxDistance(s: str, k: int) -> int:
+    x, y = 0, 0
+    max_distance = 0
+    for char in s:
+        if char == 'N':
+            y += 1
+        elif char == 'S':
+            y -= 1
+        elif cha...[truncated]
+  task: {'id': 'LCB/3754', 'use_case_id': 'LCB/3754', 'story_id': 'LCB/3754', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maxDistance()', 'description': 'You are given a string s consisting of the charact...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement maxDistance()**
+
+## Tests (the acceptance criterion)
+
+```python
+import pytest
+from solution import maxDistance
+
+
+def test_canonical_example_1():
+    # spec: s = "NWSE", k = 1 -> 3
+    # Change s[2] from 'S' to 'N' to get "NWNE"
+    # Path: (0,0) -> N:(0,1) -> W:(-1,1) -> N:(-1,2) -> E:(0,2)
+    # Distances: 1, 2, 3, 2 -> max is 3
+    assert maxDistance("NWSE", 1) == 3
+
+
+def test_canonical_example_2():
+    # spec: s = "NSWWEW", k = 3 -> 6
+    # Change s[1] from 'S' to 'N', and s[4] from 'E' to 'W' to get "NNWWWW"
+    # Max Manhattan distance achieved is 6
+    assert maxDistance("NSWWEW", 3) == 6
+
+
+def test_single_move_north_no_changes():
+    # s = "N", k = 0 -> move to (0,1), distance = 1
+    assert maxDistance("N", 0) == 1
+
+
+def test_single_move_south_no_changes():
+    # s = "S", k = 0 -> move to (0,-1), distance = 1
+    assert maxDistance("S", 0) == 1
+
+
+def test_single_move_east_no_changes():
+    # s = "E", k = 0 -> move to (1,0), distance = 1
+    assert maxDistance("E", 0) == 1
+
+
+def test_single_move_west_no_changes():
+    # s = "W", k = 0 -> move to (-1,0), distance = 1
+    assert maxDistance("W", 0) == 1
+
+
+def test_no_changes_allowed():
+    # s = "NSEW", k = 0 -> (0,0) -> N:(0,1) -> S:(0,0) -> E:(1,0) -> W:(0,0)
+    # Distances: 1, 0, 1, 0 -> max is 1
+    assert maxDistance("NSEW", 0) == 1
+
+
+def test_all_changes_allowed():
+    # s = "SSSS", k = 4 -> can change all to go in one direction, e.g., all N
+    # Path: N:(0,1) -> N:(0,2) -> N:(0,3) -> N:(0,4)
+    # Max distance is 4
+    assert maxDistance("SSSS", 4) == 4
+
+
+def test_two_moves_same_direction():
+    # s = "NN", k = 0 -> (0,0) -> N:(0,1) -> N:(0,2)
+    # Distances: 1, 2 -> max is 2
+    assert maxDistance("NN", 0) == 2
+
+
+def test_opposing_moves_with_changes():
+    # s = "NS", k = 1 -> change S to N to get "NN"
+    # Path: N:(0,1) -> N:(0,2)
+    # Distances: 1, 2 -> max is 2
+    assert maxDistance("NS", 1) == 2
+
+
+def test_longer_path_no_changes():
+    # s = "NNNN", k = 0 -> move north 4 times
+    # Path: (0,1), (0,2), (0,3), (0,4)
+    # Max distance is 4
+    assert maxDistance("NNNN", 0) == 4
+
+
+def test_changes_exceed_length():
+    # s = "SE", k = 5 -> can change both moves
+    # Optimal: change to "NN" -> distances 1, 2 -> max is 2
+    assert maxDistance("SE", 5) == 2
+
+
+def test_mixed_moves_with_some_changes():
+    # s = "EEWW", k = 2 -> can change 2 moves
+    # Could change last 2 W's to E's: "EEEE" -> distances 1, 2, 3, 4 -> max is 4
+    assert maxDistance("EEWW", 2) == 4
+
+
+def test_k_is_zero():
+    # s = "NESW", k = 0 -> no changes allowed
+    # Path: (0,0) -> N:(0,1) -> E:(1,1) -> S:(1,0) -> W:(0,0)
+    # Distances: 1, 2, 1, 0 -> max is 2
+    assert maxDistance("NESW", 0) == 2
+
+
+def test_single_character_with_k():
+    # s = "S", k = 1 -> can change to any direction, max distance still 1
+    assert maxDistance("S", 1) == 1
+```
+
+## Failing implementation
+
+```python
+def maxDistance(s: str, k: int) -> int:
+    x, y = 0, 0
+    max_distance = 0
+    for char in s:
+        if char == 'N':
+            y += 1
+        elif char == 'S':
+            y -= 1
+        elif char == 'E':
+            x += 1
+        elif char == 'W':
+            x -= 1
+        # Calculate current distance
+        current_distance = abs(x) + abs(y)
+        max_distance = max(max_distance, current_distance)
+        # If we can change a direction, we should consider the maximum possible distance we can achieve
+        if k > 0:
+            # The maximum distance we can reach if we change the current position to a favorable direction
+            max_distance = max(max_distance, abs(x) + abs(y) + k)
+    return max_distance
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpro25177m/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 15 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [  6%]
+tests/test_task.py::test_canonical_example_2 FAILED                      [ 13%]
+tests/test_task.py::test_single_move_north_no_changes PASSED             [ 20%]
+tests/test_task.py::test_single_move_south_no_changes PASSED             [ 26%]
+tests/test_task.py::test_single_move_east_no_changes PASSED              [ 33%]
+tests/test_task.py::test_single_move_west_no_changes PASSED              [ 40%]
+tests/test_task.py::test_no_changes_allowed PASSED                       [ 46%]
+tests/test_task.py::test_all_changes_allowed FAILED                      [ 53%]
+tests/test_task.py::test_two_moves_same_direction PASSED                 [ 60%]
+tests/test_task.py::test_opposing_moves_with_changes PASSED              [ 66%]
+tests/test_task.py::test_longer_path_no_changes PASSED                   [ 73%]
+tests/test_task.py::test_changes_exceed_length FAILED                    [ 80%]
+tests/test_task.py::test_mixed_moves_with_some_changes PASSED            [ 86%]
+tests/test_task.py::test_k_is_zero PASSED                                [ 93%]
+tests/test_task.py::test_single_character_with_k FAILED                  [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_2 ___________________________
+tests/test_task.py:17: in test_canonical_example_2
+    assert maxDistance("NSWWEW", 3) == 6
+E   AssertionError: assert 5 == 6
+E    +  where 5 = maxDistance('NSWWEW', 3)
+___________________________ test_all_changes_allowed ___________________________
+tests/test_task.py:50: in test_all_changes_allowed
+    assert maxDistance("SSSS", 4) == 4
+E   AssertionError: assert 8 == 4
+E    +  where 8 = maxDistance('SSSS', 4)
+__________________________ test_changes_exceed_length __________________________
+tests/test_task.py:76: in test_changes_exceed_length
+    assert maxDistance("SE", 5) == 2
+E   AssertionError: assert 7 == 2
+E    +  where 7 = maxDistance('SE', 5)
+_________________________ test_single_character_with_k _________________________
+tests/test_task.py:94: in test_single_character_with_k
+    assert maxDistance("S", 1) == 1
+E   AssertionError: assert 2 == 1
+E    +  where 2 = maxDistance('S', 1)
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_canonical_example_2 - AssertionError: assert ...
+FAILED tests/test_task.py::test_all_changes_allowed - AssertionError: assert ...
+FAILED tests/test_task.py::test_changes_exceed_length - AssertionError: asser...
+FAILED tests/test_task.py::test_single_character_with_k - AssertionError: ass...
+========================= 4 failed, 11 passed in 0.03s =========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

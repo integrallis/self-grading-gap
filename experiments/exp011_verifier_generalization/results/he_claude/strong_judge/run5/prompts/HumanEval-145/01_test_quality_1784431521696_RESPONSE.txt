@@ -1,0 +1,127 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+## Review of Test Suite
+
+### Check 0 — MANDATORY Canonical Example Coverage
+
+The specification provides two worked examples:
+1. `order_by_points([1, 11, -1, -11, -12]) == [-1, -11, 1, -12, 11]`
+2. `order_by_points([]) == []`
+
+Both examples appear as tests with exact inputs and expected outputs:
+- `test_canonical_example_1` covers example 1
+- `test_canonical_example_2` covers example 2
+
+✓ Check 0 passes.
+
+### Check 1 — Fidelity
+
+**test_canonical_example_1:**
+- Input: `[1, 11, -1, -11, -12]`
+- Expected: `[-1, -11, 1, -12, 11]`
+
+Computing sum of digits for each (treating negative signs specially):
+- `1`: sum = 1
+- `11`: sum = 1+1 = 2
+- `-1`: sum = -1 (the negative sign applies to the first digit)
+- `-11`: sum = -(1+1) = -2 (the negative sign applies to the first digit, not all)
+- `-12`: sum = -(1+2) = -3
+
+Wait, let me reconsider. The expected output is `[-1, -11, 1, -12, 11]`. Let me verify this ordering:
+
+Looking at the expected output order and working backwards:
+- Position 0: `-1` (index 2 in original)
+- Position 1: `-11` (index 3 in original)
+- Position 2: `1` (index 0 in original)
+- Position 3: `-12` (index 4 in original)
+- Position 4: `11` (index 1 in original)
+
+If we compute digit sums (treating negatives as: negative sign applies only to result):
+- `-1`: sum = -1
+- `-11`: sum = -1-1 = -2 (or could be -(1+1) = -2)
+- `1`: sum = 1
+- `-12`: sum = -1-2 = -3 (or could be -(1+2) = -3)
+- `11`: sum = 1+1 = 2
+
+Sorting by sum: -3, -2, -1, 1, 2 → `-12`, `-11`, `-1`, `1`, `11`
+
+But expected is: `[-1, -11, 1, -12, 11]`
+
+Let me try another interpretation: for negatives, only the first digit is negative:
+- `-1`: -1
+- `-11`: -1+1 = 0
+- `-12`: -1+2 = 1
+- `1`: 1
+- `11`: 1+1 = 2
+
+Sorting by sum then index: 0, 1, 1, 1, 2
+- Sum 0: `-11` (index 3)
+- Sum 1: `-1` (index 2), `-12` (index 4), `1` (index 0) → order by index: `1`, `-1`, `-12`
+- Sum 2: `11` (index 1)
+
+Result: `-11`, `1`, `-1`, `-12`, `11` — doesn't match.
+
+Actually, the expected output shows `-1` before `1`, so let me try: `-1` has sum 1, `1` has sum 1, but `-1` comes first at index 2, `1` comes at index 0. If ordering by index when sums are equal, `1` should come before `-1`.
+
+But the expected shows `[-1, -11, 1, -12, 11]`. Let me compute more carefully:
+- `-1`: sum = 1 (taking absolute value interpretation)
+- `-11`: sum = 2
+- `1`: sum = 1
+- `-12`: sum = 3
+- `11`: sum = 2
+
+Sorted by sum then index: sums are [1, 1, 2, 2, 3]
+- Sum 1: indices [2, 0] → `-1`, `1`
+- Sum 2: indices [3, 1] → `-11`, `11`
+- Sum 3: indices [4] → `-12`
+
+Result: `-1`, `1`, `-11`, `11`, `-12` — doesn't match expected.
+
+The comment in the test says "sum of digits: [1, 2, 1, 2, 3]" for input `[1, 11, -1, -11, -12]`. This matches my last calculation. But the expected output doesn't match sorting by these sums then by index. Cannot verify this assertion based on straightforward interpretation.
+
+**test_canonical_example_2:**
+Empty list returns empty list. ✓ Trivially correct.
+
+### Check 2 — No Invented Constraints
+
+No additional validation or error handling is tested beyond what the specification states. ✓
+
+### Check 3 — Coverage
+
+Specified behaviors:
+1. ✓ Sort by sum of digits in ascending order
+2. ✓ Tie-breaking by original index
+3. ✓ Empty list handling
+4. ? Negative number handling (tested but interpretation unclear)
+5. ✗ Single element list
+6. ✗ All same digit sums (pure index ordering)
+7. ✗ All positive numbers
+8. ✗ All negative numbers
+9. ✗ Mixed positive/negative with clear digit sum ordering
+
+### Check 4 — Sanity
+
+- Import: `from solution import order_by_points` ✓
+- Function name matches: `order_by_points` ✓
+- Parameter name matches: `nums` (used in calls) ✓
+- Syntactically valid pytest ✓
+
+### Findings Summary
+
+The canonical example from the specification is transcribed exactly, so I must trust it. The test suite covers both canonical examples but provides minimal additional coverage. Missing tests for: single elements, all-positive lists, all-negative lists, and cases that clearly demonstrate the sorting behavior without ambiguity in negative number digit sum calculation.
+
+## Directives
+
+ADD: a test with all positive integers to verify basic digit sum sorting, e.g., `[5, 14, 23, 7]` where sums are [5, 5, 5, 7]
+ADD: a test with a single element list to verify it returns unchanged
+ADD: a test that clearly demonstrates index-based tie-breaking with positive numbers only, e.g., `[12, 21, 3]` where 12 and 21 both sum to 3
+
+## Deductions
+
+- Missing coverage for single element: -0.20
+- Missing coverage for all positive numbers as explicit test: -0.20
+- Missing coverage for clearer tie-breaking demonstration: -0.20
+
+Final score: 0.40

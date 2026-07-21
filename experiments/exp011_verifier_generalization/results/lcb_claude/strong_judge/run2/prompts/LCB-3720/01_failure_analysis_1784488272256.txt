@@ -1,0 +1,210 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784488272256
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from typing import List
+from solution import minMaxWeight
+
+def test_canonical_example_1():
+    # spec: minMaxWeight(5, [[1, 0, 1], [2, 0, 2], [3, 0, 1], [4, 3, 1], [2, 1, 1]], 2) -> 1
+    assert minMa...[truncated]
+  impl_code: from typing import List
+
+
+def minMaxWeight(n: int, edges: List[List[int]], threshold: int) -> int:
+    from collections import defaultdict, deque
+    import sys
+
+    # Create adjacency list and weight...[truncated]
+  task: {'id': 'LCB/3720', 'use_case_id': 'LCB/3720', 'story_id': 'LCB/3720', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement minMaxWeight()', 'description': 'You are given two integers, n and threshold, as w...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement minMaxWeight()**
+
+## Tests (the acceptance criterion)
+
+```python
+from typing import List
+from solution import minMaxWeight
+
+def test_canonical_example_1():
+    # spec: minMaxWeight(5, [[1, 0, 1], [2, 0, 2], [3, 0, 1], [4, 3, 1], [2, 1, 1]], 2) -> 1
+    assert minMaxWeight(5, [[1, 0, 1], [2, 0, 2], [3, 0, 1], [4, 3, 1], [2, 1, 1]], 2) == 1
+
+def test_canonical_example_2():
+    # spec: minMaxWeight(5, [[0, 1, 1], [0, 2, 2], [0, 3, 1], [0, 4, 1], [1, 2, 1], [1, 4, 1]], 1) -> -1
+    assert minMaxWeight(5, [[0, 1, 1], [0, 2, 2], [0, 3, 1], [0, 4, 1], [1, 2, 1], [1, 4, 1]], 1) == -1
+
+def test_canonical_example_3():
+    # spec: minMaxWeight(5, [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [3, 4, 2], [4, 0, 1]], 1) -> 2
+    assert minMaxWeight(5, [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [3, 4, 2], [4, 0, 1]], 1) == 2
+
+def test_canonical_example_4():
+    # spec: minMaxWeight(5, [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [4, 0, 1]], 1) -> -1
+    assert minMaxWeight(5, [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [4, 0, 1]], 1) == -1
+
+def test_minimum_graph_size():
+    # spec: minMaxWeight(2, [[1, 0, 1]], 1) -> 1
+    assert minMaxWeight(2, [[1, 0, 1]], 1) == 1
+
+def test_no_edges_need_removal():
+    # spec: minMaxWeight(3, [[1, 0, 1], [2, 0, 2]], 2) -> 2
+    assert minMaxWeight(3, [[1, 0, 1], [2, 0, 2]], 2) == 2
+
+def test_multiple_edges_between_same_nodes():
+    # spec: minMaxWeight(3, [[1, 0, 1], [1, 0, 2]], 1) -> -1
+    assert minMaxWeight(3, [[1, 0, 1], [1, 0, 2]], 1) == -1
+
+def test_maximum_weight_value():
+    # spec: minMaxWeight(3, [[1, 0, 1000000]], 1) -> -1
+    assert minMaxWeight(3, [[1, 0, 1000000]], 1) == -1
+
+def test_minimum_weight_value():
+    # spec: minMaxWeight(3, [[1, 0, 1]], 1) -> -1
+    assert minMaxWeight(3, [[1, 0, 1]], 1) == -1
+
+def test_maximum_threshold():
+    # spec: minMaxWeight(3, [[1, 0, 1], [2, 1, 2]], 2) -> 2
+    assert minMaxWeight(3, [[1, 0, 1], [2, 1, 2]], 2) == 2
+
+def test_long_chain_of_nodes():
+    # spec: minMaxWeight(4, [[3, 2, 1], [2, 1, 1], [1, 0, 1]], 3) -> 1
+    assert minMaxWeight(4, [[3, 2, 1], [2, 1, 1], [1, 0, 1]], 3) == 1
+
+def test_exactly_threshold_outgoing_edges():
+    # spec: minMaxWeight(3, [[1, 0, 1], [1, 2, 1]], 2) -> -1
+    assert minMaxWeight(3, [[1, 0, 1], [1, 2, 1]], 2) == -1
+
+def test_disconnected_node():
+    # spec: minMaxWeight(4, [[1, 0, 1], [2, 3, 2]], 1) -> -1
+    assert minMaxWeight(4, [[1, 0, 1], [2, 3, 2]], 1) == -1
+
+def test_complex_edge_removal():
+    # spec: minMaxWeight(5, [[1, 0, 5], [2, 0, 3], [3, 0, 2], [4, 1, 1]], 2) -> 3
+    assert minMaxWeight(5, [[1, 0, 5], [2, 0, 3], [3, 0, 2], [4, 1, 1]], 2) == 3
+```
+
+## Failing implementation
+
+```python
+from typing import List
+
+
+def minMaxWeight(n: int, edges: List[List[int]], threshold: int) -> int:
+    from collections import defaultdict, deque
+    import sys
+
+    # Create adjacency list and weight mapping
+    graph = defaultdict(list)
+    for u, v, w in edges:
+        graph[v].append((u, w))  # Reverse graph to find paths to node 0
+
+    # Function to check if all nodes can reach 0 under max_weight and threshold
+    def canReachAll(max_weight):
+        out_degree = [0] * n
+        queue = deque([0])
+        visited = [False] * n
+        visited[0] = True
+
+        while queue:
+            current = queue.popleft()
+            for neighbor, weight in graph[current]:
+                if weight <= max_weight:
+                    if not visited[neighbor]:
+                        visited[neighbor] = True
+                        queue.append(neighbor)
+                    out_degree[neighbor] += 1
+                    if out_degree[neighbor] > threshold:
+                        return False
+
+        return all(visited)
+
+    # Binary search for the minimum possible maximum weight
+    left, right = 1, 10**6
+    answer = -1
+    while left <= right:
+        mid = (left + right) // 2
+        if canReachAll(mid):
+            answer = mid
+            right = mid - 1
+        else:
+            left = mid + 1
+
+    return answer
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpnuidk1b5/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 14 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [  7%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 14%]
+tests/test_task.py::test_canonical_example_3 FAILED                      [ 21%]
+tests/test_task.py::test_canonical_example_4 PASSED                      [ 28%]
+tests/test_task.py::test_minimum_graph_size PASSED                       [ 35%]
+tests/test_task.py::test_no_edges_need_removal PASSED                    [ 42%]
+tests/test_task.py::test_multiple_edges_between_same_nodes PASSED        [ 50%]
+tests/test_task.py::test_maximum_weight_value PASSED                     [ 57%]
+tests/test_task.py::test_minimum_weight_value PASSED                     [ 64%]
+tests/test_task.py::test_maximum_threshold PASSED                        [ 71%]
+tests/test_task.py::test_long_chain_of_nodes PASSED                      [ 78%]
+tests/test_task.py::test_exactly_threshold_outgoing_edges PASSED         [ 85%]
+tests/test_task.py::test_disconnected_node PASSED                        [ 92%]
+tests/test_task.py::test_complex_edge_removal FAILED                     [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_3 ___________________________
+tests/test_task.py:14: in test_canonical_example_3
+    assert minMaxWeight(5, [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [3, 4, 2], [4, 0, 1]], 1) == 2
+E   assert -1 == 2
+E    +  where -1 = minMaxWeight(5, [[1, 2, 1], [1, 3, 3], [1, 4, 5], [2, 3, 2], [3, 4, 2], [4, 0, 1]], 1)
+__________________________ test_complex_edge_removal ___________________________
+tests/test_task.py:58: in test_complex_edge_removal
+    assert minMaxWeight(5, [[1, 0, 5], [2, 0, 3], [3, 0, 2], [4, 1, 1]], 2) == 3
+E   assert 5 == 3
+E    +  where 5 = minMaxWeight(5, [[1, 0, 5], [2, 0, 3], [3, 0, 2], [4, 1, 1]], 2)
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_canonical_example_3 - assert -1 == 2
+FAILED tests/test_task.py::test_complex_edge_removal - assert 5 == 3
+========================= 2 failed, 12 passed in 0.03s =========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

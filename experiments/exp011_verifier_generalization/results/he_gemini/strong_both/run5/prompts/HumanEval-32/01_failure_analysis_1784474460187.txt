@@ -1,0 +1,245 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784474460187
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: import math
+import pytest
+from solution import find_zero, poly
+
+#
+# MANDATORY: Canonical Examples from Specification
+#
+
+def test_canonical_example_1():
+    """
+    Tests the first canonical example fr...[truncated]
+  impl_code: import math
+
+def poly(xs: list, x: float):
+    """
+    Evaluates polynomial with coefficients xs at point x.
+    return xs[0] + xs[1] * x + xs[1] * x^2 + .... xs[n] * x^n
+    """
+    return sum([coeff...[truncated]
+  task: {'id': 'HumanEval/32', 'use_case_id': 'HumanEval/32', 'story_id': 'HumanEval/32', 'epic_id': 'HUMANEVAL', 'title': 'Implement find_zero()', 'description': 'xs are coefficients of a polynomial.\n    fi...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement find_zero()**
+
+## Tests (the acceptance criterion)
+
+```python
+import math
+import pytest
+from solution import find_zero, poly
+
+#
+# MANDATORY: Canonical Examples from Specification
+#
+
+def test_canonical_example_1():
+    """
+    Tests the first canonical example from the specification.
+    spec: round(find_zero([1, 2]), 2) -> -0.5
+    """
+    # The polynomial is f(x) = 1 + 2x.
+    # 1 + 2x = 0  =>  2x = -1  =>  x = -0.5
+    xs = [1, 2]
+    result = find_zero(xs)
+    # The spec uses round(), so the test does too for exactness.
+    assert round(result, 2) == -0.5
+
+def test_canonical_example_2():
+    """
+    Tests the second canonical example from the specification.
+    spec: round(find_zero([-6, 11, -6, 1]), 2) -> 1.0
+    """
+    # The polynomial is f(x) = x^3 - 6x^2 + 11x - 6.
+    # The roots are 1.0, 2.0, and 3.0. The spec example requires finding 1.0,
+    # implying a deterministic algorithm.
+    xs = [-6, 11, -6, 1]
+    result = find_zero(xs)
+    # The spec uses round(), so the test does too for exactness.
+    assert round(result, 2) == 1.0
+
+#
+# Additional tests to fully specify behavior
+#
+
+@pytest.mark.parametrize(
+    "xs, description, expected_root",
+    [
+        (
+            [-8, 0, 0, 1],
+            "cubic with one real root: x^3 - 8 = 0",
+            2.0
+        ),
+        (
+            [1, -1],
+            "linear with negative leading coefficient: 1 - x = 0",
+            1.0
+        ),
+        (
+            [-32, 0, 0, 0, 0, 1],
+            "5th degree with one real root: x^5 - 32 = 0",
+            2.0
+        ),
+        (
+            [0, 1],
+            "linear with a zero root: x = 0",
+            0.0
+        ),
+        (
+            [0, 0, 0, 1],
+            "cubic with a zero root: x^3 = 0",
+            0.0
+        ),
+        (
+            [8, 0, 0, 1],
+            "cubic with a negative root: x^3 + 8 = 0",
+            -2.0
+        ),
+        (
+            [-1, 0, 0, 8],
+            "cubic with a fractional root: 8x^3 - 1 = 0",
+            0.5
+        ),
+        (
+            # f(x) = x^3 + x - 2. Root is 1.
+            # f'(x) = 3x^2 + 1, which is always positive, so there's only one real root.
+            [-2, 1, 0, 1],
+            "cubic with intermediate terms: x^3 + x - 2 = 0",
+            1.0
+        ),
+    ]
+)
+def test_find_zero_with_single_real_root(xs, description, expected_root):
+    """
+    Tests find_zero with various polynomials that have one, unambiguous real root.
+    This test verifies two properties:
+    1. The found zero is close to the known analytical root.
+    2. Plugging the found zero back into the polynomial function yields a result close to 0.
+    """
+    # The description parameter is for test case readability and not used in the test body.
+    found_zero = find_zero(xs)
+
+    # 1. Check if the found zero is close to the expected root.
+    # We use pytest.approx for robust floating-point comparison.
+    assert found_zero == pytest.approx(expected_root)
+
+    # 2. Verify that the found zero is indeed a root of the polynomial
+    # by using the provided poly() function. The result should be close to 0.
+    assert poly(xs, found_zero) == pytest.approx(0.0, abs=1e-6)
+```
+
+## Failing implementation
+
+```python
+import math
+
+def poly(xs: list, x: float):
+    """
+    Evaluates polynomial with coefficients xs at point x.
+    return xs[0] + xs[1] * x + xs[1] * x^2 + .... xs[n] * x^n
+    """
+    return sum([coeff * math.pow(x, i) for i, coeff in enumerate(xs)])
+
+def find_zero(xs: list):
+    """ xs are coefficients of a polynomial.
+    find_zero find x such that poly(x) = 0.
+    find_zero returns only only zero point, even if there are many.
+    Moreover, find_zero only takes list xs having even number of coefficients
+    and largest non zero coefficient as it guarantees
+    a solution.
+    >>> round(find_zero([1, 2]), 2) # f(x) = 1 + 2x
+    -0.5
+    >>> round(find_zero([-6, 11, -6, 1]), 2) # (x - 1) * (x - 2) * (x - 3) = -6 + 11x - 6x^2 + x^3
+    1.0
+    """
+    # Implementing the Newton-Raphson method to find the root
+    def derivative(xs):
+        return [i * coeff for i, coeff in enumerate(xs) if i > 0]
+
+    x0 = 0.0  # Initial guess
+    for _ in range(100):  # Limit the number of iterations
+        f_x0 = poly(xs, x0)
+        f_prime_x0 = poly(derivative(xs), x0)
+        if f_prime_x0 == 0:  # If derivative is zero, adjust the guess
+            x0 += 0.1  # Slightly adjust the guess to avoid division by zero
+            continue
+        x1 = x0 - f_x0 / f_prime_x0
+        if abs(x1 - x0) < 1e-6:  # Convergence threshold
+            return x1
+        x0 = x1
+    return x0
+
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpk38h5td4/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 10 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [ 10%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 20%]
+tests/test_task.py::test_find_zero_with_single_real_root[xs0-cubic with one real root: x^3 - 8 = 0-2.0] PASSED [ 30%]
+tests/test_task.py::test_find_zero_with_single_real_root[xs1-linear with negative leading coefficient: 1 - x = 0-1.0] PASSED [ 40%]
+tests/test_task.py::test_find_zero_with_single_real_root[xs2-5th degree with one real root: x^5 - 32 = 0-2.0] PASSED [ 50%]
+tests/test_task.py::test_find_zero_with_single_real_root[xs3-linear with a zero root: x = 0-0.0] PASSED [ 60%]
+tests/test_task.py::test_find_zero_with_single_real_root[xs4-cubic with a zero root: x^3 = 0-0.0] FAILED [ 70%]
+tests/test_task.py::test_find_zero_with_single_real_root[xs5-cubic with a negative root: x^3 + 8 = 0--2.0] PASSED [ 80%]
+tests/test_task.py::test_find_zero_with_single_real_root[xs6-cubic with a fractional root: 8x^3 - 1 = 0-0.5] PASSED [ 90%]
+tests/test_task.py::test_find_zero_with_single_real_root[xs7-cubic with intermediate terms: x^3 + x - 2 = 0-1.0] PASSED [100%]
+
+=================================== FAILURES ===================================
+_ test_find_zero_with_single_real_root[xs4-cubic with a zero root: x^3 = 0-0.0] _
+tests/test_task.py:97: in test_find_zero_with_single_real_root
+    assert found_zero == pytest.approx(expected_root)
+E   assert 1.760094579660715e-06 == 0.0 ± 1.0e-12
+E     
+E     comparison failed
+E     Obtained: 1.760094579660715e-06
+E     Expected: 0.0 ± 1.0e-12
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_find_zero_with_single_real_root[xs4-cubic with a zero root: x^3 = 0-0.0]
+========================= 1 failed, 9 passed in 0.02s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

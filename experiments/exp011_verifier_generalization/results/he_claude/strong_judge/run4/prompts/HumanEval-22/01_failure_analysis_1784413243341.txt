@@ -1,0 +1,145 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784413243341
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from typing import List, Any
+from solution import filter_integers
+
+def test_canonical_example_1():
+    # spec: filter_integers(['a', 3.14, 5]) -> [5]
+    assert filter_integers(['a', 3.14, 5]) == [5]
+...[truncated]
+  impl_code: from typing import List, Any
+
+def filter_integers(values: List[Any]) -> List[int]:
+    """ Filter given list of any python values only for integers
+    >>> filter_integers(['a', 3.14, 5])
+    [5]
+    ...[truncated]
+  task: {'id': 'HumanEval/22', 'use_case_id': 'HumanEval/22', 'story_id': 'HumanEval/22', 'epic_id': 'HUMANEVAL', 'title': 'Implement filter_integers()', 'description': 'Filter given list of any python values...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement filter_integers()**
+
+## Tests (the acceptance criterion)
+
+```python
+from typing import List, Any
+from solution import filter_integers
+
+def test_canonical_example_1():
+    # spec: filter_integers(['a', 3.14, 5]) -> [5]
+    assert filter_integers(['a', 3.14, 5]) == [5]
+
+def test_canonical_example_2():
+    # spec: filter_integers([1, 2, 3, 'abc', {}, []]) -> [1, 2, 3]
+    assert filter_integers([1, 2, 3, 'abc', {}, []]) == [1, 2, 3]
+
+def test_empty_list():
+    # spec: filter_integers([]) -> []
+    assert filter_integers([]) == []
+
+def test_list_with_only_integers():
+    # spec: filter_integers([1, 2, 3]) -> [1, 2, 3]
+    assert filter_integers([1, 2, 3]) == [1, 2, 3]
+
+def test_list_with_no_integers():
+    # spec: filter_integers(['a', 'b', 3.14]) -> []
+    assert filter_integers(['a', 'b', 3.14]) == []
+
+def test_negative_integers_and_zero():
+    # spec: filter_integers([-1, 0, 1, 'x']) -> [-1, 0, 1]
+    assert filter_integers([-1, 0, 1, 'x']) == [-1, 0, 1]
+
+def test_boolean_values():
+    # spec: filter_integers([True, False, 1, 2]) -> [True, 1, 2]
+    assert filter_integers([True, False, 1, 2]) == [1, 2]  # Note: True is included because it is an int.
+```
+
+## Failing implementation
+
+```python
+from typing import List, Any
+
+def filter_integers(values: List[Any]) -> List[int]:
+    """ Filter given list of any python values only for integers
+    >>> filter_integers(['a', 3.14, 5])
+    [5]
+    >>> filter_integers([1, 2, 3, 'abc', {}, []])
+    [1, 2, 3]
+    """
+    return [x for x in values if isinstance(x, int)]
+
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpuid314_y/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 7 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [ 14%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 28%]
+tests/test_task.py::test_empty_list PASSED                               [ 42%]
+tests/test_task.py::test_list_with_only_integers PASSED                  [ 57%]
+tests/test_task.py::test_list_with_no_integers PASSED                    [ 71%]
+tests/test_task.py::test_negative_integers_and_zero PASSED               [ 85%]
+tests/test_task.py::test_boolean_values FAILED                           [100%]
+
+=================================== FAILURES ===================================
+_____________________________ test_boolean_values ______________________________
+tests/test_task.py:30: in test_boolean_values
+    assert filter_integers([True, False, 1, 2]) == [1, 2]  # Note: True is included because it is an int.
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: assert [True, False, 1, 2] == [1, 2]
+E     
+E     At index 1 diff: False != 2
+E     Left contains 2 more items, first extra item: 1
+E     
+E     Full diff:
+E       [
+E     +     True,...
+E     
+E     ...Full output truncated (4 lines hidden), use '-vv' to show
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_boolean_values - AssertionError: assert [True...
+========================= 1 failed, 6 passed in 0.02s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

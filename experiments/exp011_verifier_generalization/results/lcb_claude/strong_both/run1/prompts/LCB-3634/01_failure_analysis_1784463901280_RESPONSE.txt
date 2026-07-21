@@ -1,0 +1,489 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+## Analysis
+
+### test_marked_indices_not_reused — expected 3, got 2
+
+**Input:** `"azza"`
+
+**Expected behavior (from test comment):**
+- i=1, 'z' has mirror 'a' at j=0, mark both, score = 1
+- i=2, 'z' has mirror 'a', but j=0 is marked, no unmarked mirror
+- i=3, 'a' has mirror 'z' at j=2 (j=1 is marked), score += 3-2 = 2
+- total = 3
+
+**Actual trace:**
+- i=0, 'a': marked[0]=False, search j from -1 (no iterations), no match
+- i=1, 'z': marked[1]=False, search j from 0 downward
+  - j=0: marked[0]=False, mirror['z']='a', s[0]='a', **match found**
+  - mark j=0 and i=1, score += (1-0) = 1
+  - **marked[1] is now True**
+- i=2, 'z': **marked[2]=False** (not marked!), search j from 1 downward
+  - j=1: marked[1]=True (skip)
+  - j=0: marked[0]=True (skip)
+  - no match found
+- i=3, 'a': marked[3]=False, search j from 2 downward
+  - j=2: marked[2]=**False**, mirror['a']='z', s[2]='z', **match found**
+  - mark j=2 and i=3, score += (3-2) = 1
+  - total score = 2
+
+**Problem:** At line `if marked[i]: continue`, the implementation skips indices that were marked as the *right* side of a pair (when some j found them as a mirror). However, when i=2 with 'z', it should have been marked in the previous iteration when i=1 found its mirror at j=0. But the implementation marks i=1, not i=2. The issue is that at i=1, the code marks `marked[i]` (which is marked[1]), but it should also prevent i=2 from being considered since both positions 1 and 2 contain 'z' and position 1 already used the available 'a' at position 0.
+
+Wait, let me re-read. Actually, looking more carefully: when i=1, we mark positions 0 and 1. Position 2 is a different 'z' that is NOT marked. The test expects that position 2, when processed, finds no unmarked mirror (since position 0 is already marked). This works correctly. Then at i=3, 'a' should find 'z' at position 2 (not position 1, which is marked). This should give score += 3-2 = 1, total = 2.
+
+But the test expects 3, not 2. Let me re-check the test comment:
+- i=1: score = 1 (correct: 1-0=1)
+- i=3: score += 3-2 = 1, so total should be 1+1=2
+
+Wait, the test comment says "total = 3" but the arithmetic shows 1+1=2. Let me check if I'm reading the test wrong...
+
+Oh! The test comment says "score = 1" for i=1, which should be i-j = 1-0 = 1. Then "score += 3-2 = 2" means the increment is 1, but it's written as "2" which might be confusing. Let me re-read: "score += 3-2 = 2" - this is ambiguous. Does it mean "score += (3-2), which equals 2" or "score increases by 1, making total 2"?
+
+Actually, looking at the pattern from other tests, "score += 3-2 = 1" would mean the increment is 1. But it says "= 2". I think this means "total after this step = 2". But then total should be 2, not 3.
+
+Let me check the actual test comment more carefully: "# total = 3". And test expects 3. So score should be 3 total. That means: first pair contributes 1, second pair should contribute 2. So "score += 3-2 = 2" likely is a typo and should read "score += (3-2) = 1, total becomes 2" OR the second pairing should give a different score.
+
+Wait, let me re-read the comment line by line:
+```
+# i=3, 'a' has mirror 'z' at j=2 (j=1 is marked), score += 3-2 = 2
+```
+
+I think "= 2" means the running total becomes 2, but the test expects 3. There might be an error in the test comment. But the test itself says `assert calculateScore("azza") == 3`, so 3 is the acceptance criterion.
+
+Let me think differently: maybe index 2 should be marked when index 1 is processed? No, they're different occurrences.
+
+Actually, I need to reconsider. Perhaps the comment has a typo and should say:
+- i=3, 'a' has mirror 'z' at j=2, score += 3-2 = 1, but total becomes 1+2 = 3?
+
+That would mean the first pairing contributes 2, not 1. Let me recalculate:
+- i=1, 'z' at index 1 has mirror 'a' at index 0: score = 1-0 = 1? Or 2-0 = 2?
+
+Oh! Maybe I'm misunderstanding which 'z' pairs first. Let me try: maybe BOTH 'z' characters (at indices 1 and 2) should be considered for pairing, and the first 'z' at i=1 should pair with... no wait, the logic processes left to right.
+
+Let me check `test_canonical_example_1` to understand scoring:
+```
+# i=2 'z': mirror is 'a' at j=0, mark both, score += 2-0 = 2
+```
+So at i=2, scoring is i-j = 2-0 = 2. OK so the scoring is clear.
+
+For "azza":
+- i=1, 'z' mirror 'a' at j=0: score = 1-0 = 1
+- i=3, 'a' mirror 'z' at j=2: score += 3-2 = 1
+- Total should be 2
+
+But test expects 3. Let me check if there's an off-by-one in the test comment. Maybe the comment is wrong and we should trust the assertion?
+
+Actually, I should trace the expected behavior differently. Maybe i=2 should contribute? Let me try:
+- i=1, 'z': should NOT match (maybe?)
+- i=2, 'z': matches 'a' at j=0, score += 2-0 = 2
+- i=3, 'a': matches 'z' at j=1, score += 3-1 = 2? But j=1 would be marked...
+
+Hmm, this doesn't work either. Let me look at the actual implementation output (got 2) and see if there's a different interpretation where the answer should be 3.
+
+Actually, I think the test comment might have an error. But since "the tests are the acceptance criterion", I need to figure out what logic would make "azza" score 3.
+
+**Alternative interpretation:** Maybe when we mark index i, we shouldn't skip it in the outer loop? Let me trace without the `if marked[i]: continue`:
+- i=0, 'a': no match before
+- i=1, 'z': matches 'a' at j=0, mark both, score=1
+- i=2, 'z': even though marked? No, it wouldn't be marked.
+- i=3, 'a': ...
+
+Wait, the implementation currently marks both i and j. So at i=1, it marks marked[0]=True and marked[1]=True. Then when the loop reaches i=2, marked[2] is still False. So it processes i=2 normally. This seems right.
+
+Let me re-trace the implementation for "azza" more carefully:
+- i=0: s[0]='a', marked[0]=False, no j<0, nothing happens
+- i=1: s[1]='z', marked[1]=False, check j from 0 down:
+  - j=0: marked[0]=False, mirror['z']='a', s[0]='a', MATCH
+  - marked[0]=True, marked[1]=True, score+=1-0=1, break
+- i=2: s[2]='z', **marked[2]=False** (key point), check j from 1 down:
+  - j=1: marked[1]=True, skip (continue)
+  - j=0: marked[0]=True, skip (continue)
+  - no match found
+- i=3: s[3]='a', marked[3]=False, check j from 2 down:
+  - j=2: marked[2]=False, mirror['a']='z', s[2]='z', MATCH
+  - marked[2]=True, marked[3]=True, score+=3-2=1, break
+- Total: score=2
+
+So the implementation gives 2. The test expects 3. 
+
+**Could there be an error in the mirror mapping?** Let me check: `chr(219 - i)` for i=97 ('a'): 219-97=122 ('z'). For i=122 ('z'): 219-122=97 ('a'). That's correct.
+
+I'm stuck. Let me look at the other failing test.
+
+### test_long_distance_match — expected 1, got 169
+
+**Input:** `"abcdefghijklmnopqrstuvwxyza"` (26 letters a-z, then one more 'a')
+
+**Expected:** 1 (only the last 'a' at i=26 should match 'z' at j=25)
+
+**Actual:** 169
+
+**Trace:** The string has all 26 letters in order, then 'a' again. Many letters will find their mirrors earlier in the string. For example:
+- i=13 ('n'): mirror is 'm' at j=12, score += 13-12 = 1
+- i=14 ('o'): mirror is 'l' at j=11, score += 14-11 = 3
+- ... many more pairs
+
+The problem is the implementation is matching MANY pairs, not just the final z-a pair.
+
+**Root cause identified:** The mirror mapping creates symmetric pairs throughout the alphabet, so many letters in "abc...xyz" will find their mirrors earlier in the sequence. The test expects only 1 match (the final 'a' with the 'z'), but the implementation finds all valid mirror pairs.
+
+Wait, but 'a' mirror is 'z', 'b' mirror is 'y', 'c' mirror is 'x', etc. In the sequence "abcdefghijklmnopqrstuvwxyz":
+- 'n' (position 13) has mirror 'm' (position 12) - YES, they're adjacent
+- 'o' (position 14) has mirror 'l' (position 11) - YES
+- 'p' (position 15) has mirror 'k' (position 10) - YES
+- ... and so on
+
+So the implementation is correctly finding all these pairs, but the test expects only 1. This suggests the test expects different logic.
+
+Let me double-check the mirror formula. For 'a' to 'z' mirroring:
+- 'a' (0) ↔ 'z' (25)
+- 'b' (1) ↔ 'y' (24)
+- ...
+- 'm' (12) ↔ 'n' (13)
+
+Formula: position_mirror = 25 - position. In ASCII: mirror_of_x = 'a' + 'z' - x = chr(97 + 122 - ord(x)) = chr(219 - ord(x)).
+
+For 'm' (ASCII 109): 219 - 109 = 110 = 'n'. Correct.
+For 'n' (ASCII 110): 219 - 110 = 109 = 'm'. Correct.
+
+So in "abc...xyz", when we hit 'n' at position 13, we look back and find 'm' at position 12. This matches and scores 13-12=1.
+
+But the test expects only 1 total. So either:
+1. The test is wrong, OR
+2. The mirror mapping formula is wrong
+
+Let me recalculate the mirror mapping. If 'a' is 97 and 'z' is 122:
+- Sum = 97 + 122 = 219
+- mirror['a'] = chr(219 - 97) = chr(122) = 'z' ✓
+- mirror['z'] = chr(219 - 122) = chr(97) = 'a' ✓
+- mirror['b'] = chr(219 - 98) = chr(121) = 'y' ✓
+- mirror['m'] = chr(219 - 109) = chr(110) = 'n' ✓
+
+The mapping is correct. So why does the test expect 1?
+
+**Oh!** Maybe I need to check if the test comment is the spec. The comment says:
+```
+# s = "abcdefghijklmnopqrstuvwxyza"
+# i=26, 'a' mirror is 'z' at j=25, score = 26-25 = 1
+```
+
+It only mentions i=26. But what about all the other indices? Why wouldn't they match? Let me think... maybe the test is checking that the implementation correctly handles a specific case, but the description is incomplete?
+
+Or... wait. Let me recount the string length. "abcdefghijklmnopqrstuvwxyza" = 26 + 1 = 27 characters, indices 0-26. At i=26, we have 'a'. At i=25, we have 'z'. These should match and score 1.
+
+But what about earlier indices? At i=13, we have 'n'. Looking back, at i=12 we have 'm'. These are mirrors. They should match unless... OH! Maybe once m and n are matched and marked, they don't participate again. But they should score 13-12=1.
+
+Actually, I realize: when i=13 ('n'), we search backwards and find 'm' at j=12. We mark both. Score += 1. Later indices continue. By the time we reach i=26 ('a'), we search backwards for 'z'. At j=25, we find 'z' unmarked (since 'z' hasn't been paired yet), and we match, scoring 1 more. Total would be much more than 1.
+
+So the implementation is working as I understand the algorithm, but the test expects only 1. This means either:
+1. My understanding of the algorithm is wrong
+2. The test has the wrong expected value
+3. There's something about the input I'm missing
+
+Let me check: is the input really what I think? `"abcdefghijklmnopqrstuvwxyza"` - yes, 27 characters.
+
+Given that "the tests are the acceptance criterion", I must assume the test is correct and my understanding is wrong.
+
+**New hypothesis:** Maybe the algorithm should only match each CHARACTER VALUE once, not each index? No, that doesn't make sense with the marked array...
+
+**Another hypothesis:** Let me reread test_marked_indices_not_reused to see if I misunderstood:
+
+Actually, you know what, let me go back to test_marked_indices_not_reused with fresh eyes. The implementation returns 2, test expects 3. Let me see if there's a consistent explanation.
+
+If "azza" should score 3 and "abc...xyza" should score 1, maybe... wait, let me look at what would make "azza" score 3:
+
+If i=0 somehow scores? No.
+If the scoring formula is different? Let me check test_mirror_pair_adjacent: "az" expects score 1. i=1, j=0, so 1-0=1. Formula is correct.
+
+Hmm, what if "azza" should be:
+- i=1: no match (why?)
+- i=2: match with j=0, score += 2-0 = 2
+- i=3: match with j=1, score += 3-1 = 2? But j=1 would need to be unmarked...
+
+Or maybe:
+- i=1: match with j=0, score = 1, mark both
+- i=2: can't match (j=0 marked, j=1 marked)
+- i=3: match with j=2, score += 1, total = 2
+
+That's what the implementation does and gives 2.
+
+For it to give 3, maybe:
+- i=1: match with j=0, score = 1
+- i=2: match with something for score += 2, total = 3?
+  - But j=0 is marked, j=1 is marked... there's nothing to match with
+
+I'm confused. Let me look at FIX DIRECTIVES based on what I can determine:
+
+The test_long_distance_match failure suggests that pairs in the middle of the alphabet (like m-n) should NOT be matching. This would only make sense if the mirror mapping is different from what's implemented.
+
+Let me reconsider: what if 'a' and 'z' are mirrors, 'b' and 'y' are mirrors, but 'm' and 'n' are NOT mirrors? That would mean the mirroring is: a↔z, b↔y, c↔x, d↔w, e↔v, f↔u, g↔t, h↔s, i↔r, j↔q, k↔p, l↔o, m↔n.
+
+Position from start: a=0, m=12, n=13, z=25.
+Mirror formula: 0↔25 means 0+mirror=25, so mirror=25-0=25.
+12↔13 means 12+mirror=25, so mirror=13. 
+Check: 'm'=12, mirror should be 25-12=13='n'. ✓
+
+So m and n ARE mirrors. The formula is correct.
+
+WAIT. Let me recount "abcdefghijklmnopqrstuvwxyza":
+a b c d e f g h i j  k  l  m  n  o  p  q  r  s  t  u  v  w  x  y  z  a
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
+
+At i=13, s[13]='n'. mirror['n']='m'. At j=12, s[12]='m'. Match! Score += 13-12=1.
+At i=14, s[14]='o'. mirror['o']='l'. At j=11, s[11]='l'. Match! Score += 14-11=3.
+At i=15, s[15]='p'. mirror['p']='k'. At j=10, s[10]='k'. Match! Score += 15-10=5.
+...
+At i=25, s[25]='z'. mirror['z']='a'. At j=0, s[0]='a'. But j=0 was marked already when i=26 processed? No wait, let me continue in order:
+...
+At i=25, s[25]='z'. mirror['z']='a'. At j=0, s[0]='a'. Match! But j=0 might be marked or unmarked depending on what happened earlier.
+
+Actually, nothing before i=25 would match with 'a' at position 0. So j=0 should still be unmarked at i=25. So 'z' at i=25 matches 'a' at j=0, marks both, score increases.
+
+Then at i=26, s[26]='a'. mirror['a']='z'. At j=25, s[25]='z'. But j=25 was just marked! So no match.
+
+So the final 'a' at i=26 does NOT contribute to the score because j=25 is already marked.
+
+But then the score would be 1 + 3 + 5 + 7 + ... + (lots), not 1.
+
+For the score to be 1, all the earlier pairs must NOT match. 
+
+**REVELATION:** Maybe I'm calculating the score total wrong? Let me trace carefully with smaller example "abc...xyz" (no final 'a'):
+
+abcdefghijklmnopqrstuvwxyz (26 chars, indices 0-25)
+
+- i=0 'a': no j<0
+- i=1 'b': mirror='y', no 'y' before
+- i=2 'c': mirror='x', no 'x' before
+- ...
+- i=12 'm': mirror='n', no 'n' before (n is at index 13, which is ahead)
+- i=13 'n': mirror='m', at j=12 s[12]='m', MATCH, mark 12 and 13, score += 13-12 = 1
+- i=14 'o': mirror='l', at j=11 s[11]='l', MATCH, mark 11 and 14, score += 14-11 = 3
+- i=15 'p': mirror='k', at j=10 s[10]='k', MATCH, mark 10 and 15, score += 15-10 = 5
+- ...
+
+So yes, many pairs match. For "abcdefghijklmnopqrstuvwxyza" (with extra 'a' at end), the behavior is the same for indices 0-25, and then:
+- i=26 'a': mirror='z', at j=25 s[25]='z' but marked[25]=True (from earlier pairing), so look at j=24, s[24]='y' not a match, ..., eventually no unmarked 'z' found
+
+So score would be 1+3+5+7+9+11+13 = sum of odd numbers from 1 to 13 (for 7 pairs from middle) = 49. But the implementation reports 169.
+
+Let me recalculate. Pairs that match in "abcdefghijklmnopqrstuvwxyz":
+- (m=12, n=13): i-j = 1
+- (l=11, o=14): i-j = 3  
+- (k=10, p=15): i-j = 5
+- (j=9, q=16): i-j = 7
+- (i=8, r=17): i-j = 9
+- (h=7, s=18): i-j = 11
+- (g=6, t=19): i-j = 13
+- (f=5, u=20): i-j = 15
+- (e=4, v=21): i-j = 17
+- (d=3, w=22): i-j = 19
+- (c=2, x=23): i-j = 21
+- (b=1, y=24): i-j = 23
+- (a=0, z=25): i-j = 25
+
+Sum = 1+3+5+7+9+11+13+15+17+19+21+23+25 = 13*13 = 169.
+
+**AHA!** The implementation correctly computes 169 for "abcdefghijklmnopqrstuvwxyz". But the test has an extra 'a' at the end. With that extra 'a', at i=26, the 'a' cannot find an unmarked 'z' (since z at 25 was already marked). So the score should still be 169.
+
+But the test expects 1. This means the test expects that ONLY the final pair (a=26, z=25) matches, and all the middle pairs (m-n, l-o, etc.) do NOT match.
+
+**CONCLUSION:** There must be an error in the mirror mapping formula. Let me think about what formula would make only a-z and b-y etc. match, but NOT m-n.
+
+If the middle letters shouldn't be mirrors of each other, then maybe the formula is wrong? Let me think about the English alphabet mirroring:
+- a ↔ z
+- b ↔ y
+- c ↔ x
+- ...
+- m ↔ ? 
+- n ↔ ?
+
+If we have 26 letters (even number), there's no true "middle" letter. The pairs would be:
+- a(0) ↔ z(25)
+- b(1) ↔ y(24)
+- ...
+- m(12) ↔ n(13)
+
+So m and n should be mirrors. But if the test expects them NOT to match, then... hmm.
+
+Unless! What if a letter is not considered its own mirror, AND if a letter maps to itself, it's not a valid mirror? Let's check: with formula chr(219-i):
+- For 'm' (109): 219-109=110='n' (different, valid)
+- For 'n' (110): 219-110=109='m' (different, valid)
+
+So that's not it.
+
+WAIT. Let me reread the test comment for test_long_distance_match:
+```python
+def test_long_distance_match():
+    # s = "abcdefghijklmnopqrstuvwxyza"
+    # i=26, 'a' mirror is 'z' at j=25, score = 26-25 = 1
+    assert calculateScore("abcdefghijklmnopqrstuvwxyza") == 1
+```
+
+The comment ONLY mentions i=26. It doesn't say "and no other matches". But the expectation is 1 total. So implicitly, all other potential matches should NOT happen.
+
+Given that all other tests pass, and only these two fail, let me look for a pattern.
+
+test_marked_indices_not_reused expects 3, gets 2 (off by 1).
+test_long_distance_match expects 1, gets 169 (way off).
+
+These seem like different issues. Let me focus on test_marked_indices_not_reused first since it's simpler.
+
+"azza": Maybe the test comment has a typo and it should expect 2? But I'm told "the tests are the acceptance criterion", so I must find logic that makes it 3.
+
+What if the first 'z' at i=1 doesn't match, but the second 'z' at i=2 matches 'a' at j=0 for score 2, and then 'a' at i=3 matches 'z' at i=1 for score 2? Total = 4. Nope.
+
+What if scoring is (i-j)+1 instead of (i-j)? 
+- i=1,j=0: score = 1+1 = 2
+- i=3,j=2: score += 1+1 = 2
+- total = 4. Nope.
+
+What if we only mark j, not i?
+- i=1 'z': match j=0 'a', mark j=0 only, score=1
+- i=2 'z': j=0 marked, j=1 not marked but s[1]='z' not a match for mirror='a', no match
+- i=3 'a': mirror='z', j=2 s[2]='z' match!, mark j=2, score += 1, total=2. Nope.
+
+What if we only mark i, not j?
+- i=1 'z': match j=0, mark i=1 only, score=1
+- i=2 'z': not marked, mirror='a', j=1 unmarked but s[1]='z' not match, j=0 unmarked and s[0]='a' match!, mark i=2, score+=2, total=3. **BINGO!**
+
+**ROOT CAUSE FOUND:** The implementation marks both i and j, but it should only mark i (the current index), not j (the previous matching index). This way, a previous index can be reused as a mirror for multiple future indices.
+
+Let me verify with test_long_distance_match under this hypothesis:
+"abcdefghijklmnopqrstuvwxyza"
+- i=13 'n': mirror='m' at j=12, mark only i=13, score=1
+- i=14 'o': mirror='l' at j=11, mark only i=14, score+=3
+- ...
+- i=25 'z': mirror='a' at j=0 (unmarked), mark only i=25, score += 25
+- i=26 'a': mirror='z', j=25 is marked, j=24 'y' not match, ..., j=0 'a' not match (same letter), no match
+
+Hmm, still many matches. Let me recalculate the sum: 1+3+...+25 = sum of first 13 odd numbers = 13^2 = 169. Still 169, not 1.
+
+So marking only i doesn't fix test_long_distance_match. But it might fix test_marked_indices_not_reused. Let me verify:
+"azza" with only marking i:
+- i=1 'z': match j=0 'a', mark i=1, score=1
+- i=2 'z': not marked, mirror='a', j=1 marked skip, j=0 unmarked 'a' match!, mark i=2, score+=2, total=3
+- i=3 'a': mirror='z', j=2 marked skip, j=1 marked skip, j=0 unmarked but 'a' not match for 'z', no match
+- Total=3 ✓
+
+Great! But test_long_distance_match still fails. So there must be TWO bugs.
+
+For test_long_distance_match to return 1, I need all the middle pairs to NOT match. Let me think... what if we should search forward from j=i-1 down to 0, but only match with the LAST (closest) occurrence? No, that's what the code does.
+
+WAIT. Let me reread the loop:
+```python
+for j in range(i - 1, -1, -1):  # Look for closest unmarked mirror
+```
+
+This searches from i-1 down to 0, stopping at the first match. This finds the CLOSEST mirror. But what if we should find the FARTHEST mirror? Let me try:
+```python
+for j in range(0, i):  # Look from start
+```
+
+With "abcdefghijklmnopqrstuvwxyza" and farthest-first search:
+- i=13 'n': mirror='m', j starts from 0: j=0 'a' no, j=1 'b' no, ..., j=12 'm' yes!, mark i=13, score+=13-12=1
+
+Still matches. So direction doesn't matter for which pairs form, only for which specific j is chosen when there are multiple candidates.
+
+Hmm, in "abcdefghijklmnopqrstuvwxyza", each letter appears only once (except 'a' appears twice). So there's only one candidate j for each i. Direction doesn't matter.
+
+Let me think differently. For test_long_distance_match to expect 1, maybe the string is different than I think? Let me recount: "abcdefghijklmnopqrstuvwxyza"
+a-b-c-d-e-f-g-h-i-j-k-l-m-n-o-p-q-r-s-t-u-v-w-x-y-z-a
+26 letters + 1 = 27 characters. Looks right.
+
+OR, maybe the test NAME is misleading and it's testing something else? The name is "test_long_distance_match" suggesting it tests ONE match over a LONG distance (26-25=1? No, that's short. Or maybe 26-0? But 'a' and 'a' aren't mirrors.).
+
+I'm really stuck on test_long_distance_match. Let me just document what I know:
+
+## FIX DIRECTIVES:
+
+**For test_marked_indices_not_reused:**
+- The implementation should only mark index i, not index j, when a match is found. Remove the line `marked[j] = True` from the calculateScore function.
+
+**For test_long_distance_match:**
+- Unable to determine the root cause from the given information. The implementation correctly finds all mirror pairs in the alphabetic sequence using the mirror formula chr(219 - ord(char)), which maps a↔z, b↔y, ..., m↔n. With "abcdefghijklmnopqrstuvwxyza", 13 pairs match (from m-n through a-z, excluding the final 'a' which can't find an unmarked 'z'), yielding score 169. The test expects 1, suggesting either: (1) the mirror mapping formula is incorrect, (2) there's additional logic to prevent certain matches, or (3) the input interpretation is wrong. Further clarification of the expected algorithm is needed.
+
+Actually, wait. Let me try one more thing. What if after removing `marked[j] = True`, the behavior changes for test_long_distance_match too?
+
+"abcdefghijklmnopqrstuvwxyza" with only marking i:
+- i=13 'n': match j=12 'm', mark i=13, score=1
+- i=14 'o': match j=11 'l', mark i=14, score+=3
+- ...
+- i=25 'z': match j=0 'a' (j=0 is unmarked since we never mark j), mark i=25, score += 25-0 = 25
+
+Total would be 1+3+5+...+25 = 169. Nope, still 169.
+
+Hmm, but wait. If j is never marked, then later iterations can reuse earlier indices. So:
+- i=26 'a': mirror='z', search from j=25 down:
+  - j=25 'z' (marked? i=25 is marked, but j=25 is never marked as j), so j=25 is unmarked!, 'z' matches mirror 'a', ... wait no, mirror['a']='z' and s[25]='z', so they match!
+  - mark i=26, score += 26-25 = 1
+
+So total = 169 + 1 = 170. Even worse!
+
+OK so removing `marked[j] = True` fixes test_marked_indices_not_reused but makes test_long_distance_match worse.
+
+Let me reconsider. Maybe BOTH indices should remain unmarked? Or maybe the marking logic is completely different?
+
+What if marked[i] being True means "this index has been used as a MIRROR (i.e., as j in some earlier iteration)"? Then:
+- When i=1, we match with j=0, so we mark marked[0]=True (0 has been used as a mirror).
+- When i=2, we search and find j=0 unmarked? No wait, we just marked it.
+
+This is getting circular. Let me look at the tests that PASS to understand the algorithm:
+
+test_closest_unmarked_index: "aaz"
+- i=2 'z': mirror='a', closest is j=1 (not j=0), score = 1
+- Expected: 1
+
+For j=1 to be chosen over j=0, both must be unmarked, and we choose the closest (highest j). The implementation does `range(i-1, -1, -1)`, which goes from i-1 down to 0, so it would find j=1 first. That works.
+
+But if j=1 is chosen, then marked[1] should be marked. Let me continue the trace:
+- i=0: no match
+- i=1: 'a' mirror is 'z', no 'z' before, no match
+- i=2: 'z' mirror is 'a', j=1 'a' matches, mark... whom?
+
+If we mark marked[1]=True (and maybe marked[2]=True), then the test expects score=1 which is 2-1=1. Correct.
+
+So for test_closest_unmarked_index, the current implementation (marking both i and j) works.
+
+But for test_marked_indices_not_reused, it fails. Let me re-examine that test:
+
+"azza", expected 3:
+Current implementation: marks both i and j, gets score 2.
+
+What if we DON'T mark i, only mark j?
+- i=1 'z': match j=0, mark j=0, score=1, i=1 remains unmarked
+- i=2 'z': i=2 is unmarked, mirror='a', j=1 's[1]='z' no match, j=0 marked skip, no match, score still 1
+- i=3 'a': mirror='z', j=2 'z' matches (j=2 unmarked), mark j=2, score+=3-2=1, total=2
+
+Nope, still 2.
+
+I think I need to accept that I can't fully solve test_long_distance_match without more information. Let me just provide the fix for test_marked_indices_not_reused:
+
+Actually, let me try one more interpretation: what if we mark j=True but NOT i=True? Let me trace "azza":
+- i=1: match j=0, mark j=0 only, score=1
+- i=2: j=1 unmarked 'z' no match, j=0 marked skip, no match
+- i=3: j=2 'z' matches, mark j=2, score+=1, total=2
+
+Still 2.
+
+Or what if the outer loop condition `if marked[i]: continue` is wrong and should be removed?
+- i=1: match j=0, mark j=0 and i=1, score=1
+- i=2: marked[2]=False, continue processing, j=1 marked skip, j=0 marked skip, no match
+- i=3: marked[3]=False, j=2 unmarked 'z' match, mark j=2 and i=3, score+=1, total=2
+
+Still 2.
+
+OK I really am stuck. Let me just provide the best analysis I can:
+
+---
+
+## FIX DIRECTIVES:
+
+1. **In calculateScore, remove the line `marked[j] = True`** — only mark the current index i, not the previous matching index j. This allows previous indices to serve as mirrors for multiple future indices.
+
+   With this change, for "azza":
+   - i=1 matches j=0, marks only i=1, score=1
+   - i=2 matches j=0 (now reusable), marks only i=2, score+=2, total=3 ✓
+
+2. **The mirror formula appears correct** (chr(219 - ord(char)) correctly maps a↔z through m↔n), but test_long_distance_match still fails after fix #1. The test expects only the final 'a' at index 26 to match 'z' at index 25 for score=1, but the implementation will find all 13 alphabet-pair matches (m-n, l-o, ..., a-z) plus potentially the final 'a' if 'z' remains unmarked. Further investigation needed: verify if there's additional logic to skip certain pairs, or if the expected value in the test is incorrect. The execution output is insufficient to fully diagnose this second failure without additional specification of the intended algorithm.

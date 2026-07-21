@@ -1,0 +1,90 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+## Analysis of failing tests
+
+**test_canonical_example_3** — expected 3, got 0
+- Input: `[1, 2, -1, -2, 1, 0, -1]`
+- Expected: 3 (subarray `[2, 1]` with all distinct elements)
+- Trace:
+  - i=0: num=1, not seen, seen={1}, current_sum=1
+  - i=1: num=2, not seen, seen={1,2}, current_sum=3
+  - i=2: num=-1, not seen, seen={1,2,-1}, current_sum=2
+  - i=3: num=-2, not seen, seen={1,2,-1,-2}, current_sum=0
+  - i=4: num=1, **in seen**, max_sum=max(-inf, 0)=0, current_sum=1, seen={1}
+  - i=5: num=0, not seen, seen={1,0}, current_sum=1
+  - i=6: num=-1, not seen, seen={1,0,-1}, current_sum=0
+  - Final: max_sum=max(0, 0)=0
+- The algorithm uses a **single-pass sliding window** approach that only resets when it encounters a duplicate. It never considers **all possible subarrays**, so it misses `[2, 1]` (indices 1-4, skipping -1 and -2) which has sum 3.
+
+**test_alternating_positive_negative** — expected 5, got 2
+- Input: `[5, -3, 5, -3]`
+- Expected: 5 (single element `[5]`)
+- Trace:
+  - i=0: num=5, not seen, seen={5}, current_sum=5
+  - i=1: num=-3, not seen, seen={5,-3}, current_sum=2
+  - i=2: num=5, **in seen**, max_sum=max(-inf, 2)=2, current_sum=5, seen={5}
+  - i=3: num=-3, not seen, seen={5,-3}, current_sum=2
+  - Final: max_sum=max(2, 2)=2
+- Same root cause: the algorithm only considers contiguous subarrays in a single pass and doesn't explore starting fresh at different positions.
+
+**test_all_negative** — expected -1, got -6
+- Input: `[-1, -2, -3]`
+- Expected: -1 (single element `[-1]`)
+- Trace:
+  - i=0: num=-1, not seen, seen={-1}, current_sum=-1
+  - i=1: num=-2, not seen, seen={-1,-2}, current_sum=-3
+  - i=2: num=-3, not seen, seen={-1,-2,-3}, current_sum=-6
+  - Final: max_sum=max(-inf, -6)=-6
+- Same root cause: never considers starting a fresh subarray at index 1 (just `[-1]`) or index 2.
+
+**test_negative_then_positive** — expected 12, got -3
+- Input: `[-5, -10, 3, 4, 5]`
+- Expected: 12 (subarray `[3, 4, 5]`)
+- Trace:
+  - i=0: num=-5, not seen, seen={-5}, current_sum=-5
+  - i=1: num=-10, not seen, seen={-5,-10}, current_sum=-15
+  - i=2: num=3, not seen, seen={-5,-10,3}, current_sum=-12
+  - i=3: num=4, not seen, seen={-5,-10,3,4}, current_sum=-8
+  - i=4: num=5, not seen, seen={-5,-10,3,4,5}, current_sum=-3
+  - Final: max_sum=max(-inf, -3)=-3
+- Same root cause: never starts fresh at index 2 to get just `[3, 4, 5]`.
+
+**test_unique_subarray_in_middle** — expected 18, got 19
+- Input: `[1, 1, 5, 6, 7, 1, 1]`
+- Expected: 18 (subarray `[5, 6, 7]`)
+- Trace:
+  - i=0: num=1, not seen, seen={1}, current_sum=1
+  - i=1: num=1, **in seen**, max_sum=max(-inf, 1)=1, current_sum=1, seen={1}
+  - i=2: num=5, not seen, seen={1,5}, current_sum=6
+  - i=3: num=6, not seen, seen={1,5,6}, current_sum=12
+  - i=4: num=7, not seen, seen={1,5,6,7}, current_sum=19
+  - i=5: num=1, **in seen**, max_sum=max(1, 19)=19, current_sum=1, seen={1}
+  - i=6: num=1, **in seen**, max_sum=max(19, 1)=19, current_sum=1, seen={1}
+  - Final: max_sum=max(19, 1)=19
+- Got 19 instead of 18 because after the reset at i=1, the algorithm includes the first `1` in the subarray `[1, 5, 6, 7]` which sums to 19, but doesn't explore starting at index 2 for `[5, 6, 7]` which sums to 18. Wait—this got 19 but expected 18. Let me recalculate the expected: `[5, 6, 7]` = 18. But `[1, 5, 6, 7]` = 19 and has all distinct elements, so why isn't 19 correct? Checking indices: the last two elements are both 1. If we include the element at index 1 (value 1), then at indices 5 and 6 we also have 1s. So we **cannot** include both index-1 value and index-5/6 values. The algorithm found `[1, 5, 6, 7]` starting from index 1, which has all distinct values **within that subarray**, giving sum 19. But the test expects 18. This suggests the test expects us to exclude the element at index 1 entirely and only take `[5, 6, 7]`.
+
+**Root cause for all failures**: The implementation uses a **single-pass greedy sliding window** that only resets when encountering a duplicate. This approach does not explore **all possible contiguous subarrays with distinct elements**. The problem requires finding the maximum sum among ALL such subarrays, not just those found in a single left-to-right pass with resets.
+
+## FIX DIRECTIVES:
+
+The current single-pass greedy approach is fundamentally incorrect. You need to consider all possible contiguous subarrays and check each for distinct elements.
+
+FIX: Replace the entire algorithm in `maxSum` with a nested loop approach:
+- Outer loop: iterate `i` from 0 to len(nums)-1 (each possible starting position)
+- Inner loop: iterate `j` from i to len(nums)-1 (each possible ending position from that start)
+- For each subarray nums[i:j+1], check if all elements are distinct using a set
+- If distinct, compute the sum and track the maximum
+- Return the maximum sum found across all valid subarrays
+
+FIX: Structure should be:
+```python
+max_sum = float('-inf')
+for i in range(len(nums)):
+    for j in range(i, len(nums)):
+        subarray = nums[i:j+1]
+        if len(subarray) == len(set(subarray)):  # all distinct
+            max_sum = max(max_sum, sum(subarray))
+return max_sum
+```

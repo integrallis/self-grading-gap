@@ -1,0 +1,104 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+# Test Suite Evaluation
+
+## Check 0 — Canonical Example Coverage
+
+The specification provides two canonical examples in the docstring:
+1. `round(find_zero([1, 2]), 2) # f(x) = 1 + 2x` → `-0.5`
+2. `round(find_zero([-6, 11, -6, 1]), 2) # (x - 1) * (x - 2) * (x - 3) = -6 + 11x - 6x^2 + x^3` → `1.0`
+
+Both are present:
+- `test_canonical_example_1`: tests `round(find_zero([1, 2]), 2) == -0.5` ✓
+- `test_canonical_example_2`: tests `round(find_zero([-6, 11, -6, 1]), 2) == 1.0` ✓
+
+**Check 0 passes.**
+
+## Check 1 — Fidelity
+
+Verifying each assertion's expected value:
+
+**test_poly_evaluates_constant:**
+- `poly([5], 2) = 5 * 2^0 = 5` ✓
+
+**test_poly_evaluates_linear:**
+- `poly([1, 2], 3) = 1 * 3^0 + 2 * 3^1 = 1 + 6 = 7` ✓
+
+**test_poly_evaluates_quadratic:**
+- `poly([1, 0, 3], 2) = 1 * 2^0 + 0 * 2^1 + 3 * 2^2 = 1 + 0 + 12 = 13` ✓
+
+**test_poly_evaluates_cubic:**
+- `poly([-6, 11, -6, 1], 2) = -6 + 11*2 - 6*4 + 1*8 = -6 + 22 - 24 + 8 = 0` ✓
+
+**test_canonical_example_1 & test_canonical_example_2:**
+- Already verified in Check 0 ✓
+
+**test_find_zero_returns_actual_zero:**
+- For `[1, 2]`, f(x) = 1 + 2x = 0 → x = -0.5
+- Tests that `poly([1, 2], find_zero([1, 2]))` ≈ 0 ✓
+
+**test_find_zero_returns_actual_zero_cubic:**
+- For `[-6, 11, -6, 1]`, the polynomial does have zeros at x = 1, 2, 3
+- Tests that `poly(xs, find_zero(xs))` ≈ 0 ✓
+
+**test_find_zero_even_coefficients_simple:**
+- For `[3, 6]`, f(x) = 3 + 6x = 0 → x = -0.5
+- Tests that `poly([3, 6], find_zero([3, 6]))` ≈ 0 ✓
+
+**test_find_zero_even_coefficients_quartic:**
+- For `[1, 0, -1, 0]`, f(x) = 1 + 0*x - 1*x^2 + 0*x^3 = 1 - x^2
+- Zeros at x = ±1
+- Tests that `poly(xs, find_zero(xs))` ≈ 0 ✓
+
+All expected values are correct.
+
+## Check 2 — No Invented Constraints
+
+The specification states:
+- `find_zero` takes list xs having **even number of coefficients**
+- `find_zero` takes list xs having **largest non zero coefficient** (implying the highest-degree coefficient is non-zero)
+
+All test inputs for `find_zero`:
+- `[1, 2]`: 2 coefficients (even), largest coefficient is 2 ✓
+- `[-6, 11, -6, 1]`: 4 coefficients (even), largest coefficient is 1 ✓
+- `[3, 6]`: 2 coefficients (even), largest coefficient is 6 ✓
+- `[1, 0, -1, 0]`: 4 coefficients (even), largest coefficient is 0 ✗
+
+**Issue found:** `[1, 0, -1, 0]` has the largest (highest-index) coefficient as 0, which violates the specification's requirement that the "largest non zero coefficient" guarantees a solution. This input is outside the valid domain.
+
+No other invented constraints detected. The tests appropriately only verify that the result is a zero of the polynomial, not which specific zero or any other behavior.
+
+## Check 3 — Coverage
+
+Specified behaviors:
+1. **poly(xs, x) evaluates polynomial**: Tested with constant, linear, quadratic, cubic ✓
+2. **find_zero returns x such that poly(xs, x) = 0**: Tested in multiple cases ✓
+3. **find_zero works with even number of coefficients**: Tested (2 coefficients, 4 coefficients) ✓
+4. **find_zero works when largest coefficient is non-zero**: Partially tested, but one test violates this
+
+The specification doesn't mandate testing specific polynomial degrees or specific patterns beyond the canonical examples. The suite covers the essential behaviors.
+
+## Check 4 — Sanity
+
+- Imports from `solution` ✓
+- Function signatures match exactly (`poly(xs: list, x: float)`, `find_zero(xs: list)`) ✓
+- Syntactically valid pytest ✓
+- No sanity defects detected
+
+## Summary of Defects
+
+1. **Invented constraint violation (domain error):** `test_find_zero_even_coefficients_quartic` uses `[1, 0, -1, 0]` where the largest coefficient is 0, violating the specification's precondition.
+
+## Directives
+
+REMOVE: test_find_zero_even_coefficients_quartic uses [1, 0, -1, 0] which violates the specification's requirement that the largest coefficient be non-zero
+
+## Scoring
+
+- Starting score: 1.00
+- Invented constraint (testing outside valid domain): -0.30
+- Final: 0.70
+
+Final score: 0.70

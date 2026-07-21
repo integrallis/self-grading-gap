@@ -1,0 +1,618 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+## Analysis
+
+**test_large_array_size** — expected 100, got 86
+
+Input: `nums = [1, 3, 5, 7, 9, 2, 4, 6, 8, 0, 12, 11, 19, 15, 14, 16, 17, 18, 20, 25]`, `k = 2`
+
+Expected good numbers according to test: 3, 5, 7, 9, 12, 19, 20, 25 (sum = 100)
+
+Let me trace the implementation's logic for each index:
+
+- i=0: nums[0]=1. Check i-2=-2 (skip), check i+2=2: nums[0]=1 <= nums[2]=5? Yes, is_good=False. **Not counted**
+- i=1: nums[1]=3. Check i-2=-1 (skip), check i+2=3: nums[1]=3 <= nums[3]=7? Yes, is_good=False. **Not counted**
+- i=2: nums[2]=5. Check i-2=0: nums[2]=5 <= nums[0]=1? No. Check i+2=4: nums[2]=5 <= nums[4]=9? Yes, is_good=False. **Not counted**
+- i=3: nums[3]=7. Check i-2=1: nums[3]=7 <= nums[1]=3? No. Check i+2=5: nums[3]=7 <= nums[5]=2? No. is_good=True. **Counted: 7**
+- i=4: nums[4]=9. Check i-2=2: nums[4]=9 <= nums[2]=5? No. Check i+2=6: nums[4]=9 <= nums[6]=4? No. is_good=True. **Counted: 9**
+- i=5: nums[5]=2. Check i-2=3: nums[5]=2 <= nums[3]=7? Yes, is_good=False. **Not counted**
+- i=6: nums[6]=4. Check i-2=4: nums[6]=4 <= nums[4]=9? Yes, is_good=False. **Not counted**
+- i=7: nums[7]=6. Check i-2=5: nums[7]=6 <= nums[5]=2? No. Check i+2=9: nums[7]=6 <= nums[9]=0? No. is_good=True. **Counted: 6**
+- i=8: nums[8]=8. Check i-2=6: nums[8]=8 <= nums[6]=4? No. Check i+2=10: nums[8]=8 <= nums[10]=12? Yes, is_good=False. **Not counted**
+- i=9: nums[9]=0. Check i-2=7: nums[9]=0 <= nums[7]=6? Yes, is_good=False. **Not counted**
+- i=10: nums[10]=12. Check i-2=8: nums[10]=12 <= nums[8]=8? No. Check i+2=12: nums[10]=12 <= nums[12]=19? Yes, is_good=False. **Not counted**
+- i=11: nums[11]=11. Check i-2=9: nums[11]=11 <= nums[9]=0? No. Check i+2=13: nums[11]=11 <= nums[13]=15? Yes, is_good=False. **Not counted**
+- i=12: nums[12]=19. Check i-2=10: nums[12]=19 <= nums[10]=12? No. Check i+2=14: nums[12]=19 <= nums[14]=14? No. is_good=True. **Counted: 19**
+- i=13: nums[13]=15. Check i-2=11: nums[13]=15 <= nums[11]=11? No. Check i+2=15: nums[13]=15 <= nums[15]=16? Yes, is_good=False. **Not counted**
+- i=14: nums[14]=14. Check i-2=12: nums[14]=14 <= nums[12]=19? Yes, is_good=False. **Not counted**
+- i=15: nums[15]=16. Check i-2=13: nums[15]=16 <= nums[13]=15? No. Check i+2=17: nums[15]=16 <= nums[17]=18? Yes, is_good=False. **Not counted**
+- i=16: nums[16]=17. Check i-2=14: nums[16]=17 <= nums[14]=14? No. Check i+2=18: nums[16]=17 <= nums[18]=20? Yes, is_good=False. **Not counted**
+- i=17: nums[17]=18. Check i-2=15: nums[17]=18 <= nums[15]=16? No. Check i+2=19: nums[17]=18 <= nums[19]=25? Yes, is_good=False. **Not counted**
+- i=18: nums[18]=20. Check i-2=16: nums[18]=20 <= nums[16]=17? No. Check i+2=20 (out of bounds, skip). is_good=True. **Counted: 20**
+- i=19: nums[19]=25. Check i-2=17: nums[19]=25 <= nums[17]=18? No. Check i+2=21 (out of bounds, skip). is_good=True. **Counted: 25**
+
+Implementation sum: 7 + 9 + 6 + 19 + 20 + 25 = 86 ✓ (matches actual output)
+
+Expected good numbers: 3, 5, 7, 9, 12, 19, 20, 25
+
+The problem is that the implementation requires **BOTH** conditions to pass (nums[i] must be greater than BOTH nums[i-k] AND nums[i+k] when they exist). However, the expected output suggests a number is "good" if it is greater than **AT LEAST ONE** of its k-distance neighbors, not both.
+
+Actually, let me re-examine. Looking at the test comments more carefully and the pattern in the expected results, it seems a number should be "good" if it's greater than its k-distance neighbor(s) in a specific direction or satisfies some other criterion. Let me check the canonical examples again:
+
+Test 1: `[1, 3, 2, 1, 5, 4]`, k=2. Good: 3 (index 1), 5 (index 4), 4 (index 5).
+- Index 1 (value 3): i-2=-1 (none), i+2=3 (value 1). 3 > 1? Yes.
+- Index 4 (value 5): i-2=2 (value 2), i+2=6 (none). 5 > 2? Yes.
+- Index 5 (value 4): i-2=3 (value 1), i+2=7 (none). 4 > 1? Yes.
+
+This suggests: a number is good if it's greater than **ALL** existing k-distance neighbors. The current implementation uses `<=` which means "less than or equal", setting is_good=False. This should work as AND logic.
+
+Wait—looking again at the large array test, index 1 (value 3) should be good but isn't. Let me check: i=1, i-2=-1 (skip), i+2=3 (value 7). Current code: `nums[1]=3 <= nums[3]=7? Yes` → is_good=False. But the test expects 3 to be good!
+
+Ah! The issue is the condition uses `<=` when it should use `<`. A number is good if it's **strictly greater than** all k-distance neighbors, which means we should reject it only if it's **less than or equal to** ANY neighbor. But wait, that's what the code does...
+
+Let me reconsider: maybe a number is good if it's greater than **any one** of its k-distance neighbors? No, that doesn't match test 1.
+
+Actually, re-reading: perhaps the definition is that nums[i] is good if **for all existing k-distance positions**, nums[i] > nums[that position]. The implementation currently does this with AND logic (both conditions must not trigger is_good=False). 
+
+The bug is: the implementation uses `<=` comparisons. If `nums[i] <= nums[i±k]`, it sets is_good=False. This means nums[i] must be `> nums[i±k]` (strictly greater). But perhaps the spec requires `>=` (greater than or equal)?
+
+No wait—checking test_maximum_value_constraints: `[1000, 999, 1000, 998, 1000]`, k=1. Expected good: three 1000s at indices 0, 2, 4.
+- Index 0: i-1=-1 (skip), i+1=1 (999). 1000 > 999? Yes, should be good. Implementation: 1000 <= 999? No, so is_good stays True. ✓
+- Index 2: i-1=1 (999), i+1=3 (998). 1000 > both? Yes. Implementation checks both with <=, both False, is_good=True. ✓
+
+This test passes, so `<=` might be correct for strictly-greater-than logic.
+
+The real issue: In the large array test, index 1 (value 3) should be counted but looking at my trace, it has i+2=3 with value 7, and 3 <= 7, so it's marked not good. But the test expects it to be good!
+
+Let me check if I'm reading the test comment correctly: "Good numbers: 3, 5, 7, 9, 12, 19, 20, 25". These are **values**, not indices. So value 3 at index 1 should be good, value 5 at index 2 should be good, etc.
+
+For value 3 at index 1 to be good with k=2: Check index 1-2=-1 (doesn't exist), check index 1+2=3 (value 7). Implementation says: 3 <= 7? Yes → not good.
+
+This suggests the spec is: a number is good if it's greater than **at least one** k-distance neighbor (OR logic), not **all** neighbors (AND logic)!
+
+Let me verify with test 1: `[1, 3, 2, 1, 5, 4]`, k=2.
+- Index 1 (value 3): only i+2=3 exists (value 1). 3 > 1? Yes → good. ✓
+- Index 4 (value 5): only i-2=2 exists (value 2). 5 > 2? Yes → good. ✓
+- Index 5 (value 4): only i-2=3 exists (value 1). 4 > 1? Yes → good. ✓
+
+What about index 0 (value 1)? Only i+2=2 exists (value 2). 1 > 2? No → not good. ✓
+What about index 2 (value 2)? i-2=0 (value 1), i+2=4 (value 5). 2 > 1? Yes → should be good if OR logic!
+
+But test expects only 3, 5, 4, not including 2. So it's not simple OR logic either.
+
+Actually, the logic should be: a number is good if **when at least one k-distance neighbor exists**, it is greater than **all** of them. The current implementation has AND logic which is correct, BUT it's checking the wrong condition when only one neighbor exists.
+
+No, wait. Let me re-examine the implementation logic:
+```python
+is_good = True
+if i - k >= 0 and nums[i] <= nums[i - k]:
+    is_good = False
+if i + k < n and nums[i] <= nums[i + k]:
+    is_good = False
+```
+
+This says: start assuming good, then if left neighbor exists AND current <= left, mark not good. Then if right neighbor exists AND current <= right, mark not good.
+
+This is correct AND logic for "must be > all existing neighbors".
+
+So why does test_large_array_size fail? Let me check value 3 (index 1) more carefully according to the test comment. Oh! Let me recount which values should be good:
+
+Array: `[1, 3, 5, 7, 9, 2, 4, 6, 8, 0, 12, 11, 19, 15, 14, 16, 17, 18, 20, 25]`
+Indices: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
+
+Expected good **values**: 3, 5, 7, 9, 12, 19, 20, 25
+
+Let me verify index 1 (value 3) with proper understanding:
+- i-k = 1-2 = -1 (doesn't exist)
+- i+k = 1+2 = 3 (value 7)
+- Is 3 > 7? No.
+- So 3 should NOT be good according to the AND-all-neighbors rule.
+
+But the test says 3 IS good! This means my understanding of the rule is wrong.
+
+Perhaps the rule is: a number at index i is good if `nums[i] > nums[i+k]` **when i+k exists**, OR `nums[i] > nums[i-k]` **when i-k exists**—i.e., it needs to be greater than at least one neighbor when neighbors exist?
+
+Let me check index 1 (value 3) with OR logic:
+- i+k=3 exists (value 7): 3 > 7? No.
+- i-k=-1 doesn't exist.
+- So with OR logic and only one check, 3 would NOT be good.
+
+Hmm, still doesn't work. Let me check if maybe the test comment has the wrong list of good numbers, or if I'm misunderstanding k-distance.
+
+Actually, wait—maybe I need to check ONLY the neighbor at distance k in ONE direction? Looking at test comments again:
+
+Test 2: `[2, 1]`, k=1. Good: 2 (index 0) "is greater than 1 (index 1)".
+- Index 0: i-1=-1 (doesn't exist), i+1=1 (value 1). Check forward: 2 > 1? Yes.
+
+Test 4: `[5, 1, 3, 2]`, k=2. Good: "5 > 3 (yes), 2 > 1 (yes)".
+- Index 0 (value 5): i+2=2 (value 3). 5 > 3? Yes → good.
+- Index 3 (value 2): i-2=1 (value 1). 2 > 1? Yes → good.
+
+Wait, this comment says "5 > 3" for index 0, checking forward. And "2 > 1" for index 3, checking backward. Maybe the rule is: check ONLY one direction? Odd indices check one way, even indices check another?
+
+Or maybe: check the direction where a neighbor exists?
+
+Let me re-examine test_large_array_size with the hypothesis that you check i+k if it exists, otherwise i-k:
+
+- Index 1 (value 3): i+2=3 exists → check 3 > 7? No → not good.
+
+That doesn't match either.
+
+Let me try: check i-k if it exists, otherwise i+k:
+- Index 1 (value 3): i-2=-1 doesn't exist, so check i+2=3 → 3 > 7? No → not good.
+
+Still no.
+
+Okay, let me look at the test comment format more carefully. It says:
+"good numbers: 3 (index 1), 5 (index 4)..."
+
+Wait, index 1 has value 3, index 2 has value 5. Let me recount:
+```
+Index: 0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19
+Value: 1  3  5  7  9  2  4  6  8  0  12 11 19 15 14 16 17 18 20 25
+```
+
+Expected good values: 3, 5, 7, 9, 12, 19, 20, 25
+
+So:
+- 3 is at index 1
+- 5 is at index 2
+- 7 is at index 3
+- 9 is at index 4
+- 12 is at index 10
+- 19 is at index 12
+- 20 is at index 18
+- 25 is at index 19
+
+For these to be good with k=2 and the current AND logic, they must be > all existing k-distance neighbors. Let me check index 1 (value 3):
+- i-2 = -1 (doesn't exist)
+- i+2 = 3 (value 7)
+- For 3 to be good: 3 > 7? No.
+
+So with the current implementation's logic, 3 should NOT be good. But the test expects it to be. Therefore, the implementation's logic is wrong.
+
+**The bug is: the implementation uses AND logic (must be greater than ALL k-distance neighbors), but the specification requires OR logic or something else entirely.**
+
+Looking at passing tests and the pattern, let me hypothesize: maybe you check if nums[i] > nums[i-k] OR nums[i] > nums[i+k] (at least one must be true)?
+
+Test with index 1 (value 3), k=2:
+- 3 > nums[-1]? (doesn't exist, so vacuously false)
+- 3 > nums[3]=7? No.
+- OR result: false.
+Still doesn't work.
+
+Let me try another hypothesis: nums[i] is good if for ALL existing k-neighbors, nums[i] >= nums[neighbor] (not strictly greater)?
+
+Index 1 (value 3): 3 >= 7? No.
+
+Or maybe the comparison direction is reversed? nums[i] is good if nums[i-k] < nums[i] OR nums[i+k] < nums[i]?
+
+That's the same as nums[i] > nums[i±k], which is what I had.
+
+**Aha!** Maybe I need to check: a number is good if **there exists at least one k-distance neighbor** AND nums[i] is greater than **at least one** of them?
+
+Index 1 (value 3), k=2:
+- Neighbors: only i+2=3 (value 7) exists.
+- 3 > 7? No → not good.
+
+Still no.
+
+Let me try: a number is good if nums[i] > nums[i-k] (when i-k exists) OR nums[i] > nums[i+k] (when i+k exists), BUT if BOTH exist, only one needs to be true?
+
+Index 2 (value 5), k=2:
+- i-2=0 (value 1): 5 > 1? Yes.
+- i+2=4 (value 9): 5 > 9? No.
+- OR: Yes → good. ✓
+
+Index 1 (value 3), k=2:
+- i-2=-1: doesn't exist.
+- i+2=3 (value 7): 3 > 7? No.
+- OR (with only one check): No → not good. ✗
+
+Doesn't work for index 1.
+
+I'm going to look at the implementation one more time. Maybe there's a subtle bug in how it checks bounds or indices?
+
+```python
+if i - k >= 0 and nums[i] <= nums[i - k]:
+    is_good = False
+if i + k < n and nums[i] <= nums[i + k]:
+    is_good = False
+```
+
+Both use AND between existence check and comparison. If the neighbor doesn't exist, the whole condition is False, so is_good remains True. This implements: "good unless there exists a neighbor that is >= current".
+
+So the implementation says: good if nums[i] is strictly greater than all existing k-neighbors.
+
+The test expects value 3 at index 1 to be good, but with i+2=3 having value 7, and 3 < 7, it shouldn't be good under this logic.
+
+**Unless the test comment is wrong?** Let me manually calculate what the sum should be with the implementation's logic (which I traced above): 7 + 9 + 6 + 19 + 20 + 25 = 86, which matches the actual output.
+
+So either:
+1. The test's expected value (100) is wrong, OR
+2. The test comment about which numbers are good is wrong, OR
+3. The implementation logic is wrong and I need to figure out the correct logic from the other passing tests.
+
+Since the tests are the acceptance criterion and are "not in question", I must assume the test is correct and figure out the right logic.
+
+Let me work backward from expected sum 100 and see which numbers sum to 100:
+From the array, values that could sum to 100: need to find a subset.
+
+Expected good values from comment: 3 + 5 + 7 + 9 + 12 + 19 + 20 + 25 = 100 ✓
+
+So the test comment is consistent with the expected sum.
+
+Now let me figure out what rule would make these numbers good:
+
+Looking at positions of expected good numbers:
+- Index 1 (value 3): neighbors at -1 (none), 3 (value 7)
+- Index 2 (value 5): neighbors at 0 (value 1), 4 (value 9)
+- Index 3 (value 7): neighbors at 1 (value 3), 5 (value 2)
+- Index 4 (value 9): neighbors at 2 (value 5), 6 (value 4)
+- Index 10 (value 12): neighbors at 8 (value 8), 12 (value 19)
+- Index 12 (value 19): neighbors at 10 (value 12), 14 (value 14)
+- Index 18 (value 20): neighbors at 16 (value 17), 20 (none)
+- Index 19 (value 25): neighbors at 17 (value 18), 21 (none)
+
+Checking "greater than at least one neighbor" for each:
+- Index 1: 3 > 7? No. **FAILS**
+- Index 2: 5 > 1? Yes OR 5 > 9? No. **True**
+- Index 3: 7 > 3? Yes OR 7 > 2? Yes. **True**
+- Index 4: 9 > 5? Yes OR 9 > 4? Yes. **True**
+- Index 10: 12 > 8? Yes OR 12 > 19? No. **True**
+- Index 12: 19 > 12? Yes OR 19 > 14? Yes. **True**
+- Index 18: 20 > 17? Yes. **True**
+- Index 19: 25 > 18? Yes. **True**
+
+Index 1 still fails with OR logic!
+
+Hmm, let me check if maybe the problem statement uses a different definition of "k-distance". Maybe k=2 means "2 positions away in each direction", so you check i-2 and i+2, but ALSO i-1, i+1?
+
+No, that seems unlikely given how clearly the other tests work with single k-distance positions.
+
+Wait! Let me check if maybe "k=2" means "within distance 2", so you check i-1, i-2, i+1, i+2?
+
+Index 1 (value 3), k=2, checking all within distance 2:
+- i-1=0 (value 1): 3 > 1? Yes.
+- i-2=-1: doesn't exist.
+- i+1=2 (value 5): 3 > 5? No.
+- i+2=3 (value 7): 3 > 7? No.
+- At least one true? Yes → good! ✓
+
+Let me verify this with other expected good numbers:
+
+Index 2 (value 5), checking i-2, i-1, i+1, i+2:
+- i-2=0 (value 1): 5 > 1? Yes.
+- i-1=1 (value 3): 5 > 3? Yes.
+- i+1=3 (value 7): 5 > 7? No.
+- i+2=4 (value 9): 5 > 9? No.
+- At least one true? Yes → good! ✓
+
+This hypothesis ("within distance k" means check all positions from i-k to i-1 and i+1 to i+k, and be greater than at least one) might work!
+
+But wait, let me check a non-good number to see if it fails correctly:
+
+Index 0 (value 1), k=2:
+- i-2=-2, i-1=-1: don't exist.
+- i+1=1 (value 3): 1 > 3? No.
+- i+2=2 (value 5): 1 > 5? No.
+- At least one true? No → not good. ✓
+
+Index 5 (value 2), k=2:
+- i-2=3 (value 7): 2 > 7? No.
+- i-1=4 (value 9): 2 > 9? No.
+- i+1=6 (value 4): 2 > 4? No.
+- i+2=7 (value 6): 2 > 6? No.
+- At least one true? No → not good. ✓
+
+This seems to work! But let me verify with a simpler test:
+
+Test 1: `[1, 3, 2, 1, 5, 4]`, k=2, expected good: indices 1, 4, 5.
+
+Index 1 (value 3), check i-2, i-1, i+1, i+2:
+- i-2=-1: none
+- i-1=0 (value 1): 3 > 1? Yes → good! ✓
+
+Index 4 (value 5):
+- i-2=2 (value 2): 5 > 2? Yes → good! ✓
+
+Index 5 (value 4):
+- i-2=3 (value 1): 4 > 1? Yes → good! ✓
+
+Index 0 (value 1):
+- i+1=1 (value 3): 1 > 3? No.
+- i+2=2 (value 2): 1 > 2? No → not good. ✓
+
+Index 2 (value 2):
+- i-2=0 (value 1): 2 > 1? Yes → **should be good!** But test expects it NOT to be good. ✗
+
+This hypothesis fails too.
+
+Let me try: must be greater than **all** neighbors within distance 1 to k?
+
+Index 1 (value 3), k=2:
+- i-1=0 (value 1): 3 > 1? Yes.
+- i+1=2 (value 5): 3 > 5? No.
+- All? No → not good. ✗
+
+That doesn't work either for the large array test.
+
+Let me try yet another approach: maybe "good" means greater than the element exactly at distance k in at least one direction, ignoring elements at other distances?
+
+That's what the current implementation does, and it fails the test.
+
+I think the key might be to look at the structure of the expected good numbers in test_large_array_size more carefully. Let me plot them:
+
+Indices: 1, 2, 3, 4, ..., 10, ..., 12, ..., 18, 19
+Pattern: 1, 2, 3, 4 (consecutive), then gap, then 10, gap, 12, gap, then 18, 19 (consecutive).
+
+Maybe the rule involves checking neighbors at distance less than or equal to k, and needing to be greater than at least one within each "direction" or something?
+
+Actually, I notice all my hypotheses so far assume some form of comparison with neighbors. Let me reconsider if the implementation might have a simple off-by-one error or indexing bug.
+
+Wait! What if the code should check **only one direction** based on whether i is even or odd, or based on some other criterion?
+
+Or, reviewing the code again:
+
+```python
+if i - k >= 0 and nums[i] <= nums[i - k]:
+    is_good = False
+if i + k < n and nums[i] <= nums[i + k]:
+    is_good = False
+```
+
+What if this should be OR instead of sequential IFs? Like, use OR operator to combine the conditions?
+
+Actually, the current structure is: if (left exists and current <= left) set False. Then, independently, if (right exists and current <= right) set False. This is effectively AND logic (both must pass for is_good to stay True).
+
+What if it should be: set False only if (left exists and current <= left) AND (right exists and current <= right)? I.e., BOTH neighbors must exist and BOTH must be >= current for it to be not good?
+
+Let me test index 1 (value 3) with this logic:
+- Left (i-2=-1) doesn't exist.
+- Right (i+2=3, value 7) exists, 3 <= 7.
+- Since left doesn't exist, the AND of "both conditions true" is false → is_good stays True → good! ✓
+
+Index 0 (value 1):
+- Left doesn't exist.
+- Right (i+2=2, value 2) exists, 1 <= 2.
+- AND: false → good.
+But test expects index 0 NOT to be good. ✗
+
+Hmm, that doesn't work either.
+
+Let me try the opposite: is_good = False only if **neither** neighbor exists OR current is <= at least one existing neighbor?
+
+That's just a restatement of the current logic.
+
+Okay, I'm going to try a completely different approach. Let me look at what makes a number NOT good in the expected results:
+
+Not good in large array: indices 0, 5, 6, 7, 8, 9, 11, 13, 14, 15, 16, 17
+
+Index 0 (value 1): i-2 none, i+2=2 (value 5). 1 < 5.
+Index 5 (value 2): i-2=3 (value 7), i+2=7 (value 6). 2 < both.
+Index 6 (value 4): i-2=4 (value 9), i+2=8 (value 8). 4 < both.
+Index 7 (value 6): i-2=5 (value 2), i+2=9 (value 0). 6 > both! **Should be good?**
+
+Wait, my implementation trace above said index 7 IS counted as good (value 6). So the implementation counts it but the test doesn't expect it.
+
+So the implementation is counting TOO MANY numbers (or different numbers).
+
+Implementation counted: 7, 9, 6, 19, 20, 25 (sum 86)
+Test expects: 3, 5, 7, 9, 12, 19, 20, 25 (sum 100)
+
+Difference: implementation has 6, missing 3, 5, 12. Let me verify:
+- Implementation has 6: Yes (index 7)
+- Implementation missing 3, 5, 12: Yes
+- Extra in implementation: 6
+- Sum difference: (3 + 5 + 12) - 6 = 20 - 6 = 14. Expected 100, got 86. Difference: 14. ✓
+
+So the bug is: implementation incorrectly marks index 7 (value 6) as good when it shouldn't be, and incorrectly marks indices 1, 2, 10 (values 3, 5, 12) as not good when they should be.
+
+Let me look at what's different about these:
+
+Index 1 (value 3): i-2 none, i+2=3 (value 7). Only right neighbor, current < right.
+Index 2 (value 5): i-2=0 (value 1), i+2=4 (value 9). Both neighbors, current > left, current < right.
+Index 7 (value 6): i-2=5 (value 2), i+2=9 (value 0). Both neighbors, current > both.
+Index 10 (value 12): i-2=8 (value 8), i+2=12 (value 19). Both neighbors, current > left, current < right.
+
+Pattern for should-be-good-but-aren't (1, 2, 10): in all cases, right neighbor exists and current < right, but left either doesn't exist or current > left.
+
+Pattern for shouldn't-be-good-but-is (7): both neighbors exist and current > both.
+
+**Hypothesis: a number is good if it's greater than its left (i-k) neighbor WHEN THAT EXISTS, regardless of the right neighbor.**
+
+Index 1: left doesn't exist → not good (based on this rule). ✗ (test expects good)
+
+**New hypothesis: a number is good if its left neighbor (i-k) doesn't exist OR current > left.**
+
+Index 1: left doesn't exist → good. ✓
+Index 2: left exists (value 1), 5 > 1 → good. ✓
+Index 7: left exists (value 2), 6 > 2 → good. ✗ (test expects not good)
+
+**Refined: a number is good if (left doesn't exist OR current > left) AND (right doesn't exist OR current <= right)?**
+
+That's weird, but let me test:
+
+Index 1: (left none OR —) AND (right exists AND 3 <= 7) → True AND True → good. ✓
+Index 2: (5 > 1) AND (5 <= 9) → True AND True → good. ✓
+Index 7: (6 > 2) AND (6 <= 0) → True AND False → not good. ✓
+Index 10: (12 > 8) AND (12 <= 19) → True AND True → good. ✓
+
+Let me check indices that should be not good:
+
+Index 0: (left none) AND (1 <= 5) → True AND True → good. ✗ (test expects not good)
+
+Hmm, that doesn't work.
+
+**Another try: a number is good if left exists AND current > left, regardless of right?**
+
+Index 1: left doesn't exist → not good. ✗
+Index 2: left exists, 5 > 1 → good. ✓
+
+Not working.
+
+**What if: count only indices where both i-k and i+k exist, and current is > left and <= right? Plus indices where only left exists and current > left? Plus indices where only right exists and current > right?**
+
+This is getting too complicated. Let me step back.
+
+Actually, let me check if maybe I miscounted the implementation's output. Let me retrace more carefully:
+
+[Detailed retrace confirms: 7, 9, 6, 19, 20, 25, sum = 86]
+
+So the issue stands. Let me try looking at the problem from the simplest tests:
+
+Test 2: `[2, 1]`, k=1. Expected good: index 0 (value 2).
+- Index 0: i-1=-1 (none), i+1=1 (value 1).
+- Index 1: i-1=0 (value 2), i+1=2 (none).
+
+For index 0 to be good and index 1 not:
+- Index 0: Implementation: left none (skip), right 2 <= 1? No → good. ✓
+- Index 1: Implementation: left 1 <= 2? Yes → not good. ✓
+
+Current implementation handles this correctly!
+
+So the bug is specifically triggered by test_large_array_size. Let me look at that test's array structure more carefully to see if there's an edge case.
+
+Actually, you know what, let me just carefully check if my manual trace of the implementation on test_large_array_size was correct. Let me redo it:
+
+```python
+nums = [1, 3, 5, 7, 9, 2, 4, 6, 8, 0, 12, 11, 19, 15, 14, 16, 17, 18, 20, 25]
+k = 2
+n = 20
+```
+
+For each i:
+- i=0: i-k=-2 (skip), i+k=2. nums[0]=1, nums[2]=5. 1 <= 5? Yes → is_good=False.
+- i=1: i-k=-1 (skip), i+k=3. nums[1]=3, nums[3]=7. 3 <= 7? Yes → is_good=False.
+- i=2: i-k=0, i+k=4. nums[2]=5, nums[0]=1, nums[4]=9. 5 <= 1? No (skip). 5 <= 9? Yes → is_good=False.
+- i=3: i-k=1, i+k=5. nums[3]=7, nums[1]=3, nums[5]=2. 7 <= 3? No. 7 <= 2? No → is_good=True. **Add 7.**
+- i=4: i-k=2, i+k=6. nums[4]=9, nums[2]=5, nums[6]=4. 9 <= 5? No. 9 <= 4? No → is_good=True. **Add 9.**
+- i=5: i-k=3, i+k=7. nums[5]=2, nums[3]=7, nums[7]=6. 2 <= 7? Yes → is_good=False.
+- i=6: i-k=4, i+k=8. nums[6]=4, nums[4]=9, nums[8]=8. 4 <= 9? Yes → is_good=False.
+- i=7: i-k=5, i+k=9. nums[7]=6, nums[5]=2, nums[9]=0. 6 <= 2? No. 6 <= 0? No → is_good=True. **Add 6.**
+- i=8: i-k=6, i+k=10. nums[8]=8, nums[6]=4, nums[10]=12. 8 <= 4? No. 8 <= 12? Yes → is_good=False.
+- i=9: i-k=7, i+k=11. nums[9]=0, nums[7]=6, nums[11]=11. 0 <= 6? Yes → is_good=False.
+- i=10: i-k=8, i+k=12. nums[10]=12, nums[8]=8, nums[12]=19. 12 <= 8? No. 12 <= 19? Yes → is_good=False.
+- i=11: i-k=9, i+k=13. nums[11]=11, nums[9]=0, nums[13]=15. 11 <= 0? No. 11 <= 15? Yes → is_good=False.
+- i=12: i-k=10, i+k=14. nums[12]=19, nums[10]=12, nums[14]=14. 19 <= 12? No. 19 <= 14? No → is_good=True. **Add 19.**
+- i=13: i-k=11, i+k=15. nums[13]=15, nums[11]=11, nums[15]=16. 15 <= 11? No. 15 <= 16? Yes → is_good=False.
+- i=14: i-k=12, i+k=16. nums[14]=14, nums[12]=19, nums[16]=17. 14 <= 19? Yes → is_good=False.
+- i=15: i-k=13, i+k=17. nums[15]=16, nums[13]=15, nums[17]=18. 16 <= 15? No. 16 <= 18? Yes → is_good=False.
+- i=16: i-k=14, i+k=18. nums[16]=17, nums[14]=14, nums[18]=20. 17 <= 14? No. 17 <= 20? Yes → is_good=False.
+- i=17: i-k=15, i+k=19. nums[17]=18, nums[15]=16, nums[19]=25. 18 <= 16? No. 18 <= 25? Yes → is_good=False.
+- i=18: i-k=16, i+k=20 (out of bounds, skip). nums[18]=20, nums[16]=17. 20 <= 17? No → is_good=True. **Add 20.**
+- i=19: i-k=17, i+k=21 (out of bounds, skip). nums[19]=25, nums[17]=18. 25 <= 18? No → is_good=True. **Add 25.**
+
+Sum: 7 + 9 + 6 + 19 + 20 + 25 = 86. ✓ (matches actual output)
+
+So my trace is correct.
+
+Now, the expected good numbers per test: 3, 5, 7, 9, 12, 19, 20, 25.
+
+These are at indices: 1, 2, 3, 4, 10, 12, 18, 19.
+
+Comparing to implementation's good indices: 3, 4, 7, 12, 18, 19.
+
+Missing from implementation: 1, 2, 10.
+Extra in implementation: 7.
+
+Index 7 is the outlier where implementation says good but test says not good.
+
+Let me check if there's a pattern. Index 7 has both neighbors within bounds. Indices 1, 2, 10 also have... let me check:
+- Index 1: left out of bounds, right in bounds.
+- Index 2: both in bounds.
+- Index 10: both in bounds.
+
+So no clear pattern there.
+
+Let me check the actual values and comparisons:
+- Index 1: 3 vs neighbors (none, 7). Implementation: 3 <= 7 → not good. Test: should be good.
+- Index 2: 5 vs neighbors (1, 9). Implementation: 5 <= 9 → not good. Test: should be good.
+- Index 7: 6 vs neighbors (2, 0). Implementation: 6 > both → good. Test: should NOT be good.
+- Index 10: 12 vs neighbors (8, 19). Implementation: 12 <= 19 → not good. Test: should be good.
+
+I notice:
+- Indices where test expects good but implementation says no: 1, 2, 10. In all cases, right neighbor exists and current < right.
+- Index where implementation says good but test says no: 7. Here, both neighbors exist and current > both.
+
+**New hypothesis: The comparison should check if current > left OR current < right (or vice versa)?**
+
+Let me try: good if (left doesn't exist OR current > left) OR (right doesn't exist OR current < right):
+
+- Index 1: (True) OR (3 < 7) → True → good. ✓
+- Index 2: (5 > 1) OR (5 < 9) → True → good. ✓
+- Index 7: (6 > 2) OR (6 < 0) → True → good. ✗ (should be not good)
+
+That doesn't work because OR makes almost everything good.
+
+**What if it's XOR? Good if exactly one of the comparisons is true?**
+
+- Index 1: (left none counts as ?) XOR (3 < 7) → ?
+- This is getting too speculative.
+
+Let me look at this differently. I'll check the working tests to see if I can infer the rule:
+
+Test 5: `[10, 5, 8, 3]`, k=2. Expected good: 10 (index 0), 5 (index 1). Sum: 15.
+- Index 0: i-k=-2 (none), i+k=2 (value 8). Implementation: 10 <= 8? No → good. ✓
+- Index 1: i-k=-1 (none), i+k=3 (value 3). Implementation: 5 <= 3? No → good. ✓
+
+This test passes! And it has the same pattern as index 1 in the large array test: left doesn't exist, right exists, current > right → good.
+
+Wait, but in large array test, index 1 has left doesn't exist, right exists (value 7), current (3) < right → should be good but implementation says not good.
+
+Ah! In test 5, current > right → implementation says good. In large array index 1, current < right → implementation says not good.
+
+So test 5 is consistent with the implementation's logic.
+
+Let me double-check test 5's sum: 10 + 5 = 15. ✓
+
+Now let me check indices 2 and 3 in test 5:
+- Index 2 (value 8): i-k=0 (value 10), i+k=4 (none). 8 <= 10? Yes → not good. ✓
+- Index 3 (value 3): i-k=1 (value 5), i+k=5 (none). 3 <= 5? Yes → not good. ✓
+
+All consistent.
+
+So the implementation's logic DOES work for test 5, but NOT for the large array test. This suggests the large array test might have... Oh! Maybe there's a typo in the test comment?
+
+Let me recalculate what the sum SHOULD be if the implementation's logic is correct:
+Implementation's good values: 7, 9, 6, 19, 20, 25. Sum = 86.
+
+But the test asserts 100. And the comment lists good numbers as 3, 5, 7, 9, 12, 19, 20, 25.
+
+If I trust the implementation's logic (which works for other tests), then the test's expected value or comment is wrong.
+
+BUT the instructions say "the tests are the acceptance criterion and are not in question here".
+
+So I must assume the test is correct and the implementation is wrong, even if I can't figure out the exact rule.
+
+Given that I've exhausted many hypotheses, let me provide the implementer with my findings:
+
+## FIX DIRECTIVES:
+
+The current implementation uses logic: "a number at index i is good if nums[i] is strictly greater than ALL k-distance neighbors that exist (both nums[i-k] if i-k >= 0, AND nums[i+k] if i+k < n)."
+
+For test_large_array_size, this logic produces sum 86 but the test expects 100.
+
+Expected good numbers (per test comment): values 3, 5, 7, 9, 12, 19, 20, 25 at indices 1, 2, 3, 4, 10, 12, 18, 19.
+Implementation's good numbers: values 7, 9, 6, 19, 20, 25 at indices 3, 4, 7, 12, 18, 19.
+
+The implementation incorrectly:
+- Marks index 7 (value 6) as good when it should not be
+- Marks indices 1, 2, 10 (values 3, 5, 12) as not good when they should be
+
+Pattern observed:
+- Indices 1, 2, 10 (should be good, marked not good): all have right neighbor (i+k) existing with current < right neighbor, and either left neighbor doesn't exist or current > left neighbor
+- Index 7 (should be not good, marked good): both neighbors exist and current > both
+
+The correct logic cannot be determined definitively from the tests, but appears to differ from the current "strictly greater than ALL neighbors" AND logic. The implementer should:
+
+1. Re-examine the problem specification for the definition of "good number"
+2. Consider whether the logic should involve:
+   - Only certain neighbors (e.g., only left, only right, or conditionally)
+   - Different comparison operators (>=, <=, <, >)
+   - OR logic instead of AND logic
+   - Asymmetric rules for left vs right neighbors
+
+FIX: In sumOfGoodNumbers, change the logic for determining is_good to match the actual specification (which appears to differ from "strictly greater than all k-distance neighbors").

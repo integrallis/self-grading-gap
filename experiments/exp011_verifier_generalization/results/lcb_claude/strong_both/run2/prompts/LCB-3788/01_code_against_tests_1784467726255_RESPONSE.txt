@@ -1,0 +1,49 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+Let me trace through each test with the given implementation.
+
+First, I need to understand the algorithm: It uses a sliding window approach with a set to track unique elements. When a duplicate is found, it tries to remove elements from the beginning until the duplicate is removed, but the implementation has a critical bug in how it finds and removes elements.
+
+**Test tracing:**
+
+test_canonical_example_1: FAIL — Input [1,2,3,4,5]. All unique, so unique_elements={1,2,3,4,5}, current_sum=15, max_sum=-inf. Returns max(-inf, 15)=15. Wait, this actually works. PASS — returns 15.
+
+test_canonical_example_2: FAIL — Input [1,1,0,1,1]. Processing: 1→add (set={1}, sum=1), 1→duplicate found, but the while loop logic is broken. `nums.index(num, nums.index(num, 0, len(nums)))` tries to find the first occurrence of 1 starting from... the first occurrence of 1, which returns index 0. This doesn't make sense and will cause incorrect removal logic. The implementation is fundamentally broken for duplicates.
+
+test_canonical_example_3: FAIL — Input [1,2,-1,-2,1,0,-1]. The duplicate handling logic is broken as identified above.
+
+test_single_element_positive: PASS — Input [5]. unique_elements={5}, current_sum=5, max_sum=-inf. Returns 5.
+
+test_single_element_negative: PASS — Input [-10]. unique_elements={-10}, current_sum=-10, max_sum=-inf. Returns -10.
+
+test_all_same_positive: FAIL — Input [3,3,3,3]. First 3 added (sum=3), second 3 triggers broken duplicate logic.
+
+test_all_same_negative: FAIL — Input [-5,-5,-5]. Same broken duplicate logic.
+
+test_two_unique_elements: PASS — Input [10,20]. Both unique, sum=30. Returns 30.
+
+test_duplicates_with_negatives: FAIL — Input [5,-2,5,3,-2]. Duplicate 5 at index 2 triggers broken logic.
+
+test_all_negative_unique: FAIL — Input [-5,-3,-1,-7]. All unique: sum=-16, but test expects -1 (the maximum single element). The implementation doesn't handle the requirement correctly - it sums all elements when they're unique, but the problem seems to want the best subarray with unique elements, not necessarily all elements.
+
+test_zeros_and_positives: FAIL — Input [1,0,2,0,3]. First 0 at index 1 is unique and added (sum=3), second 0 at index 3 triggers duplicate logic which is broken.
+
+test_alternating_duplicates: FAIL — Input [5,10,5,10]. Broken duplicate handling.
+
+test_large_positive_with_negatives: FAIL — Input [-50,100,-50]. All unique initially: sum=0, but -50 appears twice so duplicate logic triggers.
+
+test_consecutive_duplicates_at_boundaries: FAIL — Input [7,7,3,4,5,8,8]. Broken duplicate handling.
+
+test_single_positive_among_negatives: FAIL — Input [-10,-20,10,-30,-40]. All unique: sum=-50, but test expects 10.
+
+test_mixed_with_zero: FAIL — Input [4,-1,5,0,-2]. All unique: sum=6, but test expects 9.
+
+Actually, let me reconsider the problem. Looking at test_all_negative_unique more carefully: it expects -1, not -16. This suggests the problem is to find the maximum sum of a contiguous subarray with all unique elements, not just sum all unique elements.
+
+The implementation's approach is sliding window for subarrays with unique elements, but the duplicate removal logic using `nums.index(num, nums.index(num, 0, len(nums)))` is nonsensical and will break.
+
+**Root cause:** The implementation has a fatal flaw in the duplicate handling logic. The expression `nums.index(num, nums.index(num, 0, len(nums)))` doesn't correctly identify which element to remove from the sliding window. This causes incorrect behavior for any input with duplicates. Additionally, the algorithm doesn't properly maintain a sliding window pointer to know which elements to remove.
+
+Rating: 0.19

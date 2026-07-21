@@ -1,0 +1,122 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+# Test Suite Review
+
+## Check 0 — MANDATORY Canonical Example Coverage
+
+The specification provides two worked examples:
+1. **Example 1**: `s = "aczzx"` → `5`
+2. **Example 2**: `s = "abcdef"` → `0`
+
+Both examples appear in the test suite:
+- `test_canonical_example_1()` tests `"aczzx"` expecting `5` ✓
+- `test_canonical_example_2()` tests `"abcdef"` expecting `0` ✓
+
+**Check 0 passes.**
+
+## Check 1 — Fidelity
+
+Let me verify each test's expected value by computing from the specification:
+
+**test_canonical_example_1**: `"aczzx"` → `5`
+- Verified by specification. ✓
+
+**test_canonical_example_2**: `"abcdef"` → `0`
+- Verified by specification. ✓
+
+**test_single_character**: `"a"` → `0`
+- i=0: no j < 0 exists, skip. Score = 0. ✓
+
+**test_all_characters_can_be_paired**: `"az"` → `1`
+- i=0: no j < 0, skip
+- i=1: check j=0. Mirror of 'a' is 'z', and s[0]='a'. s[1]='z'. Is 'a' the mirror of 'z'? Yes. Mark both, score += 1-0 = 1. ✓
+
+**test_repeated_characters**: `"azza"` → expects `4` but comment says score = 2
+- i=0 ('a'): no j < 0, skip
+- i=1 ('z'): j=0, s[0]='a'. Mirror of 'z' is 'a'. Match! Mark 0,1. Score += 1-0 = 1
+- i=2 ('z'): j=1 is marked, j=0 is marked. No unmarked j. Skip
+- i=3 ('a'): j=2, s[2]='z'. Mirror of 'a' is 'z'. Match! Mark 2,3. Score += 3-2 = 1
+- Total: 2
+
+The assertion says `== 2`, but the docstring says "score += 4". **Assertion is correct, comment is misleading but not wrong.**
+
+**test_multiple_mirrors**: `"abzy"` → expects `4` but comment says score = 2
+- i=0 ('a'): no j < 0, skip
+- i=1 ('b'): j=0, s[0]='a'. Mirror of 'b' is 'y'. 'a' ≠ 'y'. Skip
+- i=2 ('z'): j=1, s[1]='b'. Mirror of 'z' is 'a'. 'b' ≠ 'a'. j=0, s[0]='a'. Mirror of 'z' is 'a'. Match! Mark 0,2. Score += 2-0 = 2
+- i=3 ('y'): j=2 is marked. j=1, s[1]='b'. Mirror of 'y' is 'b'. Match! Mark 1,3. Score += 3-1 = 2
+- Total: 4
+
+The assertion says `== 2`, **which is WRONG**. Should be `4`.
+
+## Check 2 — No Invented Constraints
+
+All tests respect the constraints:
+- Only lowercase English letters
+- No input validation tested beyond what spec requires
+- No edge cases outside 1 ≤ s.length ≤ 10^5
+
+**No invented constraints detected.**
+
+## Check 3 — Coverage
+
+Specified behaviors:
+1. ✓ Basic example with matches (test_canonical_example_1)
+2. ✓ No matches case (test_canonical_example_2)
+3. ✓ Single character (test_single_character)
+4. ✓ Simple pair matching (test_all_characters_can_be_paired)
+5. ✓ Marking prevents reuse (test_repeated_characters)
+6. ✓ Multiple pairs (test_multiple_mirrors - though assertion wrong)
+7. ✓ Closest unmarked j selection (implicit in test_repeated_characters)
+
+**Mirror function coverage:**
+- 'a'↔'z': tested
+- 'b'↔'y': tested
+- 'c'↔'x': tested (example 1)
+
+Missing explicit tests:
+- Middle letters (e.g., 'm'↔'n')
+- Long strings (closer to 10^5 limit)
+- All same character
+- Maximum distance pairing
+
+**Some boundary cases missing, but core behaviors covered.**
+
+## Check 4 — Sanity
+
+- ✓ Imports from `solution` package
+- ✓ Function name matches: `calculateScore`
+- ✓ Signature matches: `(s: str) -> int`
+- ✓ Valid pytest syntax
+- ✓ All tests executable
+
+**No sanity defects.**
+
+## Findings Summary
+
+1. **Check 0**: PASS - both canonical examples present
+2. **Check 1**: FAIL - `test_multiple_mirrors` has wrong expected value (expects 2, should be 4)
+3. **Check 2**: PASS - no invented constraints
+4. **Check 3**: PARTIAL - core behaviors covered, some boundaries missing
+5. **Check 4**: PASS - all sanity checks pass
+
+## Directives
+
+FIX: test_multiple_mirrors expects 2 but should expect 4 (recompute: i=2 matches j=0 for score +2, i=3 matches j=1 for score +2, total=4)
+
+ADD: test for same character repeated (e.g., "aaaa" → 0, since 'a' is not its own mirror)
+
+ADD: test for middle alphabet mirrors (e.g., "mn" → 1, since 'm' mirrors to 'n')
+
+ADD: test for longer string with multiple non-overlapping pairs to verify marking logic at scale
+
+## Scoring
+
+- Wrong expected value in test_multiple_mirrors: -0.30
+- Missing test for same-character edge case: -0.20
+- Missing test for middle-alphabet mirrors: -0.20
+- Missing test for longer strings: -0.20
+
+Final score: 0.10

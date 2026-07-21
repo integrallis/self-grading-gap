@@ -1,0 +1,54 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+Here is the analysis of the failing implementation.
+
+***
+
+**test_only_non_positive_numbers — expected 0, got -1**
+
+The implementation fails because its sliding window logic only calculates the sum of the entire current window (`nums[left:right+1]`) and compares that to `max_sum`. For the input `[-1, -2, 0, -1, 0]`, the expected answer `0` comes from the subarray `[0]`. The implementation never considers this subarray in isolation. When the window expands to include `0` for the first time (at `right=2`), the window is `[-1, -2, 0]` and its sum is `-3`. The algorithm's `max_sum` is never updated with `0`, and the highest sum it records is `-1`.
+
+**test_boundary_values — expected 100, got 0**
+
+This test fails for the same reason as the one above. With input `[-100, 100, -100, 0, 100]`, the maximum sum of `100` can be found from subarrays like `[100]` or `[0, 100]`. The implementation's `current_sum` tracks the sum of the whole window. When `right=1`, the window is `[-100, 100]` with a sum of `0`. `max_sum` is updated to `0`. The algorithm never isolates the subarray `[100]` (sum 100) and thus misses the correct maximum.
+
+**test_max_length_all_negative — expected -1, got -100**
+
+This test, with input `[-100, -99, ..., -1]`, demonstrates the core flaw most clearly. The array contains unique elements, so the `while` loop is never entered and the window simply expands from `left=0`.
+1.  On the first iteration (`right=0`), the window is `[-100]`, `current_sum` is `-100`, and `max_sum` is set to `-100`.
+2.  On every subsequent iteration, a new negative number is added, making `current_sum` progressively smaller (e.g., `-100 + -99 = -199`).
+`max_sum` is therefore never updated after the first step. The algorithm fails because it does not consider subarrays that start at any index other than 0, such as `[-1]`, which has the true maximum sum of `-1`.
+
+All three tests fail due to this single algorithmic root cause.
+
+### FIX DIRECTIVES:
+
+The current sliding window algorithm is incorrect for this problem. It must be replaced with logic that considers all valid contiguous subarrays. An efficient way to do this is with a nested loop structure.
+
+1.  **FIX:** In `maxSum`, replace the entire function body. The new logic should use an outer loop to iterate through each possible start index (`i`) of a subarray.
+2.  **FIX:** Inside the outer loop, initialize `current_sum = 0` and a new `seen = set()` for each starting index `i`.
+3.  **FIX:** Create an inner loop that iterates from the start index `i` to the end of the list. In this loop, expand the subarray one element at a time, update `current_sum`, and check for duplicates using `seen`. If a duplicate is found, `break` the inner loop. After each expansion, update the overall `max_sum`. A corrected structure would look like this:
+
+    ```python
+    # Inside maxSum function:
+    max_sum = float('-inf')
+    if not nums:
+        return 0
+
+    for i in range(len(nums)):
+        current_sum = 0
+        seen = set()
+        for j in range(i, len(nums)):
+            if nums[j] in seen:
+                break
+            seen.add(nums[j])
+            current_sum += nums[j]
+            max_sum = max(max_sum, current_sum)
+    
+    # The final return logic can be simplified or adjusted based on this structure.
+    # For example, if all sums are negative, max_sum will be correctly negative.
+    # An initial check for an empty list is cleaner than the post-loop check.
+    return max_sum
+    ```

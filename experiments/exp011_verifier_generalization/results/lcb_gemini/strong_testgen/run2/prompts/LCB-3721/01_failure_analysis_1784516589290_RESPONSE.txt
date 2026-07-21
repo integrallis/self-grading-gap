@@ -1,0 +1,38 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+1. **test_duplicate_id_mentions_in_one_message** — expected `[2, 1]`, got `[1, 1]` because the implementation only counts each user mentioned once per message instead of counting multiple mentions.
+
+   - Inputs: `numberOfUsers = 2`, `events = [["MESSAGE", "10", "id0 id1 id0"]]`
+   - Expected output: `[2, 1]` (user 0 is mentioned twice, user 1 once).
+   - Computation:
+     - The `mentions_in_message` set is created but only includes unique IDs: `mentions_in_message = {0, 1}`.
+     - The count is updated in a loop that processes the set, resulting in `mentions = [1, 1]` after addition instead of incrementing for the duplicate count of user 0.
+   - The divergence happens at the counting logic after populating `mentions_in_message`.
+
+2. **test_events_at_same_timestamp_offline_before_message** — expected `[0, 1]`, got `[1, 1]` because the implementation processes the "MESSAGE" event before correctly marking the user as offline.
+
+   - Inputs: `numberOfUsers = 2`, `events = [["MESSAGE", "10", "HERE"], ["OFFLINE", "10", "0"]]`
+   - Expected output: `[0, 1]` (only user 1 is online when "HERE" is sent).
+   - Computation:
+     - The code first processes the "MESSAGE" event at timestamp 10.
+     - Then it processes the "OFFLINE" event which should make user 0 offline.
+     - The implementation marks user 0 as offline only after processing the message, resulting in `mentions = [1, 1]` after the message is processed.
+   - The divergence occurs in the order of operations, specifically in processing events.
+
+---
+
+### FIX DIRECTIVES:
+- FIX: in `countMentions`, modify the logic that updates mentions for messages to count duplicate mentions, updating the mentions in the loop: 
+  ```python
+  for user_id in mentions_in_message:
+      mentions[user_id] += 1  # This should not be inside a set logic
+  ```
+
+- FIX: change the order of processing events to first handle "OFFLINE" events before "MESSAGE" events of the same timestamp:
+  ```python
+  # Instead of simply handling them as a byproduct, ensure offline events come first.
+  ```
+
+- FIX: ensure that upon encountering a message, check the offline statuses of users before populating `mentions_in_message`, adjusting calculations accordingly.

@@ -1,0 +1,155 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784408839368
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from solution import poly, find_zero
+
+def test_canonical_example_1():
+    # f(x) = 1 + 2x; find x such that 1 + 2x = 0
+    # 2x = -1 => x = -0.5
+    assert round(find_zero([1, 2]), 2) == -0.5
+
+def tes...[truncated]
+  impl_code: import math
+
+def poly(xs: list, x: float):
+    """
+    Evaluates polynomial with coefficients xs at point x.
+    return xs[0] + xs[1] * x + xs[1] * x^2 + .... xs[n] * x^n
+    """
+    return sum([coeff...[truncated]
+  task: {'id': 'HumanEval/32', 'use_case_id': 'HumanEval/32', 'story_id': 'HumanEval/32', 'epic_id': 'HUMANEVAL', 'title': 'Implement find_zero()', 'description': 'xs are coefficients of a polynomial.\n    fi...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement find_zero()**
+
+## Tests (the acceptance criterion)
+
+```python
+from solution import poly, find_zero
+
+def test_canonical_example_1():
+    # f(x) = 1 + 2x; find x such that 1 + 2x = 0
+    # 2x = -1 => x = -0.5
+    assert round(find_zero([1, 2]), 2) == -0.5
+
+def test_canonical_example_2():
+    # (x - 1) * (x - 2) * (x - 3) = -6 + 11x - 6x^2 + x^3
+    # find x such that -6 + 11x - 6x^2 + x^3 = 0
+    # One of the roots is x = 1
+    assert round(find_zero([-6, 11, -6, 1]), 2) == 1.0
+
+def test_poly_evaluation_1():
+    # f(x) = 1 + 2x; poly(1, 0) = 1 + 2*0 = 1
+    assert poly([1, 2], 0) == 1
+
+def test_poly_evaluation_2():
+    # f(x) = 1 + 2x + 3x^2; poly(2, 2) = 1 + 2*2 + 3*2^2 = 1 + 4 + 12 = 17
+    assert poly([1, 2, 3], 2) == 17
+
+def test_find_zero_with_six_coefficients():
+    # f(x) = 1 - 2x + 3x^2 - 4x^3 + 5x^4 - 6x^5
+    # This polynomial has a zero point at x = 1
+    assert round(find_zero([1, -2, 3, -4, 5, -6]), 2) == 1.0
+```
+
+## Failing implementation
+
+```python
+import math
+
+def poly(xs: list, x: float):
+    """
+    Evaluates polynomial with coefficients xs at point x.
+    return xs[0] + xs[1] * x + xs[1] * x^2 + .... xs[n] * x^n
+    """
+    return sum([coeff * math.pow(x, i) for i, coeff in enumerate(xs)])
+
+def find_zero(xs: list):
+    """ xs are coefficients of a polynomial.
+    find_zero find x such that poly(x) = 0.
+    find_zero returns only only zero point, even if there are many.
+    Moreover, find_zero only takes list xs having even number of coefficients
+    and largest non zero coefficient as it guarantees
+    a solution.
+    >>> round(find_zero([1, 2]), 2) # f(x) = 1 + 2x
+    -0.5
+    >>> round(find_zero([-6, 11, -6, 1]), 2) # (x - 1) * (x - 2) * (x - 3) = -6 + 11x - 6x^2 + x^3
+    1.0
+    """
+    # Using Newton's method to find the root
+    def derivative(xs):
+        return [i * coeff for i, coeff in enumerate(xs) if i > 0]
+
+    x = 0.0  # Initial guess
+    for _ in range(100):  # Limit iterations to avoid infinite loops
+        p = poly(xs, x)
+        dp = poly(derivative(xs), x)
+        if dp == 0:
+            break  # Avoid division by zero
+        x -= p / dp
+    return x
+
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpan27iykh/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 5 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [ 20%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 40%]
+tests/test_task.py::test_poly_evaluation_1 PASSED                        [ 60%]
+tests/test_task.py::test_poly_evaluation_2 PASSED                        [ 80%]
+tests/test_task.py::test_find_zero_with_six_coefficients FAILED          [100%]
+
+=================================== FAILURES ===================================
+_____________________ test_find_zero_with_six_coefficients _____________________
+tests/test_task.py:25: in test_find_zero_with_six_coefficients
+    assert round(find_zero([1, -2, 3, -4, 5, -6]), 2) == 1.0
+E   assert 0.67 == 1.0
+E    +  where 0.67 = round(0.6703320476030968, 2)
+E    +    where 0.6703320476030968 = find_zero([1, -2, 3, -4, 5, -6])
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_find_zero_with_six_coefficients - assert 0.67...
+========================= 1 failed, 4 passed in 0.02s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

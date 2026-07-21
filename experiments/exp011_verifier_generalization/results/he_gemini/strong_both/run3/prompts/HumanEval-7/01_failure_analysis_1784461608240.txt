@@ -1,0 +1,181 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784461608240
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: # test_solution.py
+from typing import List
+from solution import filter_by_substring
+
+
+def test_canonical_example_1():
+    """
+    Tests the first canonical example from the specification.
+    spec: fi...[truncated]
+  impl_code: from typing import List
+
+def filter_by_substring(strings: List[str], substring: str) -> List[str]:
+    """ Filter an input list of strings only for ones that contain given substring
+    >>> filter_by_...[truncated]
+  task: {'id': 'HumanEval/7', 'use_case_id': 'HumanEval/7', 'story_id': 'HumanEval/7', 'epic_id': 'HUMANEVAL', 'title': 'Implement filter_by_substring()', 'description': 'Filter an input list of strings only ...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement filter_by_substring()**
+
+## Tests (the acceptance criterion)
+
+```python
+# test_solution.py
+from typing import List
+from solution import filter_by_substring
+
+
+def test_canonical_example_1():
+    """
+    Tests the first canonical example from the specification.
+    spec: filter_by_substring([], 'a') -> []
+    """
+    # An empty input list should result in an empty output list.
+    assert filter_by_substring([], 'a') == []
+
+
+def test_canonical_example_2():
+    """
+    Tests the second canonical example from the specification.
+    spec: filter_by_substring(['abc', 'bacd', 'cde', 'array'], 'a') -> ['abc', 'bacd', 'array']
+    """
+    strings = ['abc', 'bacd', 'cde', 'array']
+    substring = 'a'
+    # Expected strings are those containing 'a': 'abc', 'bacd', 'array'
+    expected = ['abc', 'bacd', 'array']
+    assert filter_by_substring(strings, substring) == expected
+
+
+def test_no_strings_match():
+    """
+    Tests the behavior when no strings in the input list contain the substring.
+    The result should be an empty list.
+    """
+    strings = ['hello', 'world', 'python']
+    substring = 'z'
+    # None of the input strings contain 'z'.
+    expected = []
+    assert filter_by_substring(strings, substring) == expected
+
+
+def test_all_strings_match():
+    """
+    Tests the behavior when all strings in the input list contain the substring.
+    The result should be the original list, preserving order.
+    """
+    strings = ['apple', 'application', 'apply']
+    substring = 'app'
+    # All of the input strings contain 'app'.
+    expected = ['apple', 'application', 'apply']
+    assert filter_by_substring(strings, substring) == expected
+
+
+def test_substring_matches_entire_string():
+    """
+    Tests that a string is correctly identified if it is identical to the substring.
+    """
+    strings = ['cat', 'dog', 'fish']
+    substring = 'dog'
+    # 'dog' contains 'dog'.
+    expected = ['dog']
+    assert filter_by_substring(strings, substring) == expected
+
+
+def test_multi_character_substring():
+    """
+    Tests a simple case with a multi-character substring to ensure generality.
+    """
+    strings = ['programming', 'is', 'great', 'fun']
+    substring = 'gra'
+    # Only 'great' contains 'gra'.
+    expected = ['great']
+    assert filter_by_substring(strings, substring) == expected
+```
+
+## Failing implementation
+
+```python
+from typing import List
+
+def filter_by_substring(strings: List[str], substring: str) -> List[str]:
+    """ Filter an input list of strings only for ones that contain given substring
+    >>> filter_by_substring([], 'a')
+    []
+    >>> filter_by_substring(['abc', 'bacd', 'cde', 'array'], 'a')
+    ['abc', 'bacd', 'array']
+    """
+    return [s for s in strings if substring in s]
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpoejvqbgt/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 6 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [ 16%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 33%]
+tests/test_task.py::test_no_strings_match PASSED                         [ 50%]
+tests/test_task.py::test_all_strings_match PASSED                        [ 66%]
+tests/test_task.py::test_substring_matches_entire_string PASSED          [ 83%]
+tests/test_task.py::test_multi_character_substring FAILED                [100%]
+
+=================================== FAILURES ===================================
+________________________ test_multi_character_substring ________________________
+tests/test_task.py:70: in test_multi_character_substring
+    assert filter_by_substring(strings, substring) == expected
+E   AssertionError: assert ['programming'] == ['great']
+E     
+E     At index 0 diff: 'programming' != 'great'
+E     
+E     Full diff:
+E       [
+E     -     'great',
+E     +     'programming',
+E       ]
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_multi_character_substring - AssertionError: a...
+========================= 1 failed, 5 passed in 0.02s ==========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

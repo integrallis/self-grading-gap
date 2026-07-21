@@ -1,0 +1,223 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784438994148
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: import pytest
+from solution import calculateScore
+
+
+def test_canonical_example_1():
+    # spec: s = "aczzx" -> 5
+    # i=0: no j, skip
+    # i=1: no j, skip
+    # i=2: 'z' mirror is 'a', j=0 unmarked,...[truncated]
+  impl_code: def calculateScore(s: str) -> int:
+    score = 0
+    marked = [False] * len(s)
+    mirror = {chr(i): chr(219 - i) for i in range(97, 123)}  # a-z to z-a
+
+    for i in range(len(s)):
+        if marked[...[truncated]
+  task: {'id': 'LCB/3634', 'use_case_id': 'LCB/3634', 'story_id': 'LCB/3634', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement calculateScore()', 'description': 'You are given a string s.\nWe define the mirror...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement calculateScore()**
+
+## Tests (the acceptance criterion)
+
+```python
+import pytest
+from solution import calculateScore
+
+
+def test_canonical_example_1():
+    # spec: s = "aczzx" -> 5
+    # i=0: no j, skip
+    # i=1: no j, skip
+    # i=2: 'z' mirror is 'a', j=0 unmarked, mark both, score += 2-0=2
+    # i=3: 'z' mirror is 'a', j=0 marked, no j, skip
+    # i=4: 'x' mirror is 'c', j=1 unmarked, mark both, score += 4-1=3
+    # total: 2+3=5
+    assert calculateScore("aczzx") == 5
+
+
+def test_canonical_example_2():
+    # spec: s = "abcdef" -> 0
+    # For each index i, there is no index j that satisfies the conditions
+    assert calculateScore("abcdef") == 0
+
+
+def test_single_character():
+    # s = "a", i=0 has no j < 0, score = 0
+    assert calculateScore("a") == 0
+
+
+def test_two_mirror_characters():
+    # s = "az", i=0 skip, i=1 'z' mirror is 'a' at j=0, score = 1-0 = 1
+    assert calculateScore("az") == 1
+
+
+def test_two_non_mirror_characters():
+    # s = "ab", i=0 skip, i=1 'b' mirror is 'y', no match at j=0, score = 0
+    assert calculateScore("ab") == 0
+
+
+def test_multiple_same_character_with_mirror():
+    # s = "aaazzz"
+    # mirrors: a<->z
+    # i=0: skip
+    # i=1: 'a' mirror 'z', no j, skip
+    # i=2: 'a' mirror 'z', no j, skip
+    # i=3: 'z' mirror 'a', j=2 unmarked 'a', mark both, score += 3-2=1
+    # i=4: 'z' mirror 'a', j=1 unmarked 'a', mark both, score += 4-1=3
+    # i=5: 'z' mirror 'a', j=0 unmarked 'a', mark both, score += 5-0=5
+    # total: 1+3+5=9
+    assert calculateScore("aaazzz") == 9
+
+
+def test_closest_unmarked_index():
+    # s = "aazz"
+    # mirrors: a<->z
+    # i=0: skip
+    # i=1: 'a' mirror 'z', no j, skip
+    # i=2: 'z' mirror 'a', closest unmarked j with 'a' is j=1, mark both, score += 2-1=1
+    # i=3: 'z' mirror 'a', closest unmarked j with 'a' is j=0, mark both, score += 3-0=3
+    # total: 1+3=4
+    assert calculateScore("aazz") == 4
+
+
+def test_middle_alphabet_mirrors():
+    # s = "mnop", mirrors: m<->n, o<->l, p<->k
+    # i=0: skip
+    # i=1: 'n' mirror 'm', j=0 has 'm', mark both, score += 1-0=1
+    # i=2: 'o' mirror 'l', no j, skip
+    # i=3: 'p' mirror 'k', no j, skip
+    # total: 1
+    assert calculateScore("mnop") == 1
+
+
+def test_already_marked_indices_skipped():
+    # s = "azza"
+    # mirrors: a<->z
+    # i=0: skip
+    # i=1: 'z' mirror 'a', j=0 unmarked 'a', mark both, score += 1-0=1
+    # i=2: 'z' mirror 'a', j=0 marked, no other j, skip
+    # i=3: 'a' mirror 'z', j=1 marked, no other j, skip
+    # total: 1
+    assert calculateScore("azza") == 1
+
+
+def test_mirror_pairs_at_ends():
+    # s = "zyxabc", mirrors: z<->a, y<->b, x<->c
+    # i=0: skip
+    # i=1: skip
+    # i=2: skip
+    # i=3: 'a' mirror 'z', j=0 has 'z', mark both, score += 3-0=3
+    # i=4: 'b' mirror 'y', j=1 has 'y', mark both, score += 4-1=3
+    # i=5: 'c' mirror 'x', j=2 has 'x', mark both, score += 5-2=3
+    # total: 3+3+3=9
+    assert calculateScore("zyxabc") == 9
+
+
+def test_no_mirrors_present():
+    # s = "aaaaa", mirror of 'a' is 'z', no 'z' present
+    assert calculateScore("aaaaa") == 0
+
+
+def test_all_same_mirror_pair():
+    # s = "aaaa", mirror of 'a' is 'z', never matches itself
+    assert calculateScore("aaaa") == 0
+```
+
+## Failing implementation
+
+```python
+def calculateScore(s: str) -> int:
+    score = 0
+    marked = [False] * len(s)
+    mirror = {chr(i): chr(219 - i) for i in range(97, 123)}  # a-z to z-a
+
+    for i in range(len(s)):
+        if marked[i]:  # Skip if already marked
+            continue
+        mirror_char = mirror[s[i]]
+        # Find the closest unmarked index j
+        for j in range(i - 1, -1, -1):
+            if marked[j]: 
+                continue  # Skip this j if already marked
+            if s[j] == mirror_char:
+                marked[i] = True
+                marked[j] = True
+                score += i - j
+                break
+    return score
+
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpq8gp6_k6/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 12 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [  8%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 16%]
+tests/test_task.py::test_single_character PASSED                         [ 25%]
+tests/test_task.py::test_two_mirror_characters PASSED                    [ 33%]
+tests/test_task.py::test_two_non_mirror_characters PASSED                [ 41%]
+tests/test_task.py::test_multiple_same_character_with_mirror PASSED      [ 50%]
+tests/test_task.py::test_closest_unmarked_index PASSED                   [ 58%]
+tests/test_task.py::test_middle_alphabet_mirrors PASSED                  [ 66%]
+tests/test_task.py::test_already_marked_indices_skipped FAILED           [ 75%]
+tests/test_task.py::test_mirror_pairs_at_ends PASSED                     [ 83%]
+tests/test_task.py::test_no_mirrors_present PASSED                       [ 91%]
+tests/test_task.py::test_all_same_mirror_pair PASSED                     [100%]
+
+=================================== FAILURES ===================================
+_____________________ test_already_marked_indices_skipped ______________________
+tests/test_task.py:79: in test_already_marked_indices_skipped
+    assert calculateScore("azza") == 1
+E   AssertionError: assert 2 == 1
+E    +  where 2 = calculateScore('azza')
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_already_marked_indices_skipped - AssertionErr...
+========================= 1 failed, 11 passed in 0.02s =========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

@@ -1,0 +1,141 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+```python
+from solution import maximumAmount
+from typing import List
+
+
+def test_canonical_example_1():
+    # spec: coins = [[0,1,-1],[1,-2,3],[2,-3,4]] -> 8
+    # Optimal path: (0,0)->(0,1)->(1,1)->(1,2)->(2,2)
+    # Coins: 0 + 1 + neutralize(-2) + 3 + 4 = 8
+    assert maximumAmount([[0, 1, -1], [1, -2, 3], [2, -3, 4]]) == 8
+
+
+def test_canonical_example_2():
+    # spec: coins = [[10,10,10],[10,10,10]] -> 40
+    # Optimal path: (0,0)->(0,1)->(0,2)->(1,2)
+    # Coins: 10 + 10 + 10 + 10 = 40
+    assert maximumAmount([[10, 10, 10], [10, 10, 10]]) == 40
+
+
+def test_single_cell_positive():
+    # 1x1 grid with positive value
+    # Only cell is (0,0) with value 5, result = 5
+    assert maximumAmount([[5]]) == 5
+
+
+def test_single_cell_negative():
+    # 1x1 grid with negative value
+    # Only cell is (0,0) with value -5
+    # Robot can neutralize it, result = 0
+    assert maximumAmount([[-5]]) == 0
+
+
+def test_single_cell_zero():
+    # 1x1 grid with zero value
+    # Only cell is (0,0) with value 0, result = 0
+    assert maximumAmount([[0]]) == 0
+
+
+def test_single_row_all_positive():
+    # 1x3 grid with all positive values
+    # Path: (0,0)->(0,1)->(0,2)
+    # Coins: 1 + 2 + 3 = 6
+    assert maximumAmount([[1, 2, 3]]) == 6
+
+
+def test_single_column_all_positive():
+    # 3x1 grid with all positive values
+    # Path: (0,0)->(1,0)->(2,0)
+    # Coins: 1 + 2 + 3 = 6
+    assert maximumAmount([[1], [2], [3]]) == 6
+
+
+def test_single_row_with_negatives():
+    # 1x4 grid with negative values
+    # Path: (0,0)->(0,1)->(0,2)->(0,3)
+    # Coins: 10 + (-5 neutralized) + (-8 neutralized) + 3 = 13
+    assert maximumAmount([[10, -5, -8, 3]]) == 13
+
+
+def test_single_column_with_negatives():
+    # 4x1 grid with negative values
+    # Path: (0,0)->(1,0)->(2,0)->(3,0)
+    # Coins: 10 + (-5 neutralized) + (-8 neutralized) + 3 = 13
+    assert maximumAmount([[10], [-5], [-8], [3]]) == 13
+
+
+def test_two_by_two_all_positive():
+    # 2x2 grid with all positive values
+    # Best path: (0,0)->(0,1)->(1,1) = 5+10+15 = 30
+    # Or: (0,0)->(1,0)->(1,1) = 5+7+15 = 27
+    # Result: 30
+    assert maximumAmount([[5, 10], [7, 15]]) == 30
+
+
+def test_two_by_two_with_one_negative():
+    # 2x2 grid with one negative value
+    # Grid: [[1, -5], [2, 3]]
+    # Best path avoiding or neutralizing -5: (0,0)->(1,0)->(1,1) = 1+2+3 = 6
+    # Or neutralizing: (0,0)->neutralize(-5)->(1,1) = 1+0+3 = 4
+    # Result: 6
+    assert maximumAmount([[1, -5], [2, 3]]) == 6
+
+
+def test_path_requires_negative_sum():
+    # 2x2 grid where best path has negative total without neutralization
+    # Grid: [[-10, -20], [-30, 100]]
+    # Path (0,0)->(0,1)->(1,1) = -10 + neutralize(-20) + 100 = 90
+    # Path (0,0)->(1,0)->(1,1) = neutralize(-10) + neutralize(-30) + 100 = 100
+    # Result: 100
+    assert maximumAmount([[-10, -20], [-30, 100]]) == 100
+
+
+def test_all_negative_values():
+    # 2x2 grid with all negative values
+    # Grid: [[-5, -10], [-3, -7]]
+    # Best path: neutralize two largest negatives
+    # Path (0,0)->(0,1)->(1,1) = -5 + neutralize(-10) + neutralize(-7) = -5
+    # Path (0,0)->(1,0)->(1,1) = neutralize(-5) + neutralize(-3) + -7 = -7
+    # Result: -5
+    assert maximumAmount([[-5, -10], [-3, -7]]) == -5
+
+
+def test_no_neutralization_needed():
+    # 3x3 grid with all positive values
+    # No need to use neutralizations
+    # Path: (0,0)->(0,1)->(0,2)->(1,2)->(2,2) = 1+2+3+6+9 = 21
+    assert maximumAmount([[1, 2, 3], [4, 5, 6], [7, 8, 9]]) == 21
+
+
+def test_exactly_two_negatives_on_path():
+    # Grid where optimal path has exactly 2 negatives to neutralize
+    # Grid: [[0, -100], [-200, 300]]
+    # Path (0,0)->(0,1)->(1,1) = 0 + neutralize(-100) + 300 = 300
+    # Path (0,0)->(1,0)->(1,1) = 0 + neutralize(-200) + 300 = 300
+    # Result: 300
+    assert maximumAmount([[0, -100], [-200, 300]]) == 300
+
+
+def test_more_than_two_negatives_on_path():
+    # Grid where optimal path has more than 2 negatives
+    # Grid: [[-1, -2, -3], [-4, -5, 10]]
+    # Path (0,0)->(0,1)->(0,2)->(1,2) = neutralize(-1) + neutralize(-2) + -3 + 10 = 4
+    # Path (0,0)->(1,0)->(1,1)->(1,2) = neutralize(-1) + neutralize(-4) + -5 + 10 = 0
+    # Path (0,0)->(0,1)->(1,1)->(1,2) = neutralize(-2) + neutralize(-5) + -1 + -4 + 10 = -5... wait this is longer
+    # Actually: (0,0)->(0,1)->(1,1)->(1,2) = -1 + neutralize(-2) + neutralize(-5) + 10 = 7
+    # Result: 7
+    assert maximumAmount([[-1, -2, -3], [-4, -5, 10]]) == 7
+
+
+def test_large_positive_and_negative_values():
+    # Grid with extreme values within constraints
+    # Grid: [[1000, -1000], [-1000, 1000]]
+    # Path (0,0)->(0,1)->(1,1) = 1000 + neutralize(-1000) + 1000 = 2000
+    # Path (0,0)->(1,0)->(1,1) = 1000 + neutralize(-1000) + 1000 = 2000
+    # Result: 2000
+    assert maximumAmount([[1000, -1000], [-1000, 1000]]) == 2000
+```

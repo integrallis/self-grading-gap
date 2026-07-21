@@ -1,0 +1,124 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+Let me trace through each test systematically.
+
+First, checking imports: The tests import `maximumAmount` from `solution`, and the implementation defines `maximumAmount`. This is compatible.
+
+Now tracing each test:
+
+**test_canonical_example_1**: Input `[[0,1,-1],[1,-2,3],[2,-3,4]]`
+- m=3, n=3
+- dp initialized with -inf, dp[0][0][0]=0
+- Processing (0,0): coin=0 (≥0), updates dp[1][1][0] from max(-inf, 0+0, -inf) = 0
+- Processing (0,1): coin=1 (≥0), updates dp[1][2][0] from max(-inf, 0+1, -inf) = 1
+- Processing (0,2): coin=-1 (<0), can neutralize: dp[1][3][1]=max(-inf,1,-inf)=1, or take: dp[1][3][0]=max(-inf,1+(-1),-inf)=0
+- Processing (1,0): coin=1 (≥0), updates dp[2][1][0] from max(-inf,0+1,-inf)=1
+- Processing (1,1): coin=-2 (<0), from dp[1][2][0]=1, can neutralize: dp[2][2][1]=max(-inf,1,-inf)=1, or take: dp[2][2][0]=max(-inf,1+(-2),-inf)=-1
+- Processing (1,2): coin=3 (≥0), from dp[1][3][1]=1, updates dp[2][3][1]=max(-inf,1+3,-inf)=4; from dp[2][2][1]=1, updates dp[2][3][1]=max(4,1+3)=4
+- Processing (2,0): coin=2 (≥0), from dp[2][1][0]=1, updates dp[3][1][0]=max(-inf,1+2,-inf)=3
+- Processing (2,1): coin=-3 (<0), from dp[2][2][1]=1, can neutralize: dp[3][2][2]=max(-inf,1,-inf)=1, or take: dp[3][2][1]=max(-inf,1+(-3),-inf)=-2
+- Processing (2,2): coin=4 (≥0), from dp[2][3][1]=4, updates dp[3][3][1]=max(-inf,4+4,-inf)=8; from dp[3][2][2]=1, updates dp[3][3][2]=max(-inf,1+4)=5
+- Final: max(dp[3][3]) = max(-inf, 8, 5) = 8
+- Expected: 8. **PASS**
+
+**test_canonical_example_2**: Input `[[10,10,10],[10,10,10]]`
+- All values ≥0, no neutralizations needed
+- Path through grid accumulating values: 10+10+10+10=40
+- Expected: 40. **PASS**
+
+**test_single_cell_positive**: Input `[[5]]`
+- dp[0][0][0]=0, processing (0,0): coin=5, dp[1][1][0]=max(-inf,0+5,-inf)=5
+- max(dp[1][1])=5
+- Expected: 5. **PASS**
+
+**test_single_cell_negative**: Input `[[-5]]`
+- dp[0][0][0]=0, processing (0,0): coin=-5, can neutralize: dp[1][1][1]=max(-inf,0,-inf)=0, or take: dp[1][1][0]=max(-inf,0+(-5),-inf)=-5
+- max(dp[1][1])=max(-5,0,-inf)=0
+- Expected: 0. **PASS**
+
+**test_single_cell_zero**: Input `[[0]]`
+- dp[0][0][0]=0, processing (0,0): coin=0, dp[1][1][0]=max(-inf,0+0,-inf)=0
+- max(dp[1][1])=0
+- Expected: 0. **PASS**
+
+**test_single_row_all_positive**: Input `[[1,2,3]]`
+- All positive, sum=1+2+3=6
+- Expected: 6. **PASS**
+
+**test_single_column_all_positive**: Input `[[1],[2],[3]]`
+- All positive, sum=1+2+3=6
+- Expected: 6. **PASS**
+
+**test_single_row_with_negatives**: Input `[[10,-5,-8,3]]`
+- dp[0][0][0]=0
+- (0,0): coin=10, dp[1][1][0]=10
+- (0,1): coin=-5, from dp[1][1][0]=10, neutralize: dp[1][2][1]=10, or take: dp[1][2][0]=10+(-5)=5
+- (0,2): coin=-8, from dp[1][2][1]=10, neutralize: dp[1][3][2]=10, or take: dp[1][3][1]=10+(-8)=2; from dp[1][2][0]=5, neutralize: dp[1][3][1]=max(2,5)=5, or take: dp[1][3][0]=5+(-8)=-3
+- (0,3): coin=3, from dp[1][3][2]=10, dp[1][4][2]=10+3=13
+- max(dp[1][4])=13
+- Expected: 13. **PASS**
+
+**test_single_column_with_negatives**: Input `[[10],[-5],[-8],[3]]`
+- Similar logic, neutralizing both -5 and -8: 10+0+0+3=13
+- Expected: 13. **PASS**
+
+**test_two_by_two_all_positive**: Input `[[5,10],[7,15]]`
+- Path (0,0)->(0,1)->(1,1): 5+10+15=30
+- Expected: 30. **PASS**
+
+**test_two_by_two_with_one_negative**: Input `[[1,-5],[2,3]]`
+- Path (0,0)->(1,0)->(1,1): 1+2+3=6
+- Path (0,0)->(0,1)->(1,1) with neutralization: 1+0+3=4
+- max=6
+- Expected: 6. **PASS**
+
+**test_path_requires_negative_sum**: Input `[[-10,-20],[-30,100]]`
+- Path (0,0)->(1,0)->(1,1) neutralizing both: 0+0+100=100
+- Expected: 100. **PASS**
+
+**test_all_negative_values**: Input `[[-5,-10],[-3,-7]]`
+- Best path: (0,0)->(1,0)->(1,1) neutralizing -5 and -3: 0+0+(-7)=-7
+- Or (0,0)->(0,1)->(1,1) neutralizing -10 and -7: -5+0+0=-5
+- Or (0,0)->(1,0)->(1,1) neutralizing -5 and -7: 0+(-3)+0=-3
+- max=-3
+- Expected: -3. **PASS**
+
+**test_no_neutralization_needed**: Input `[[1,2,3],[4,5,6],[7,8,9]]`
+- All positive, optimal path sum=21
+- Expected: 21. **PASS**
+
+**test_exactly_two_negatives_on_path**: Input `[[0,-100],[-200,300]]`
+- Neutralizing -100: 0+0+300=300
+- Expected: 300. **PASS**
+
+**test_more_than_two_negatives_on_path**: Input `[[-1,-2,-3],[-4,-5,10]]`
+- Best path neutralizing 2 negatives: -1+0+0+10=9
+- Expected: 9. **PASS**
+
+**test_large_positive_and_negative_values**: Input `[[1000,-1000],[-1000,1000]]`
+- Path neutralizing -1000: 1000+0+1000=2000
+- Expected: 2000. **PASS**
+
+All tests pass based on my trace of the implementation logic.
+
+test_canonical_example_1: PASS — computes 8 for [[0,1,-1],[1,-2,3],[2,-3,4]], matching the assertion
+test_canonical_example_2: PASS — computes 40 for [[10,10,10],[10,10,10]], matching the assertion
+test_single_cell_positive: PASS — computes 5 for [[5]], matching the assertion
+test_single_cell_negative: PASS — computes 0 for [[-5]], matching the assertion
+test_single_cell_zero: PASS — computes 0 for [[0]], matching the assertion
+test_single_row_all_positive: PASS — computes 6 for [[1,2,3]], matching the assertion
+test_single_column_all_positive: PASS — computes 6 for [[1],[2],[3]], matching the assertion
+test_single_row_with_negatives: PASS — computes 13 for [[10,-5,-8,3]], matching the assertion
+test_single_column_with_negatives: PASS — computes 13 for [[10],[-5],[-8],[3]], matching the assertion
+test_two_by_two_all_positive: PASS — computes 30 for [[5,10],[7,15]], matching the assertion
+test_two_by_two_with_one_negative: PASS — computes 6 for [[1,-5],[2,3]], matching the assertion
+test_path_requires_negative_sum: PASS — computes 100 for [[-10,-20],[-30,100]], matching the assertion
+test_all_negative_values: PASS — computes -3 for [[-5,-10],[-3,-7]], matching the assertion
+test_no_neutralization_needed: PASS — computes 21 for [[1,2,3],[4,5,6],[7,8,9]], matching the assertion
+test_exactly_two_negatives_on_path: PASS — computes 300 for [[0,-100],[-200,300]], matching the assertion
+test_more_than_two_negatives_on_path: PASS — computes 9 for [[-1,-2,-3],[-4,-5,10]], matching the assertion
+test_large_positive_and_negative_values: PASS — computes 2000 for [[1000,-1000],[-1000,1000]], matching the assertion
+
+Rating: 1.00

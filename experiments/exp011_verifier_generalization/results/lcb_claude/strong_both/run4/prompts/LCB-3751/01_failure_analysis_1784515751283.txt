@@ -1,0 +1,224 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784515751283
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from typing import List
+import pytest
+from solution import maxFrequency
+
+
+def test_canonical_example_1():
+    # spec: nums = [1,2,3,4,5,6], k = 1 -> 2
+    # After adding -5 to nums[2..5], 1 has a freq...[truncated]
+  impl_code: from typing import List
+
+def maxFrequency(nums: List[int], k: int) -> int:
+    count_k = nums.count(k)
+    max_freq = count_k
+    for num in set(nums):
+        if num == k:
+            continue
+      ...[truncated]
+  task: {'id': 'LCB/3751', 'use_case_id': 'LCB/3751', 'story_id': 'LCB/3751', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maxFrequency()', 'description': 'You are given an array nums of length n. You are ...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement maxFrequency()**
+
+## Tests (the acceptance criterion)
+
+```python
+from typing import List
+import pytest
+from solution import maxFrequency
+
+
+def test_canonical_example_1():
+    # spec: nums = [1,2,3,4,5,6], k = 1 -> 2
+    # After adding -5 to nums[2..5], 1 has a frequency of 2 in [1, 2, -2, -1, 0, 1]
+    assert maxFrequency([1, 2, 3, 4, 5, 6], 1) == 2
+
+
+def test_canonical_example_2():
+    # spec: nums = [10,2,3,4,5,5,4,3,2,2], k = 10 -> 4
+    # After adding 8 to nums[1..9], 10 has a frequency of 4 in [10, 10, 11, 12, 13, 13, 12, 11, 10, 10]
+    assert maxFrequency([10, 2, 3, 4, 5, 5, 4, 3, 2, 2], 10) == 4
+
+
+def test_single_element_already_k():
+    # Single element array where the element is already k
+    # No operation needed, frequency is 1
+    assert maxFrequency([5], 5) == 1
+
+
+def test_single_element_not_k():
+    # Single element array where the element is not k
+    # Add (k - element) to make it k, frequency is 1
+    assert maxFrequency([3], 5) == 1
+
+
+def test_all_elements_already_k():
+    # All elements are already k
+    # No operation needed, frequency is the length of the array
+    assert maxFrequency([7, 7, 7, 7], 7) == 4
+
+
+def test_no_k_initially_convert_all():
+    # No element is k initially, we can convert all to k by selecting entire array
+    # Add (k - any_element) to all, frequency becomes len(nums)
+    assert maxFrequency([1, 1, 1], 5) == 3
+
+
+def test_some_elements_already_k():
+    # Some elements are already k, we can add more by converting a subarray
+    # e.g., [10, 5, 5], k=10: we have 1 copy of 10, can convert both 5s to 10 by adding 5 to nums[1..2]
+    # Result: [10, 10, 10], frequency is 3
+    assert maxFrequency([10, 5, 5], 10) == 3
+
+
+def test_convert_prefix_subarray():
+    # Convert a prefix subarray to k
+    # [2, 2, 10], k=10: add 8 to nums[0..1] -> [10, 10, 10], frequency is 3
+    assert maxFrequency([2, 2, 10], 10) == 3
+
+
+def test_convert_suffix_subarray():
+    # Convert a suffix subarray to k
+    # [10, 3, 3], k=10: add 7 to nums[1..2] -> [10, 10, 10], frequency is 3
+    assert maxFrequency([10, 3, 3], 10) == 3
+
+
+def test_convert_middle_subarray():
+    # Convert a middle subarray to k
+    # [10, 5, 5, 10], k=10: add 5 to nums[1..2] -> [10, 10, 10, 10], frequency is 4
+    assert maxFrequency([10, 5, 5, 10], 10) == 4
+
+
+def test_optimal_is_partial_conversion():
+    # Sometimes converting only part of array is optimal
+    # [1, 2, 2, 10], k=2: we have 2 copies of 2, adding to any subarray won't increase frequency of 2
+    # unless we convert other elements. Converting [1] to 2 gives us [2, 2, 2, 10] with frequency 3
+    assert maxFrequency([1, 2, 2, 10], 2) == 3
+
+
+def test_two_elements_same():
+    # Two identical elements, convert to k
+    # [5, 5], k=3: add -2 to nums[0..1] -> [3, 3], frequency is 2
+    assert maxFrequency([5, 5], 3) == 2
+
+
+def test_two_elements_different():
+    # Two different elements, convert one or both to k
+    # [3, 7], k=5: add 2 to nums[0..0] -> [5, 7] or add -2 to nums[1..1] -> [3, 5]
+    # Either way frequency is 1. Or add 2 to nums[0..1] -> [5, 9], frequency is 1
+    # Best is to convert both: this requires them to have same value after operation
+    # We can't make both 5 with a single operation on a contiguous subarray unless we convert entire array
+    # [3, 7], k=5: add 2 to nums[0..1] -> [5, 9], frequency 1. Or add -2 to nums[0..1] -> [1, 5], frequency 1
+    # Actually we CAN convert entire array: add 2 to nums[0..1] -> [5, 9] (freq 1) or add -2 -> [1, 5] (freq 1)
+    # We need same x for the subarray. To get [5, 5]: x=2 for first, x=-2 for second. Can't do both.
+    # So best is frequency 1
+    assert maxFrequency([3, 7], 5) == 1
+
+
+def test_already_has_max_frequency():
+    # Array already has multiple k values
+    # [1, 1, 1], k=1: frequency is already 3, no operation needed (or operate on empty-ish range)
+    assert maxFrequency([1, 1, 1], 1) == 3
+```
+
+## Failing implementation
+
+```python
+from typing import List
+
+def maxFrequency(nums: List[int], k: int) -> int:
+    count_k = nums.count(k)
+    max_freq = count_k
+    for num in set(nums):
+        if num == k:
+            continue
+        required_x = k - num
+        # Count how many we can convert to k
+        current_freq = count_k
+        for i in range(len(nums)):
+            if nums[i] == num:
+                current_freq += 1
+            elif nums[i] < num:
+                # If the element is less than num, we cannot convert it to k
+                continue
+            elif nums[i] > num:
+                # If the element is greater than num, check if we can convert it
+                if (nums[i] - required_x) == k:
+                    current_freq += 1
+        max_freq = max(max_freq, current_freq)
+    return max_freq
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmp2x8873df/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 14 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [  7%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 14%]
+tests/test_task.py::test_single_element_already_k PASSED                 [ 21%]
+tests/test_task.py::test_single_element_not_k PASSED                     [ 28%]
+tests/test_task.py::test_all_elements_already_k PASSED                   [ 35%]
+tests/test_task.py::test_no_k_initially_convert_all PASSED               [ 42%]
+tests/test_task.py::test_some_elements_already_k PASSED                  [ 50%]
+tests/test_task.py::test_convert_prefix_subarray PASSED                  [ 57%]
+tests/test_task.py::test_convert_suffix_subarray PASSED                  [ 64%]
+tests/test_task.py::test_convert_middle_subarray PASSED                  [ 71%]
+tests/test_task.py::test_optimal_is_partial_conversion PASSED            [ 78%]
+tests/test_task.py::test_two_elements_same PASSED                        [ 85%]
+tests/test_task.py::test_two_elements_different FAILED                   [ 92%]
+tests/test_task.py::test_already_has_max_frequency PASSED                [100%]
+
+=================================== FAILURES ===================================
+_________________________ test_two_elements_different __________________________
+tests/test_task.py:90: in test_two_elements_different
+    assert maxFrequency([3, 7], 5) == 1
+E   assert 2 == 1
+E    +  where 2 = maxFrequency([3, 7], 5)
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_two_elements_different - assert 2 == 1
+========================= 1 failed, 13 passed in 0.02s =========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

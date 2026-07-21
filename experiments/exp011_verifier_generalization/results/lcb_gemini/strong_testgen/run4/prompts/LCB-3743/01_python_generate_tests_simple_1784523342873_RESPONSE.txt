@@ -1,0 +1,184 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+```python
+import pytest
+from typing import List
+from solution import maxFreeTime
+
+# Note: The problem asks to maximize the LONGEST continuous period of free time.
+# The core idea is that we can create a large free time slot by consolidating
+# smaller free time slots. This is done by moving meetings to be adjacent to
+# each other. With `m` moves, we can make `m+1` meetings contiguous.
+#
+# A maximal free slot can be created in one of three locations:
+# 1. At the beginning of the event: [0, T]
+# 2. At the end of the event: [T, eventTime]
+# 3. In the middle, between two meetings.
+#
+# The strategy is to fix two "anchors" and pack all meetings between them
+# together, leaving one large free slot. The anchors can be the event
+# boundaries (t=0, t=eventTime) or any two meetings that are not moved.
+#
+# If we fix meetings `i` and `j` as anchors, we can move the `j-i-1` meetings
+# between them. This must be at most `k` moves. The free space we can create
+# is the original space between `i` and `j` minus the total duration of the
+# meetings we pack.
+#
+# Let D[m] be the duration of meeting m.
+# Let PS[m] be the prefix sum of durations up to m-1.
+# - To create a gap at the start, anchored by meeting `j`, we move `j` meetings.
+#   Requires `j <= k`. Free time = `startTime[j] - sum(D[0]...D[j-1])`.
+# - To create a gap at the end, anchored by meeting `i`, we move `n-1-i` meetings.
+#   Requires `n-1-i <= k`. Free time = `(eventTime - endTime[i]) - sum(D[i+1]...D[n-1])`.
+# - To create a middle gap, anchored by `i` and `j`, we move `j-i-1` meetings.
+#   Requires `j-i-1 <= k`. Free time = `(startTime[j] - endTime[i]) - sum(D[i+1]...D[j-1])`.
+#
+# The tests below calculate the expected output based on this logic, trying all valid
+# combinations of anchors.
+
+
+def test_canonical_example_1():
+    # spec: Example 1
+    # Input: eventTime = 5, k = 1, startTime = [1,3], endTime = [2,5]
+    # Output: 2
+    # Explanation: Reschedule the meeting at [1, 2] to [2, 3], leaving no meetings
+    # during the time [0, 2]. This is a gap of 2 at the start.
+    # Logic: Move meeting 0 (1 move <= k). It gets packed before meeting 1.
+    # Meeting 0 has duration 1. Meeting 1 starts at 3. New start for meeting 0 is 3-1=2.
+    # Meetings become [2,3] and [3,5]. Free time is from [0, 2]. Length = 2.
+    eventTime = 5
+    k = 1
+    startTime = [1, 3]
+    endTime = [2, 5]
+    assert maxFreeTime(eventTime, k, startTime, endTime) == 2
+
+
+def test_canonical_example_2():
+    # spec: Example 2
+    # Input: eventTime = 10, k = 1, startTime = [0,2,9], endTime = [1,4,10]
+    # Output: 6
+    # Explanation: Reschedule the meeting at [2, 4] to [1, 3], leaving no meetings
+    # during the time [3, 9].
+    # Logic: Move meeting 1 (1 move <= k). Pack it between meetings 0 and 2.
+    # Space between endTime[0] and startTime[2] is [1, 9]. Duration of meeting 1 is 2.
+    # Max free time created here is (9-1) - 2 = 6.
+    eventTime = 10
+    k = 1
+    startTime = [0, 2, 9]
+    endTime = [1, 4, 10]
+    assert maxFreeTime(eventTime, k, startTime, endTime) == 6
+
+
+def test_canonical_example_3():
+    # spec: Example 3
+    # Input: eventTime = 5, k = 2, startTime = [0,1,2,3,4], endTime = [1,2,3,4,5]
+    # Output: 0
+    # Explanation: There is no time during the event not occupied by meetings.
+    # Logic: All meetings are back-to-back and fill the entire eventTime. Total meeting
+    # duration is 5, eventTime is 5. No free time can be created.
+    eventTime = 5
+    k = 2
+    startTime = [0, 1, 2, 3, 4]
+    endTime = [1, 2, 3, 4, 5]
+    assert maxFreeTime(eventTime, k, startTime, endTime) == 0
+
+
+def test_no_moves_allowed():
+    # spec: k=0 (not in constraints, but implies k=1 since 1<=k<=n)
+    # Let's test with k=1 but where no move can improve the situation.
+    # The max free time should be the largest of the initial gaps.
+    eventTime = 20
+    k = 1
+    startTime = [0, 5, 15]
+    endTime = [2, 10, 17]
+    # Initial gaps:
+    # Before all: 0
+    # Between 0 and 1: 5 - 2 = 3
+    # Between 1 and 2: 15 - 10 = 5
+    # After all: 20 - 17 = 3
+    # Maximum initial gap is 5.
+    # Moving meeting 0 ([0,2]) to pack against meeting 1 ([5,10]) gives new s[0]=3, e[0]=5. Gap [0,3].
+    # Moving meeting 1 ([5,10]) to pack against 0: new s[1]=2, e[1]=7. Gap after is 15-7=8. But this needs other meetings to move.
+    # Moving meeting 1 ([5,10]) to pack against 2: new s[1]=13, e[1]=18. Gap before is 13-2=11.
+    # Moving meeting 2 gives gap 10-2-(17-15) = 6.
+    # Logic: Move meeting 1 ([5,10], duration 5) to pack it before meeting 2 ([15,17]).
+    # New s[1] = 15-5=10. This isn't a move. The schedule is already s[1]=10? No s[1]=5, e[1]=10.
+    # New s[1] = s[2]-d[1] = 15-5=10. The move would be from 5 to 10. Gap before is [e[0], s'[1]]=[2,10], length 8.
+    # Total space e[2]-s[0] = 17-0=17. Total duration d[0]+d[1]+d[2]=2+5+2=9. Max possible is 17-9=8.
+    # Let's check my logic:
+    # Anchor 0 and 2. Move 1. Space: [2, 15]. Duration of meeting 1: 5. Free: (15-2)-5=8.
+    assert maxFreeTime(eventTime, k, startTime, endTime) == 8
+
+
+def test_all_meetings_movable():
+    # spec: k=n, all meetings can be moved.
+    # The maximum free time is the total event time minus the sum of all meeting durations.
+    eventTime = 100
+    k = 3
+    startTime = [10, 20, 80]
+    endTime = [15, 25, 90]
+    # n=3, k=3.
+    # Durations: 5, 5, 10. Total duration = 20.
+    # We can pack all meetings together, e.g., at the start: [0,5],[5,10],[10,20].
+    # This leaves the interval [20, 100] free. Length = 80.
+    # Calculation: 100 - (5+5+10) = 80.
+    assert maxFreeTime(eventTime, k, startTime, endTime) == 80
+
+
+def test_minimum_n():
+    # spec: n=2.
+    eventTime = 10
+    k = 1
+    startTime = [2, 8]
+    endTime = [4, 9]
+    # n=2, k=1.
+    # Meetings: [2,4] (d=2), [8,9] (d=1).
+    # Initial gaps: [0,2] (len 2), [4,8] (len 4), [9,10] (len 1). Max initial=4.
+    # With 1 move, we can move meeting 0 to be adjacent to meeting 1.
+    # New s[0] = s[1]-d[0] = 8-2=6. New meeting 0 is [6,8].
+    # Schedule: [6,8], [8,9]. Free time is [0,6]. Length 6.
+    assert maxFreeTime(eventTime, k, startTime, endTime) == 6
+
+
+def test_gap_at_end():
+    # spec: The best option is to create a large gap at the end.
+    eventTime = 20
+    k = 1
+    startTime = [1, 18, 19]
+    endTime = [2, 19, 20]
+    # n=3, k=1
+    # Meetings: [1,2] (d=1), [18,19] (d=1), [19,20] (d=1).
+    # Initial gaps: [0,1] (1), [2,18] (16), [19,19] (0), [20,20] (0). Max initial=16.
+    # Move meeting 0 to pack after event start: no benefit.
+    # Move meeting 1 ([18,19]) to pack after meeting 0 ([1,2]).
+    # New s[1]=2, e[1]=3. Schedule: [1,2],[2,3],[19,20]. Gap between new e[1] and old s[2] is 19-3=16.
+    # Move meeting 2 ([19,20]) to pack after meeting 1 ([18,19]).
+    # s'[2]=19, no move.
+    # Let's analyze with anchors. Anchor on meeting 0, move 1,2. k=1, not possible.
+    # Anchor on meeting 1, move 2. Pack 2 after 1. new s[2]=19, no change.
+    # Anchor on meeting 0, move 1. Space [2,19]. Duration of 1 is 1. Free = (19-2)-1 = 16.
+    assert maxFreeTime(eventTime, k, startTime, endTime) == 16
+
+
+def test_large_event_time():
+    # spec: eventTime up to 10^9
+    eventTime = 10**9
+    k = 2
+    startTime = [100, 200, 300, 10**9 - 100]
+    endTime = [101, 201, 301, 10**9 - 99]
+    # n=4, k=2
+    # Durations: 1, 1, 1, 1.
+    # The largest gap is between meeting 2 and 3.
+    # s[3]-e[2] = (10^9 - 100) - 301 = 10^9 - 401. This is the initial max.
+    # We can use k=2 moves to improve it.
+    # Anchor meetings 2 and 3. No meetings between them to move.
+    # Anchor meetings 1 and 3. Move meeting 2. j-i-1=1 <= k.
+    # Space [e[1], s[3]] = [201, 10^9-100]. Duration of meeting 2 is 1.
+    # Free time = (10^9-100-201) - 1 = 10^9 - 302.
+    # Anchor meetings 0 and 3. Move 1, 2. j-i-1=2 <= k.
+    # Space [e[0], s[3]] = [101, 10^9-100]. Durations of 1,2 are 1,1.
+    # Free time = (10^9-100-101) - (1+1) = 10^9-201-2 = 10^9-203.
+    assert maxFreeTime(eventTime, k, startTime, endTime) == 10**9 - 203
+```

@@ -1,0 +1,12 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+Here is the analysis of the failing implementation.
+
+test_canonical_example_1 — expected `[-1, -11, 1, -12, 11]`, got `[1, -1, 11, -11, -12]`, because the sorting key `(digit_sum(x), nums.index(x))` produces a stable sort based on the original list order, but the test requires a different sorting order. The implementation's key correctly produces `[1, -1, 11, -11, -12]` by sorting items with the same point value (e.g., `1` and `-1` both have 1 point) based on their original index (`1` at index 0 comes before `-1` at index 2). However, the expected output `[-1, -11, 1, -12, 11]` is not sorted by point value, indicating a fundamental mismatch between the implemented logic and the specification represented by this test.
+
+Furthermore, the expression `nums.index(x)` is a latent bug. For an input with duplicate values, such as `[5, 4, 5]`, `nums.index(5)` will always be `0`. This means the second `5` will receive the same sorting key as the first `5`, and stability is not guaranteed by the key. The implementation only passes `test_duplicate_numbers` because Python's built-in `sorted()` is stable and preserves the order of items with identical keys by coincidence.
+
+FIX DIRECTIVES:
+*   FIX: in `order_by_points`, change the `key` in the `sorted` function to correctly implement a stable sort without the `nums.index()` bug. The standard method is to first pair each number with its original index (e.g., `indexed_nums = list(enumerate(nums))`), and then sort that list using a key that references the number's point value and its original index for tie-breaking (e.g., `key=lambda item: (digit_sum(item[1]), item[0])`). After sorting, extract just the numbers from the sorted list of pairs. This will fix the bug with duplicate values and make the stability explicit. Note that this fix alone will not resolve the failure in `test_canonical_example_1` as that test appears to require a logic other than a simple stable sort by points. Re-evaluate the sorting criteria based on the `test_canonical_example_1` specification.

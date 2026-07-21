@@ -1,0 +1,102 @@
+================================================================================
+LLM RESPONSE
+================================================================================
+
+# Test Suite Quality Evaluation
+
+## Check 0 — MANDATORY Canonical Example Coverage
+
+The specification provides two canonical examples:
+1. `round(find_zero([1, 2]), 2) # f(x) = 1 + 2x` → `-0.5`
+2. `round(find_zero([-6, 11, -6, 1]), 2) # (x - 1) * (x - 2) * (x - 3) = -6 + 11x - 6x^2 + x^3` → `1.0`
+
+**Verification:**
+- `test_canonical_example_1`: Tests `round(find_zero([1, 2]), 2) == -0.5` ✓
+- `test_canonical_example_2`: Tests `round(find_zero([-6, 11, -6, 1]), 2) == 1.0` ✓
+
+Both canonical examples are present with exact inputs and expected outputs. **Check 0 passes.**
+
+## Check 1 — Fidelity
+
+### poly() tests:
+
+**test_poly_constant:**
+- `poly([5], 10)` = 5 * 10^0 = 5 ✓
+
+**test_poly_linear:**
+- `poly([1, 2], 3)` = 1 * 3^0 + 2 * 3^1 = 1 + 6 = 7 ✓
+
+**test_poly_quadratic:**
+- `poly([1, 0, 1], 2)` = 1 * 2^0 + 0 * 2^1 + 1 * 2^2 = 1 + 0 + 4 = 5 ✓
+
+**test_poly_cubic:**
+- `poly([-6, 11, -6, 1], 2)` = -6 * 2^0 + 11 * 2^1 + (-6) * 2^2 + 1 * 2^3 = -6 + 22 - 24 + 8 = 0 ✓
+
+### find_zero() tests:
+
+**test_canonical_example_1 & test_canonical_example_2:** Already verified above ✓
+
+**test_find_zero_returns_actual_zero:**
+- Verifies `poly([1, 2], find_zero([1, 2]))` ≈ 0, which is correct by definition ✓
+
+**test_find_zero_returns_actual_zero_cubic:**
+- Verifies `poly([-6, 11, -6, 1], find_zero([-6, 11, -6, 1]))` ≈ 0, correct by definition ✓
+
+**test_find_zero_even_coefficients_simple:**
+- Input: `[3, 6]` has 2 coefficients (even) ✓
+- Verifies result is a zero, correct by definition ✓
+
+**test_find_zero_quadratic:**
+- Input: `[-4, 0, 1]` has 3 coefficients (odd) ✗
+- **PROBLEM:** The specification states "find_zero only takes list xs having even number of coefficients"
+- This test violates the input domain specification
+
+**test_find_zero_quartic:**
+- Input: `[-1, 0, 0, 0, 1]` has 5 coefficients (odd) ✗
+- **PROBLEM:** Again violates the even number of coefficients requirement
+
+## Check 2 — No Invented Constraints
+
+**test_find_zero_quadratic** and **test_find_zero_quartic** test inputs that the specification explicitly excludes (odd number of coefficients). However, these are not "invented constraints" but rather tests of inputs outside the valid domain. The specification states find_zero "only takes list xs having even number of coefficients" — this defines the valid input domain.
+
+Testing outside the specified domain is problematic because the specification makes no guarantees about behavior for such inputs.
+
+## Check 3 — Coverage
+
+**Specified behaviors:**
+
+1. `poly(xs, x)` evaluates polynomial at point x — **tested** (multiple cases)
+2. `find_zero(xs)` finds x such that poly(x) = 0 — **tested** (verification tests)
+3. `find_zero` returns only one zero point — **tested implicitly** (all tests check single return value)
+4. `find_zero` takes even number of coefficients — **violated** (2 tests use odd coefficients)
+5. `find_zero` requires largest non-zero coefficient (guarantees solution) — **not explicitly tested**, though all test cases satisfy this
+
+**Boundaries/edge cases from spec:**
+- Linear polynomial (degree 1, 2 coefficients) — **tested**
+- Higher degree even polynomials (4 coefficients, 6 coefficients) — 4 coefficients **tested**, 6 coefficients **not tested**
+
+The suite doesn't test a 6-coefficient polynomial, though it does test 2 and 4 coefficients.
+
+## Check 4 — Sanity
+
+- Imports from `solution` ✓
+- Function names match: `poly`, `find_zero` ✓
+- Parameter names match specification ✓
+- Syntactically valid pytest ✓
+
+## Findings Summary
+
+1. **Fidelity:** Two tests (`test_find_zero_quadratic`, `test_find_zero_quartic`) use inputs outside the specified domain (odd number of coefficients).
+2. **No invented constraints:** The tests with odd coefficients are testing outside the valid input domain, which the specification doesn't define behavior for.
+3. **Coverage:** Missing test for 6-coefficient polynomial. Largest non-zero coefficient constraint not explicitly validated.
+4. **Sanity:** No issues.
+
+## Directives
+
+REMOVE: test_find_zero_quadratic — uses 3 coefficients (odd), violates specification requirement of even number of coefficients
+
+REMOVE: test_find_zero_quartic — uses 5 coefficients (odd), violates specification requirement of even number of coefficients
+
+ADD: test for 6-coefficient polynomial (e.g., `[-1, 0, 1, 0, 0, 1]`) to verify even-coefficient behavior at higher degrees
+
+Final score: 0.40

@@ -1,0 +1,197 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784420162892
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: import pytest
+from solution import order_by_points
+
+
+def test_canonical_example_1():
+    # spec: order_by_points([1, 11, -1, -11, -12]) == [-1, -11, 1, -12, 11]
+    assert order_by_points([1, 11, -1, ...[truncated]
+  impl_code: def order_by_points(nums):
+    def digit_sum(n):
+        return sum(int(d) for d in str(abs(n))) * (-1 if n < 0 else 1)
+    return sorted(nums, key=lambda x: (digit_sum(x), nums.index(x)))
+  task: {'id': 'HumanEval/145', 'use_case_id': 'HumanEval/145', 'story_id': 'HumanEval/145', 'epic_id': 'HUMANEVAL', 'title': 'Implement order_by_points()', 'description': 'Write a function which sorts the gi...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement order_by_points()**
+
+## Tests (the acceptance criterion)
+
+```python
+import pytest
+from solution import order_by_points
+
+
+def test_canonical_example_1():
+    # spec: order_by_points([1, 11, -1, -11, -12]) == [-1, -11, 1, -12, 11]
+    assert order_by_points([1, 11, -1, -11, -12]) == [-1, -11, 1, -12, 11]
+
+
+def test_canonical_example_2():
+    # spec: order_by_points([]) == []
+    assert order_by_points([]) == []
+
+
+def test_single_element():
+    # Single element list returns the same list
+    assert order_by_points([5]) == [5]
+
+
+def test_all_same_digit_sum():
+    # When all have same digit sum, preserve original order
+    # 10: 1+0=1, 100: 1+0+0=1, 1000: 1+0+0+0=1
+    assert order_by_points([10, 100, 1000]) == [10, 100, 1000]
+
+
+def test_simple_positive_numbers():
+    # Sort by digit sum: 1 (sum=1), 2 (sum=2), 10 (sum=1), 11 (sum=2)
+    # Groups: sum=1: [1, 10], sum=2: [2, 11]
+    # Result preserves index within same sum
+    assert order_by_points([1, 2, 10, 11]) == [1, 10, 2, 11]
+
+
+def test_negative_single_digit():
+    # -5 has digit sum -5, 5 has digit sum 5
+    # -5 < 5, so -5 comes first
+    assert order_by_points([-5, 5]) == [-5, 5]
+
+
+def test_negative_multi_digit():
+    # -23: -(2+3) = -5, 14: 1+4 = 5
+    # -5 < 5, so -23 comes first
+    assert order_by_points([-23, 14]) == [-23, 14]
+
+
+def test_mix_positive_negative_zero():
+    # 0: sum=0, -1: sum=-1, 1: sum=1
+    assert order_by_points([0, -1, 1]) == [-1, 0, 1]
+
+
+def test_ascending_order_already_sorted():
+    # 1: sum=1, 2: sum=2, 3: sum=3
+    assert order_by_points([1, 2, 3]) == [1, 2, 3]
+
+
+def test_descending_order_input():
+    # 3: sum=3, 2: sum=2, 1: sum=1
+    assert order_by_points([3, 2, 1]) == [1, 2, 3]
+
+
+def test_preserve_index_order_on_tie():
+    # All have digit sum 1: 1, 10, 100
+    # Must preserve original order
+    assert order_by_points([100, 10, 1]) == [100, 10, 1]
+
+
+def test_negative_numbers_with_different_sums():
+    # -2: sum=-2, -1: sum=-1, -3: sum=-3
+    assert order_by_points([-2, -1, -3]) == [-3, -2, -1]
+
+
+def test_two_digit_numbers_various():
+    # 12: 1+2=3, 21: 2+1=3, 11: 1+1=2, 22: 2+2=4
+    # Groups: sum=2: [11], sum=3: [12, 21], sum=4: [22]
+    assert order_by_points([12, 21, 11, 22]) == [11, 12, 21, 22]
+
+
+def test_negative_two_digit_preserve_order():
+    # -11: -(1+1)=-2, -22: -(2+2)=-4
+    # -4 < -2, so -22 comes first
+    assert order_by_points([-11, -22]) == [-22, -11]
+
+
+def test_mixed_negative_positive_two_digit():
+    # -12: -(1+2)=-3, 12: 1+2=3
+    assert order_by_points([-12, 12]) == [-12, 12]
+```
+
+## Failing implementation
+
+```python
+def order_by_points(nums):
+    def digit_sum(n):
+        return sum(int(d) for d in str(abs(n))) * (-1 if n < 0 else 1)
+    return sorted(nums, key=lambda x: (digit_sum(x), nums.index(x)))
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpxr3r1rl1/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 15 items
+
+tests/test_task.py::test_canonical_example_1 FAILED                      [  6%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 13%]
+tests/test_task.py::test_single_element PASSED                           [ 20%]
+tests/test_task.py::test_all_same_digit_sum PASSED                       [ 26%]
+tests/test_task.py::test_simple_positive_numbers PASSED                  [ 33%]
+tests/test_task.py::test_negative_single_digit PASSED                    [ 40%]
+tests/test_task.py::test_negative_multi_digit PASSED                     [ 46%]
+tests/test_task.py::test_mix_positive_negative_zero PASSED               [ 53%]
+tests/test_task.py::test_ascending_order_already_sorted PASSED           [ 60%]
+tests/test_task.py::test_descending_order_input PASSED                   [ 66%]
+tests/test_task.py::test_preserve_index_order_on_tie PASSED              [ 73%]
+tests/test_task.py::test_negative_numbers_with_different_sums PASSED     [ 80%]
+tests/test_task.py::test_two_digit_numbers_various PASSED                [ 86%]
+tests/test_task.py::test_negative_two_digit_preserve_order PASSED        [ 93%]
+tests/test_task.py::test_mixed_negative_positive_two_digit PASSED        [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_1 ___________________________
+tests/test_task.py:7: in test_canonical_example_1
+    assert order_by_points([1, 11, -1, -11, -12]) == [-1, -11, 1, -12, 11]
+E   AssertionError: assert [-12, -11, -1, 1, 11] == [-1, -11, 1, -12, 11]
+E     
+E     At index 0 diff: -12 != -1
+E     
+E     Full diff:
+E       [
+E     +     -12,
+E     +     -11,...
+E     
+E     ...Full output truncated (6 lines hidden), use '-vv' to show
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_canonical_example_1 - AssertionError: assert ...
+========================= 1 failed, 14 passed in 0.03s =========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

@@ -1,0 +1,140 @@
+================================================================================
+TEMPLATE: judge/code_against_tests.j2
+TIMESTAMP: 1784493726136
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_code: from typing import List
+from solution import countMentions
+
+def test_canonical_example_1():
+    # spec: countMentions(2, [["MESSAGE", "10", "id1 id0"], ["OFFLINE", "11", "0"], ["MESSAGE", "71", "HERE"...[truncated]
+  impl_code: from typing import List
+
+
+def countMentions(numberOfUsers: int, events: List[List[str]]) -> List[int]:
+    mentions = [0] * numberOfUsers
+    online_status = [True] * numberOfUsers
+    offline_until =...[truncated]
+  task: {'id': 'LCB/3721', 'use_case_id': 'LCB/3721', 'story_id': 'LCB/3721', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement countMentions()', 'description': 'You are given an integer numberOfUsers represent...[truncated]
+  recent_commits: []
+================================================================================
+
+You are predicting whether an implementation will pass a specific test suite. Trace the code
+with each test's inputs; do not judge style, design, or robustness — a crude implementation
+that passes every test rates 1.00, an elegant one that fails a test rates lower.
+
+## Task context
+
+**Implement countMentions()**
+
+## Tests
+
+```python
+from typing import List
+from solution import countMentions
+
+def test_canonical_example_1():
+    # spec: countMentions(2, [["MESSAGE", "10", "id1 id0"], ["OFFLINE", "11", "0"], ["MESSAGE", "71", "HERE"]]) 
+    # mentions at 10: id1 -> 1, id0 -> 1; at 11: id0 goes offline; at 71: id1 -> 2, id0 -> 2 (back online)
+    assert countMentions(2, [["MESSAGE", "10", "id1 id0"], ["OFFLINE", "11", "0"], ["MESSAGE", "71", "HERE"]]) == [2, 2]
+
+def test_canonical_example_2():
+    # spec: countMentions(2, [["MESSAGE", "10", "id1 id0"], ["OFFLINE", "11", "0"], ["MESSAGE", "12", "ALL"]])
+    # mentions at 10: id1 -> 1, id0 -> 1; at 11: id0 goes offline; at 12: ALL mentions id0 -> 2, id1 -> 2
+    assert countMentions(2, [["MESSAGE", "10", "id1 id0"], ["OFFLINE", "11", "0"], ["MESSAGE", "12", "ALL"]]) == [2, 2]
+
+def test_canonical_example_3():
+    # spec: countMentions(2, [["OFFLINE", "10", "0"], ["MESSAGE", "12", "HERE"]])
+    # at 10: id0 goes offline; at 12: HERE mentions id1 -> 1, id0 (offline) -> 0
+    assert countMentions(2, [["OFFLINE", "10", "0"], ["MESSAGE", "12", "HERE"]]) == [0, 1]
+
+def test_duplicate_mentions_in_message():
+    # spec: countMentions(2, [["MESSAGE", "10", "id0 id0 id1"]])
+    # mentions at 10: id0 -> 2 (twice), id1 -> 1
+    assert countMentions(2, [["MESSAGE", "10", "id0 id0 id1"]]) == [2, 1]
+
+def test_multiple_offline_cycles():
+    # spec: countMentions(2, [["OFFLINE", "10", "0"], ["MESSAGE", "12", "HERE"], ["OFFLINE", "20", "0"], ["MESSAGE", "80", "id1"]])
+    # at 10: id0 goes offline; at 12: HERE mentions id1 -> 1, id0 (offline) -> 0; at 20: id0 goes offline again
+    # at 80: id1 mentions id1 -> 2
+    assert countMentions(2, [["OFFLINE", "10", "0"], ["MESSAGE", "12", "HERE"], ["OFFLINE", "20", "0"], ["MESSAGE", "80", "id1"]]) == [0, 2]
+
+def test_single_user():
+    # spec: countMentions(1, [["MESSAGE", "10", "id0"]])
+    # mentions at 10: id0 -> 1
+    assert countMentions(1, [["MESSAGE", "10", "id0"]]) == [1]
+
+def test_message_at_boundary_of_offline_period():
+    # spec: countMentions(2, [["OFFLINE", "10", "0"], ["MESSAGE", "70", "HERE"]])
+    # at 10: id0 goes offline; at 70: HERE mentions id1 -> 1, id0 (offline) -> 0
+    assert countMentions(2, [["OFFLINE", "10", "0"], ["MESSAGE", "70", "HERE"]]) == [0, 1]
+
+def test_mixed_mentions():
+    # spec: countMentions(2, [["MESSAGE", "10", "id0"], ["OFFLINE", "11", "0"], ["MESSAGE", "12", "ALL"], ["MESSAGE", "13", "HERE"]])
+    # at 10: id0 -> 1; at 11: id0 goes offline; at 12: ALL mentions id0 -> 2, id1 -> 1; at 13: HERE mentions id1 -> 2, id0 (offline) -> 2
+    assert countMentions(2, [["MESSAGE", "10", "id0"], ["OFFLINE", "11", "0"], ["MESSAGE", "12", "ALL"], ["MESSAGE", "13", "HERE"]]) == [2, 2]
+```
+
+## Implementation
+
+```python
+from typing import List
+
+
+def countMentions(numberOfUsers: int, events: List[List[str]]) -> List[int]:
+    mentions = [0] * numberOfUsers
+    online_status = [True] * numberOfUsers
+    offline_until = [-1] * numberOfUsers
+
+    for event in events:
+        event_type, timestamp, *details = event
+        timestamp = int(timestamp)
+
+        # Update online status for users
+        for user_id in range(numberOfUsers):
+            if not online_status[user_id] and timestamp >= offline_until[user_id]:
+                online_status[user_id] = True
+
+        if event_type == "OFFLINE":
+            user_id = int(details[0])
+            online_status[user_id] = False
+            offline_until[user_id] = timestamp + 60
+
+        elif event_type == "MESSAGE":
+            mentions_string = details[0]
+            if mentions_string == "ALL":
+                for user_id in range(numberOfUsers):
+                    mentions[user_id] += 1
+            elif mentions_string == "HERE":
+                for user_id in range(numberOfUsers):
+                    if online_status[user_id]:
+                        mentions[user_id] += 1
+            else:
+                mentioned_ids = mentions_string.split()
+                for mention in mentioned_ids:
+                    user_id = int(mention[2:])  # Extract id from 'idN'
+                    mentions[user_id] += 1
+
+    return mentions
+
+```
+
+## Method
+
+For EACH test function: state the inputs, trace the implementation's computation step by
+step (do the arithmetic explicitly), state the value the test expects, and conclude PASS or
+FAIL for that test. Check import/name compatibility first: if the tests cannot even import
+the implementation, every test fails.
+
+Also flag test gaming if you see it (hardcoded answers for specific inputs, input
+pattern-matching): report it in one line, but rate on predicted test outcomes only.
+
+## Output format (exactly this structure)
+
+1. One line per test, in this shape:
+   `test_canonical_example_1: PASS — computes 5 for [1,2,1,2,1,1,1], matching the assertion`
+   If you cannot trace a test's outcome from the code, mark it FAIL and say why the trace
+   is blocked — an unverifiable pass prediction is not a pass.
+2. If any FAIL: one short paragraph naming the root cause in the implementation.
+3. The last line must be exactly: `Rating: <predicted fraction of tests passing>` with two
+   decimals, e.g. `Rating: 0.83`

@@ -1,0 +1,219 @@
+================================================================================
+TEMPLATE: judge/code_against_tests.j2
+TIMESTAMP: 1784520323488
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_code: """
+Tests for the `maxDistance` function.
+
+The problem asks for the maximum Manhattan distance from the origin at any point in a path,
+given we can change at most `k` moves in the path string `s`. A k...[truncated]
+  impl_code: def maxDistance(s: str, k: int) -> int:
+    x, y = 0, 0
+    max_dist = 0
+    for i in range(len(s)):
+        if s[i] == 'N':
+            y += 1
+        elif s[i] == 'S':
+            y -= 1
+        eli...[truncated]
+  task: {'id': 'LCB/3754', 'use_case_id': 'LCB/3754', 'story_id': 'LCB/3754', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maxDistance()', 'description': 'You are given a string s consisting of the charact...[truncated]
+  recent_commits: []
+================================================================================
+
+You are predicting whether an implementation will pass a specific test suite. Trace the code
+with each test's inputs; do not judge style, design, or robustness — a crude implementation
+that passes every test rates 1.00, an elegant one that fails a test rates lower.
+
+## Task context
+
+**Implement maxDistance()**
+
+## Tests
+
+```python
+"""
+Tests for the `maxDistance` function.
+
+The problem asks for the maximum Manhattan distance from the origin at any point in a path,
+given we can change at most `k` moves in the path string `s`. A key insight is that the
+order of maximization can be swapped: `max_over_paths(max_over_time(dist))` is equivalent
+to `max_over_time(max_over_paths(dist))`. This simplifies the problem greatly. We can iterate
+through each possible path endpoint `i` (from `0` to `len(s)-1`) and, for each, calculate
+the maximum possible Manhattan distance at that specific time, assuming we can use our entire
+budget of `k` changes on the prefix `s[0...i]`. The overall answer is the maximum of these
+values over all `i`.
+
+For a given prefix of length `L = i + 1`, we have a budget of `c = min(k, L)` changes.
+To maximize the Manhattan distance `|x| + |y|`, we need to maximize one of `x+y`, `x-y`,
+`-x+y`, or `-x-y`. For each of these four "target diagonals," we can calculate the maximum
+value achievable. For instance, to maximize `x+y`, we should change moves that go toward
+the southwest ('S', 'W') into moves that go toward the northeast ('N', 'E'). Each such
+change costs 1 and increases the `x+y` sum by 2. By calculating the maximum for all four
+diagonals and taking their maximum, we find the best possible distance at time `i`. The
+final answer is the maximum found across all `i`. This leads to an `O(N)` solution where
+`N` is the length of `s`.
+"""
+
+import pytest
+from solution import maxDistance
+
+def test_canonical_example_1():
+    """
+    Tests the first example from the specification: s = "NWSE", k = 1 -> 3.
+    One optimal change is s[2]: 'S' -> 'N', making the string "NWNE".
+    The path for "NWNE" is:
+    N -> (0, 1), dist 1
+    W -> (-1, 1), dist 2
+    N -> (-1, 2), dist 3
+    E -> (0, 2), dist 2
+    The maximum distance achieved is 3.
+    """
+    assert maxDistance("NWSE", 1) == 3
+
+def test_canonical_example_2():
+    """
+    Tests the second example from the specification: s = "NSWWEW", k = 3 -> 6.
+    At the end of the path (i=5), we have a prefix of length 6. With k=3 changes,
+    we can change some moves to align them. For example, changing s[1]:'S'->'W'
+    and s[4]:'E'->'W' (2 changes) results in "NWWWWW". This path reaches (-4, 1),
+    distance 5. A better strategy yields a max distance of 6.
+    At i=5, prefix="NSWWEW" has N=1,S=1,W=3,E=1. L=6, k=3, so c=3.
+    To maximize -x-y, we change N,E moves. We have 1 of each. Changes used = 2 <= c.
+    This can yield a distance of `(3+1)-(1+1) + 2*2 = 2 + 4 = 6`.
+    """
+    assert maxDistance("NSWWEW", 3) == 6
+
+def test_no_changes_allowed():
+    """
+    Tests with k=0. The result is the maximum Manhattan distance
+    achieved along the original, unmodified path.
+    s = "NESW", k = 0
+    Path: N -> (0, 1), dist 1; E -> (1, 1), dist 2; S -> (1, 0), dist 1; W -> (0, 0), dist 0.
+    The maximum distance is 2.
+    """
+    assert maxDistance("NESW", 0) == 2
+
+def test_full_changes_allowed():
+    """
+    Tests with k = len(s). We can change every character.
+    The maximum distance at any step i (prefix length i+1) is i+1,
+    by changing all moves to be in the same direction.
+    The overall max distance is therefore len(s).
+    s = "EWEW", k = 4. Expected: 4.
+    """
+    assert maxDistance("EWEW", 4) == 4
+
+def test_single_move_no_change():
+    """
+    Tests a path with a single move and no changes allowed.
+    s = "W", k = 0. Path: W -> (-1, 0), dist 1. Max is 1.
+    """
+    assert maxDistance("W", 0) == 1
+
+def test_single_move_with_change():
+    """
+    Tests a path with a single move and one change allowed.
+    s = "S", k = 1. The path length is 1. k=1 >= len(s).
+    Max distance is len(s) = 1. The move can be changed, but distance remains 1.
+    """
+    assert maxDistance("S", 1) == 1
+
+def test_all_moves_in_one_direction():
+    """
+    Tests a path where all moves are already optimal. Changes shouldn't help.
+    s = "NNNN", k = 2.
+    Original path: (0,1), (0,2), (0,3), (0,4). Max dist 4.
+    Changes cannot increase this further.
+    """
+    assert maxDistance("NNNN", 2) == 4
+
+def test_perfectly_canceling_path():
+    """
+    Tests a path where moves cancel each other out.
+    s = "NSNS", k = 1
+    Original path: (0,1), (0,0), (0,1), (0,0). Max dist 1.
+    With k=1, we can improve.
+    At i=2 (prefix "NSN"): N=2, S=1. L=3, c=min(1,3)=1.
+    Changing S to N gives "NNN". Path (0,1),(0,2),(0,3). Max dist 3.
+    This peak determines the result.
+    """
+    assert maxDistance("NSNS", 1) == 3
+
+def test_simple_case_with_changes():
+    """
+    Tests a simple case to verify logic.
+    s = "EW", k = 1
+    Original path: E -> (1,0), dist 1. W -> (0,0), dist 0. Max dist 1.
+    With k=1:
+    At i=1, prefix is "EW" (L=2, E=1, W=1). c=min(1,2)=1.
+    To maximize distance, change W->E, giving "EE".
+    Path for "EE": E -> (1,0), dist 1. E -> (2,0), dist 2. Max dist 2.
+    The overall maximum is 2.
+    """
+    assert maxDistance("EW", 1) == 2
+
+def test_k_is_zero_long_path():
+    """
+    Tests a longer path with k=0.
+    s = "WESNNSSW", k=0
+    Path trace and distances:
+    W: (-1,0), d=1
+    E: (0,0), d=0
+    S: (0,-1), d=1
+    N: (0,0), d=0
+    N: (0,1), d=1
+    S: (0,0), d=0
+    S: (0,-1), d=1
+    W: (-1,-1), d=2
+    The maximum distance is 2.
+    """
+    assert maxDistance("WESNNSSW", 0) == 2
+```
+
+## Implementation
+
+```python
+def maxDistance(s: str, k: int) -> int:
+    x, y = 0, 0
+    max_dist = 0
+    for i in range(len(s)):
+        if s[i] == 'N':
+            y += 1
+        elif s[i] == 'S':
+            y -= 1
+        elif s[i] == 'E':
+            x += 1
+        elif s[i] == 'W':
+            x -= 1
+        L = i + 1
+        c = min(k, L)
+        # Calculate max distances for the four target diagonals
+        max_dist = max(max_dist, (abs(x) + abs(y) + 2 * c))
+        max_dist = max(max_dist, (x + y + 2 * c))
+        max_dist = max(max_dist, (x - y + 2 * c))
+        max_dist = max(max_dist, (-x + y + 2 * c))
+        max_dist = max(max_dist, (-x - y + 2 * c))
+    return max_dist
+
+```
+
+## Method
+
+For EACH test function: state the inputs, trace the implementation's computation step by
+step (do the arithmetic explicitly), state the value the test expects, and conclude PASS or
+FAIL for that test. Check import/name compatibility first: if the tests cannot even import
+the implementation, every test fails.
+
+Also flag test gaming if you see it (hardcoded answers for specific inputs, input
+pattern-matching): report it in one line, but rate on predicted test outcomes only.
+
+## Output format (exactly this structure)
+
+1. One line per test, in this shape:
+   `test_canonical_example_1: PASS — computes 5 for [1,2,1,2,1,1,1], matching the assertion`
+   If you cannot trace a test's outcome from the code, mark it FAIL and say why the trace
+   is blocked — an unverifiable pass prediction is not a pass.
+2. If any FAIL: one short paragraph naming the root cause in the implementation.
+3. The last line must be exactly: `Rating: <predicted fraction of tests passing>` with two
+   decimals, e.g. `Rating: 0.83`

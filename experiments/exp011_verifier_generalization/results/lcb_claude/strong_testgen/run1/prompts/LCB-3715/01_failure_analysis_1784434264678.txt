@@ -1,0 +1,292 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784434264678
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from typing import List
+import pytest
+from solution import maximumCoins
+
+
+def test_canonical_example_1():
+    # spec: coins = [[8,10,1],[1,3,2],[5,6,4]], k = 4 -> 10
+    # Selecting bags at positions ...[truncated]
+  impl_code: from typing import List
+
+
+def maximumCoins(coins: List[List[int]], k: int) -> int:
+    events = []
+    for l, r, c in coins:
+        events.append((l, c))
+        events.append((r + 1, -c))
+
+    event...[truncated]
+  task: {'id': 'LCB/3715', 'use_case_id': 'LCB/3715', 'story_id': 'LCB/3715', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maximumCoins()', 'description': 'There are an infinite amount of bags on a number ...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement maximumCoins()**
+
+## Tests (the acceptance criterion)
+
+```python
+from typing import List
+import pytest
+from solution import maximumCoins
+
+
+def test_canonical_example_1():
+    # spec: coins = [[8,10,1],[1,3,2],[5,6,4]], k = 4 -> 10
+    # Selecting bags at positions [3, 4, 5, 6] gives: 2 + 0 + 4 + 4 = 10
+    assert maximumCoins([[8, 10, 1], [1, 3, 2], [5, 6, 4]], 4) == 10
+
+
+def test_canonical_example_2():
+    # spec: coins = [[1,10,3]], k = 2 -> 6
+    # Selecting bags at positions [1, 2] gives: 3 + 3 = 6
+    assert maximumCoins([[1, 10, 3]], 2) == 6
+
+
+def test_single_segment_k_equals_segment_length():
+    # Single segment [1, 5, 2] with k = 5 covers entire segment
+    # Total: 2 * 5 = 10
+    assert maximumCoins([[1, 5, 2]], 5) == 10
+
+
+def test_single_segment_k_greater_than_segment_length():
+    # Single segment [1, 3, 5] with k = 10
+    # Best window of 10 consecutive bags includes [1, 2, 3] with coins
+    # Total: 5 + 5 + 5 = 15 (rest are empty bags)
+    assert maximumCoins([[1, 3, 5]], 10) == 15
+
+
+def test_single_segment_k_less_than_segment_length():
+    # Single segment [1, 10, 4] with k = 3
+    # Any 3 consecutive bags within [1, 10] give: 4 * 3 = 12
+    assert maximumCoins([[1, 10, 4]], 3) == 12
+
+
+def test_multiple_segments_k_spans_gap():
+    # Segments [1, 2, 3] and [5, 6, 2], k = 4
+    # Window [2, 3, 4, 5]: 3 + 3 + 0 + 2 = 8
+    # Window [3, 4, 5, 6]: 3 + 0 + 2 + 2 = 7
+    assert maximumCoins([[1, 2, 3], [5, 6, 2]], 4) == 8
+
+
+def test_k_equals_one():
+    # k = 1 means select single bag with maximum coins
+    # Segment [1, 1, 5] has 5 coins, [3, 3, 10] has 10 coins
+    assert maximumCoins([[1, 1, 5], [3, 3, 10]], 1) == 10
+
+
+def test_non_overlapping_segments_optimal_window_within_single_segment():
+    # Segments [1, 5, 2], [10, 15, 3], k = 4
+    # Best within first segment: 2 * 4 = 8
+    # Best within second segment: 3 * 4 = 12
+    assert maximumCoins([[1, 5, 2], [10, 15, 3]], 4) == 12
+
+
+def test_window_starts_before_first_segment():
+    # Segment [5, 7, 3], k = 6
+    # Window [1, 2, 3, 4, 5, 6]: 0 + 0 + 0 + 0 + 3 + 3 = 6
+    # Window [2, 3, 4, 5, 6, 7]: 0 + 0 + 0 + 3 + 3 + 3 = 9
+    assert maximumCoins([[5, 7, 3]], 6) == 9
+
+
+def test_window_ends_after_last_segment():
+    # Segment [1, 3, 4], k = 5
+    # Window [1, 2, 3, 4, 5]: 4 + 4 + 4 + 0 + 0 = 12
+    assert maximumCoins([[1, 3, 4]], 5) == 12
+
+
+def test_multiple_segments_optimal_crosses_boundaries():
+    # Segments [1, 2, 1], [4, 5, 10], k = 3
+    # Window [2, 3, 4]: 1 + 0 + 10 = 11
+    # Window [3, 4, 5]: 0 + 10 + 10 = 20
+    # Window [4, 5, 6]: 10 + 10 + 0 = 20
+    assert maximumCoins([[1, 2, 1], [4, 5, 10]], 3) == 20
+
+
+def test_large_k_single_small_segment():
+    # Segment [100, 102, 7], k = 1000000000
+    # Only bags [100, 101, 102] have coins: 7 * 3 = 21
+    assert maximumCoins([[100, 102, 7]], 1000000000) == 21
+
+
+def test_segments_at_large_positions():
+    # Segments at large positions [1000000000, 1000000000, 5], k = 1
+    assert maximumCoins([[1000000000, 1000000000, 5]], 1) == 5
+```
+
+## Failing implementation
+
+```python
+from typing import List
+
+
+def maximumCoins(coins: List[List[int]], k: int) -> int:
+    events = []
+    for l, r, c in coins:
+        events.append((l, c))
+        events.append((r + 1, -c))
+
+    events.sort()
+    max_coins = 0
+    current_coins = 0
+    current_position = 0
+    active_coins = 0
+
+    for position, change in events:
+        if current_position < position:
+            span = position - current_position
+            if span > 0:
+                if span >= k:
+                    max_coins = max(max_coins, current_coins + active_coins * k)
+                else:
+                    max_coins = max(max_coins, current_coins + active_coins * span)
+            current_position = position
+        active_coins += change
+        current_coins = active_coins * (min(k, (current_position + k - 1)) - current_position)
+
+    return max_coins
+
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmp8fpi62bw/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 13 items
+
+tests/test_task.py::test_canonical_example_1 FAILED                      [  7%]
+tests/test_task.py::test_canonical_example_2 FAILED                      [ 15%]
+tests/test_task.py::test_single_segment_k_equals_segment_length FAILED   [ 23%]
+tests/test_task.py::test_single_segment_k_greater_than_segment_length FAILED [ 30%]
+tests/test_task.py::test_single_segment_k_less_than_segment_length FAILED [ 38%]
+tests/test_task.py::test_multiple_segments_k_spans_gap FAILED            [ 46%]
+tests/test_task.py::test_k_equals_one FAILED                             [ 53%]
+tests/test_task.py::test_non_overlapping_segments_optimal_window_within_single_segment FAILED [ 61%]
+tests/test_task.py::test_window_starts_before_first_segment FAILED       [ 69%]
+tests/test_task.py::test_window_ends_after_last_segment FAILED           [ 76%]
+tests/test_task.py::test_multiple_segments_optimal_crosses_boundaries FAILED [ 84%]
+tests/test_task.py::test_large_k_single_small_segment FAILED             [ 92%]
+tests/test_task.py::test_segments_at_large_positions FAILED              [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_1 ___________________________
+tests/test_task.py:9: in test_canonical_example_1
+    assert maximumCoins([[8, 10, 1], [1, 3, 2], [5, 6, 4]], 4) == 10
+E   assert 12 == 10
+E    +  where 12 = maximumCoins([[8, 10, 1], [1, 3, 2], [5, 6, 4]], 4)
+___________________________ test_canonical_example_2 ___________________________
+tests/test_task.py:15: in test_canonical_example_2
+    assert maximumCoins([[1, 10, 3]], 2) == 6
+E   assert 9 == 6
+E    +  where 9 = maximumCoins([[1, 10, 3]], 2)
+_________________ test_single_segment_k_equals_segment_length __________________
+tests/test_task.py:21: in test_single_segment_k_equals_segment_length
+    assert maximumCoins([[1, 5, 2]], 5) == 10
+E   assert 18 == 10
+E    +  where 18 = maximumCoins([[1, 5, 2]], 5)
+______________ test_single_segment_k_greater_than_segment_length _______________
+tests/test_task.py:28: in test_single_segment_k_greater_than_segment_length
+    assert maximumCoins([[1, 3, 5]], 10) == 15
+E   assert 60 == 15
+E    +  where 60 = maximumCoins([[1, 3, 5]], 10)
+________________ test_single_segment_k_less_than_segment_length ________________
+tests/test_task.py:34: in test_single_segment_k_less_than_segment_length
+    assert maximumCoins([[1, 10, 4]], 3) == 12
+E   assert 20 == 12
+E    +  where 20 = maximumCoins([[1, 10, 4]], 3)
+______________________ test_multiple_segments_k_spans_gap ______________________
+tests/test_task.py:41: in test_multiple_segments_k_spans_gap
+    assert maximumCoins([[1, 2, 3], [5, 6, 2]], 4) == 8
+E   assert 15 == 8
+E    +  where 15 = maximumCoins([[1, 2, 3], [5, 6, 2]], 4)
+______________________________ test_k_equals_one _______________________________
+tests/test_task.py:47: in test_k_equals_one
+    assert maximumCoins([[1, 1, 5], [3, 3, 10]], 1) == 10
+E   assert 5 == 10
+E    +  where 5 = maximumCoins([[1, 1, 5], [3, 3, 10]], 1)
+______ test_non_overlapping_segments_optimal_window_within_single_segment ______
+tests/test_task.py:54: in test_non_overlapping_segments_optimal_window_within_single_segment
+    assert maximumCoins([[1, 5, 2], [10, 15, 3]], 4) == 12
+E   assert 14 == 12
+E    +  where 14 = maximumCoins([[1, 5, 2], [10, 15, 3]], 4)
+___________________ test_window_starts_before_first_segment ____________________
+tests/test_task.py:61: in test_window_starts_before_first_segment
+    assert maximumCoins([[5, 7, 3]], 6) == 9
+E   assert 12 == 9
+E    +  where 12 = maximumCoins([[5, 7, 3]], 6)
+_____________________ test_window_ends_after_last_segment ______________________
+tests/test_task.py:67: in test_window_ends_after_last_segment
+    assert maximumCoins([[1, 3, 4]], 5) == 12
+E   assert 28 == 12
+E    +  where 28 = maximumCoins([[1, 3, 4]], 5)
+______________ test_multiple_segments_optimal_crosses_boundaries _______________
+tests/test_task.py:75: in test_multiple_segments_optimal_crosses_boundaries
+    assert maximumCoins([[1, 2, 1], [4, 5, 10]], 3) == 20
+E   assert 10 == 20
+E    +  where 10 = maximumCoins([[1, 2, 1], [4, 5, 10]], 3)
+______________________ test_large_k_single_small_segment _______________________
+tests/test_task.py:81: in test_large_k_single_small_segment
+    assert maximumCoins([[100, 102, 7]], 1000000000) == 21
+E   assert 6999999321 == 21
+E    +  where 6999999321 = maximumCoins([[100, 102, 7]], 1000000000)
+_______________________ test_segments_at_large_positions _______________________
+tests/test_task.py:86: in test_segments_at_large_positions
+    assert maximumCoins([[1000000000, 1000000000, 5]], 1) == 5
+E   assert 0 == 5
+E    +  where 0 = maximumCoins([[1000000000, 1000000000, 5]], 1)
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_canonical_example_1 - assert 12 == 10
+FAILED tests/test_task.py::test_canonical_example_2 - assert 9 == 6
+FAILED tests/test_task.py::test_single_segment_k_equals_segment_length - asse...
+FAILED tests/test_task.py::test_single_segment_k_greater_than_segment_length
+FAILED tests/test_task.py::test_single_segment_k_less_than_segment_length - a...
+FAILED tests/test_task.py::test_multiple_segments_k_spans_gap - assert 15 == 8
+FAILED tests/test_task.py::test_k_equals_one - assert 5 == 10
+FAILED tests/test_task.py::test_non_overlapping_segments_optimal_window_within_single_segment
+FAILED tests/test_task.py::test_window_starts_before_first_segment - assert 1...
+FAILED tests/test_task.py::test_window_ends_after_last_segment - assert 28 == 12
+FAILED tests/test_task.py::test_multiple_segments_optimal_crosses_boundaries
+FAILED tests/test_task.py::test_large_k_single_small_segment - assert 6999999...
+FAILED tests/test_task.py::test_segments_at_large_positions - assert 0 == 5
+============================== 13 failed in 0.03s ==============================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

@@ -1,0 +1,350 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784508964909
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: from solution import maximumAmount
+from typing import List
+
+
+def test_canonical_example_1():
+    # spec: coins = [[0,1,-1],[1,-2,3],[2,-3,4]] -> 8
+    # Optimal path: (0,0)->(0,1)->(1,1)->(1,2)->(2,2)...[truncated]
+  impl_code: from typing import List
+
+
+def maximumAmount(coins: List[List[int]]) -> int:
+    m, n = len(coins), len(coins[0])
+    # Create a 3D DP array to track maximum coins with 0, 1, or 2 neutralizations
+    d...[truncated]
+  task: {'id': 'LCB/3677', 'use_case_id': 'LCB/3677', 'story_id': 'LCB/3677', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maximumAmount()', 'description': "You are given an m x n grid. A robot starts at t...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement maximumAmount()**
+
+## Tests (the acceptance criterion)
+
+```python
+from solution import maximumAmount
+from typing import List
+
+
+def test_canonical_example_1():
+    # spec: coins = [[0,1,-1],[1,-2,3],[2,-3,4]] -> 8
+    # Optimal path: (0,0)->(0,1)->(1,1)->(1,2)->(2,2)
+    # Coins: 0 + 1 + neutralize(-2) + 3 + 4 = 8
+    assert maximumAmount([[0, 1, -1], [1, -2, 3], [2, -3, 4]]) == 8
+
+
+def test_canonical_example_2():
+    # spec: coins = [[10,10,10],[10,10,10]] -> 40
+    # Optimal path: (0,0)->(0,1)->(0,2)->(1,2)
+    # Coins: 10 + 10 + 10 + 10 = 40
+    assert maximumAmount([[10, 10, 10], [10, 10, 10]]) == 40
+
+
+def test_single_cell_positive():
+    # 1x1 grid with positive value
+    # Only cell is (0,0) with value 5, result = 5
+    assert maximumAmount([[5]]) == 5
+
+
+def test_single_cell_negative():
+    # 1x1 grid with negative value
+    # Only cell is (0,0) with value -5
+    # Robot can neutralize it, result = 0
+    assert maximumAmount([[-5]]) == 0
+
+
+def test_single_cell_zero():
+    # 1x1 grid with zero value
+    # Only cell is (0,0) with value 0, result = 0
+    assert maximumAmount([[0]]) == 0
+
+
+def test_single_row_all_positive():
+    # 1x3 grid with all positive values
+    # Path: (0,0)->(0,1)->(0,2)
+    # Coins: 1 + 2 + 3 = 6
+    assert maximumAmount([[1, 2, 3]]) == 6
+
+
+def test_single_column_all_positive():
+    # 3x1 grid with all positive values
+    # Path: (0,0)->(1,0)->(2,0)
+    # Coins: 1 + 2 + 3 = 6
+    assert maximumAmount([[1], [2], [3]]) == 6
+
+
+def test_single_row_with_negatives():
+    # 1x4 grid with negative values
+    # Path: (0,0)->(0,1)->(0,2)->(0,3)
+    # Coins: 10 + (-5 neutralized) + (-8 neutralized) + 3 = 13
+    assert maximumAmount([[10, -5, -8, 3]]) == 13
+
+
+def test_single_column_with_negatives():
+    # 4x1 grid with negative values
+    # Path: (0,0)->(1,0)->(2,0)->(3,0)
+    # Coins: 10 + (-5 neutralized) + (-8 neutralized) + 3 = 13
+    assert maximumAmount([[10], [-5], [-8], [3]]) == 13
+
+
+def test_two_by_two_all_positive():
+    # 2x2 grid with all positive values
+    # Best path: (0,0)->(0,1)->(1,1) = 5+10+15 = 30
+    # Or: (0,0)->(1,0)->(1,1) = 5+7+15 = 27
+    # Result: 30
+    assert maximumAmount([[5, 10], [7, 15]]) == 30
+
+
+def test_two_by_two_with_one_negative():
+    # 2x2 grid with one negative value
+    # Grid: [[1, -5], [2, 3]]
+    # Best path avoiding or neutralizing -5: (0,0)->(1,0)->(1,1) = 1+2+3 = 6
+    # Or neutralizing: (0,0)->neutralize(-5)->(1,1) = 1+0+3 = 4
+    # Result: 6
+    assert maximumAmount([[1, -5], [2, 3]]) == 6
+
+
+def test_path_requires_negative_sum():
+    # 2x2 grid where best path has negative total without neutralization
+    # Grid: [[-10, -20], [-30, 100]]
+    # Path (0,0)->(0,1)->(1,1) = -10 + neutralize(-20) + 100 = 90
+    # Path (0,0)->(1,0)->(1,1) = neutralize(-10) + neutralize(-30) + 100 = 100
+    # Result: 100
+    assert maximumAmount([[-10, -20], [-30, 100]]) == 100
+
+
+def test_all_negative_values():
+    # 2x2 grid with all negative values
+    # Grid: [[-5, -10], [-3, -7]]
+    # Path (0,0)->(0,1)->(1,1) = -5 + neutralize(-10) + neutralize(-7) = -5
+    # Path (0,0)->(1,0)->(1,1) = neutralize(-5) + neutralize(-3) + -7 = -7
+    # Path (0,0)->(1,0)->(1,1) = neutralize(-5) + neutralize(-7) + -3 = -3
+    # Result: -3
+    assert maximumAmount([[-5, -10], [-3, -7]]) == -3
+
+
+def test_no_neutralization_needed():
+    # 3x3 grid with all positive values
+    # No need to use neutralizations
+    # Path: (0,0)->(0,1)->(0,2)->(1,2)->(2,2) = 1+2+3+6+9 = 21
+    assert maximumAmount([[1, 2, 3], [4, 5, 6], [7, 8, 9]]) == 21
+
+
+def test_exactly_two_negatives_on_path():
+    # Grid where optimal path has exactly 2 negatives to neutralize
+    # Grid: [[0, -100], [-200, 300]]
+    # Path (0,0)->(0,1)->(1,1) = 0 + neutralize(-100) + 300 = 300
+    # Path (0,0)->(1,0)->(1,1) = 0 + neutralize(-200) + 300 = 300
+    # Result: 300
+    assert maximumAmount([[0, -100], [-200, 300]]) == 300
+
+
+def test_more_than_two_negatives_on_path():
+    # Grid where optimal path has more than 2 negatives
+    # Grid: [[-1, -2, -3], [-4, -5, 10]]
+    # Path (0,0)->(0,1)->(0,2)->(1,2) = -1 + neutralize(-2) + neutralize(-3) + 10 = 9
+    # Path (0,0)->(1,0)->(1,1)->(1,2) = -1 + neutralize(-4) + neutralize(-5) + 10 = 9
+    # Path (0,0)->(0,1)->(1,1)->(1,2) = -1 + neutralize(-2) + neutralize(-5) + 10 = 9
+    # Result: 9
+    assert maximumAmount([[-1, -2, -3], [-4, -5, 10]]) == 9
+
+
+def test_large_positive_and_negative_values():
+    # Grid with extreme values within constraints
+    # Grid: [[1000, -1000], [-1000, 1000]]
+    # Path (0,0)->(0,1)->(1,1) = 1000 + neutralize(-1000) + 1000 = 2000
+    # Path (0,0)->(1,0)->(1,1) = 1000 + neutralize(-1000) + 1000 = 2000
+    # Result: 2000
+    assert maximumAmount([[1000, -1000], [-1000, 1000]]) == 2000
+```
+
+## Failing implementation
+
+```python
+from typing import List
+
+
+def maximumAmount(coins: List[List[int]]) -> int:
+    m, n = len(coins), len(coins[0])
+    # Create a 3D DP array to track maximum coins with 0, 1, or 2 neutralizations
+    dp = [[[-float('inf')] * 3 for _ in range(n + 1)] for _ in range(m + 1)]
+    dp[0][0][0] = 0  # Starting point, before the first cell
+
+    for i in range(m):
+        for j in range(n):
+            coin = coins[i][j]
+            for used in range(3):  # 0, 1, or 2 neutralizations used
+                if coin >= 0:
+                    # If non-negative, just add it
+                    dp[i + 1][j + 1][used] = max(dp[i + 1][j + 1][used], dp[i][j + 1][used] + coin, dp[i + 1][j][used] + coin)
+                else:
+                    # If negative, we potentially lose coins
+                    # Use neutralization if we have left
+                    if used < 2:
+                        dp[i + 1][j + 1][used + 1] = max(dp[i + 1][j + 1][used + 1], dp[i][j + 1][used], dp[i + 1][j][used])
+                    # Continuing without neutralization
+                    dp[i + 1][j + 1][used] = max(dp[i + 1][j + 1][used], dp[i][j + 1][used] + coin, dp[i + 1][j][used] + coin)
+
+    # Return the maximum coins possible with up to 2 neutralizations
+    return max(max(dp[m][n]), 0)  # Return maximum coins or 0 if all are negative
+
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmpt57_qmvm/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 17 items
+
+tests/test_task.py::test_canonical_example_1 FAILED                      [  5%]
+tests/test_task.py::test_canonical_example_2 FAILED                      [ 11%]
+tests/test_task.py::test_single_cell_positive FAILED                     [ 17%]
+tests/test_task.py::test_single_cell_negative PASSED                     [ 23%]
+tests/test_task.py::test_single_cell_zero PASSED                         [ 29%]
+tests/test_task.py::test_single_row_all_positive FAILED                  [ 35%]
+tests/test_task.py::test_single_column_all_positive FAILED               [ 41%]
+tests/test_task.py::test_single_row_with_negatives FAILED                [ 47%]
+tests/test_task.py::test_single_column_with_negatives FAILED             [ 52%]
+tests/test_task.py::test_two_by_two_all_positive FAILED                  [ 58%]
+tests/test_task.py::test_two_by_two_with_one_negative FAILED             [ 64%]
+tests/test_task.py::test_path_requires_negative_sum FAILED               [ 70%]
+tests/test_task.py::test_all_negative_values FAILED                      [ 76%]
+tests/test_task.py::test_no_neutralization_needed FAILED                 [ 82%]
+tests/test_task.py::test_exactly_two_negatives_on_path FAILED            [ 88%]
+tests/test_task.py::test_more_than_two_negatives_on_path FAILED          [ 94%]
+tests/test_task.py::test_large_positive_and_negative_values FAILED       [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_canonical_example_1 ___________________________
+tests/test_task.py:9: in test_canonical_example_1
+    assert maximumAmount([[0, 1, -1], [1, -2, 3], [2, -3, 4]]) == 8
+E   assert 0 == 8
+E    +  where 0 = maximumAmount([[0, 1, -1], [1, -2, 3], [2, -3, 4]])
+___________________________ test_canonical_example_2 ___________________________
+tests/test_task.py:16: in test_canonical_example_2
+    assert maximumAmount([[10, 10, 10], [10, 10, 10]]) == 40
+E   assert 0 == 40
+E    +  where 0 = maximumAmount([[10, 10, 10], [10, 10, 10]])
+__________________________ test_single_cell_positive ___________________________
+tests/test_task.py:22: in test_single_cell_positive
+    assert maximumAmount([[5]]) == 5
+E   assert 0 == 5
+E    +  where 0 = maximumAmount([[5]])
+_________________________ test_single_row_all_positive _________________________
+tests/test_task.py:42: in test_single_row_all_positive
+    assert maximumAmount([[1, 2, 3]]) == 6
+E   assert 0 == 6
+E    +  where 0 = maximumAmount([[1, 2, 3]])
+_______________________ test_single_column_all_positive ________________________
+tests/test_task.py:49: in test_single_column_all_positive
+    assert maximumAmount([[1], [2], [3]]) == 6
+E   assert 0 == 6
+E    +  where 0 = maximumAmount([[1], [2], [3]])
+________________________ test_single_row_with_negatives ________________________
+tests/test_task.py:56: in test_single_row_with_negatives
+    assert maximumAmount([[10, -5, -8, 3]]) == 13
+E   assert 0 == 13
+E    +  where 0 = maximumAmount([[10, -5, -8, 3]])
+______________________ test_single_column_with_negatives _______________________
+tests/test_task.py:63: in test_single_column_with_negatives
+    assert maximumAmount([[10], [-5], [-8], [3]]) == 13
+E   assert 0 == 13
+E    +  where 0 = maximumAmount([[10], [-5], [-8], [3]])
+_________________________ test_two_by_two_all_positive _________________________
+tests/test_task.py:71: in test_two_by_two_all_positive
+    assert maximumAmount([[5, 10], [7, 15]]) == 30
+E   assert 0 == 30
+E    +  where 0 = maximumAmount([[5, 10], [7, 15]])
+______________________ test_two_by_two_with_one_negative _______________________
+tests/test_task.py:80: in test_two_by_two_with_one_negative
+    assert maximumAmount([[1, -5], [2, 3]]) == 6
+E   assert 0 == 6
+E    +  where 0 = maximumAmount([[1, -5], [2, 3]])
+_______________________ test_path_requires_negative_sum ________________________
+tests/test_task.py:89: in test_path_requires_negative_sum
+    assert maximumAmount([[-10, -20], [-30, 100]]) == 100
+E   assert 0 == 100
+E    +  where 0 = maximumAmount([[-10, -20], [-30, 100]])
+___________________________ test_all_negative_values ___________________________
+tests/test_task.py:99: in test_all_negative_values
+    assert maximumAmount([[-5, -10], [-3, -7]]) == -3
+E   assert 0 == -3
+E    +  where 0 = maximumAmount([[-5, -10], [-3, -7]])
+________________________ test_no_neutralization_needed _________________________
+tests/test_task.py:106: in test_no_neutralization_needed
+    assert maximumAmount([[1, 2, 3], [4, 5, 6], [7, 8, 9]]) == 21
+E   assert 0 == 21
+E    +  where 0 = maximumAmount([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+______________________ test_exactly_two_negatives_on_path ______________________
+tests/test_task.py:115: in test_exactly_two_negatives_on_path
+    assert maximumAmount([[0, -100], [-200, 300]]) == 300
+E   assert 0 == 300
+E    +  where 0 = maximumAmount([[0, -100], [-200, 300]])
+_____________________ test_more_than_two_negatives_on_path _____________________
+tests/test_task.py:125: in test_more_than_two_negatives_on_path
+    assert maximumAmount([[-1, -2, -3], [-4, -5, 10]]) == 9
+E   assert 0 == 9
+E    +  where 0 = maximumAmount([[-1, -2, -3], [-4, -5, 10]])
+___________________ test_large_positive_and_negative_values ____________________
+tests/test_task.py:134: in test_large_positive_and_negative_values
+    assert maximumAmount([[1000, -1000], [-1000, 1000]]) == 2000
+E   assert 0 == 2000
+E    +  where 0 = maximumAmount([[1000, -1000], [-1000, 1000]])
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_canonical_example_1 - assert 0 == 8
+FAILED tests/test_task.py::test_canonical_example_2 - assert 0 == 40
+FAILED tests/test_task.py::test_single_cell_positive - assert 0 == 5
+FAILED tests/test_task.py::test_single_row_all_positive - assert 0 == 6
+FAILED tests/test_task.py::test_single_column_all_positive - assert 0 == 6
+FAILED tests/test_task.py::test_single_row_with_negatives - assert 0 == 13
+FAILED tests/test_task.py::test_single_column_with_negatives - assert 0 == 13
+FAILED tests/test_task.py::test_two_by_two_all_positive - assert 0 == 30
+FAILED tests/test_task.py::test_two_by_two_with_one_negative - assert 0 == 6
+FAILED tests/test_task.py::test_path_requires_negative_sum - assert 0 == 100
+FAILED tests/test_task.py::test_all_negative_values - assert 0 == -3
+FAILED tests/test_task.py::test_no_neutralization_needed - assert 0 == 21
+FAILED tests/test_task.py::test_exactly_two_negatives_on_path - assert 0 == 300
+FAILED tests/test_task.py::test_more_than_two_negatives_on_path - assert 0 == 9
+FAILED tests/test_task.py::test_large_positive_and_negative_values - assert 0...
+========================= 15 failed, 2 passed in 0.04s =========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.

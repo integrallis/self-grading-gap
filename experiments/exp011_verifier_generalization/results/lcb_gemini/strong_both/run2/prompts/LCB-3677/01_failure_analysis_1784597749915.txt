@@ -1,0 +1,308 @@
+================================================================================
+TEMPLATE: judge/failure_analysis.j2
+TIMESTAMP: 1784597749915
+VARIABLES:
+  config: {'fence_close': '```', 'fence_open': '```', 'max_retries': 3, 'style': 'standard'}
+  test_output: ============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-gradin...[truncated]
+  test_code: import pytest
+from typing import List
+
+# Import the function to be tested
+from solution import maximumAmount
+
+#
+# Canonical examples from the specification
+#
+
+def test_canonical_example_1():
+    """
+ ...[truncated]
+  impl_code: from typing import List
+
+def maximumAmount(coins: List[List[int]]) -> int:
+    m, n = len(coins), len(coins[0])
+    dp = [[[-float('inf')] * 3 for _ in range(n)] for _ in range(m)]
+    dp[0][0][0] = c...[truncated]
+  task: {'id': 'LCB/3677', 'use_case_id': 'LCB/3677', 'story_id': 'LCB/3677', 'epic_id': 'LIVECODEBENCH', 'title': 'Implement maximumAmount()', 'description': "You are given an m x n grid. A robot starts at t...[truncated]
+================================================================================
+
+You are analyzing why an implementation fails its test suite (test-driven development: the
+tests are the acceptance criterion and are not in question here — the implementation is).
+Your analysis is handed verbatim to the implementer for the next attempt, so make every
+directive concrete enough to apply without seeing this conversation.
+
+## Task context
+
+**Implement maximumAmount()**
+
+## Tests (the acceptance criterion)
+
+```python
+import pytest
+from typing import List
+
+# Import the function to be tested
+from solution import maximumAmount
+
+#
+# Canonical examples from the specification
+#
+
+def test_canonical_example_1():
+    """
+    Test with the first example from the specification.
+    An optimal path is (0,0)->(0,1)->(1,1)->(1,2)->(2,2).
+    Path values: [0, 1, -2, 3, 4].
+    One robber at (1,1) with value -2.
+    Using one neutralization: 0 + 1 + 0 (neutralized) + 3 + 4 = 8.
+    """
+    coins = [[0, 1, -1], [1, -2, 3], [2, -3, 4]]
+    expected = 8
+    assert maximumAmount(coins) == expected
+
+def test_canonical_example_2():
+    """
+    Test with the second example from the specification.
+    An optimal path is (0,0)->(0,1)->(0,2)->(1,2).
+    Path values: [10, 10, 10, 10].
+    No robbers on the path.
+    Total: 10 + 10 + 10 + 10 = 40.
+    """
+    coins = [[10, 10, 10], [10, 10, 10]]
+    expected = 40
+    assert maximumAmount(coins) == expected
+
+#
+# Additional test scenarios based on the specification
+#
+
+def test_single_cell_grid_with_positive_coins():
+    """
+    Test with the smallest possible grid (1x1) containing a positive value.
+    The path is just the single cell.
+    """
+    coins = [[100]]
+    # Path is just [100]. Sum is 100.
+    expected = 100
+    assert maximumAmount(coins) == expected
+
+def test_single_cell_grid_with_robber_neutralized():
+    """
+    Test with the smallest possible grid (1x1) containing a robber.
+    The path is the single cell, and the robot can neutralize the robber.
+    """
+    coins = [[-100]]
+    # Path is [-100]. Neutralize the robber. Sum is 0.
+    expected = 0
+    assert maximumAmount(coins) == expected
+
+def test_single_row_grid_with_two_robbers_neutralized():
+    """
+    Test with a single-row grid, where there is only one possible path.
+    The path contains two robbers, and the robot can neutralize both.
+    """
+    coins = [[1, -100, 2, -200, 3]]
+    # Path is [1, -100, 2, -200, 3]. Two robbers.
+    # Neutralize both: 1 + 0 + 2 + 0 + 3 = 6.
+    expected = 6
+    assert maximumAmount(coins) == expected
+
+def test_single_column_grid_with_two_robbers_neutralized():
+    """
+    Test with a single-column grid, symmetric to the single-row case.
+    The path contains two robbers, and the robot neutralizes both.
+    """
+    coins = [[1], [-100], [2], [-200], [3]]
+    # Path is [1, -100, 2, -200, 3]. Two robbers.
+    # Neutralize both: 1 + 0 + 2 + 0 + 3 = 6.
+    expected = 6
+    assert maximumAmount(coins) == expected
+
+def test_optimal_path_has_two_robbers_to_neutralize():
+    """
+    Test where the optimal path contains exactly two robbers, and both are neutralized.
+    Path D,R,D,R: (0,0)->(1,0)->(1,1)->(2,1)->(2,2) -> values [0,-1,10,-1,0]
+    Neutralizing both robbers: 0 + 0 + 10 + 0 + 0 = 10.
+    Other paths like R,R,D,D have three robbers, resulting in a lower score (e.g., -1).
+    """
+    coins = [[0, -1, -1], [-1, 10, -1], [-1, -1, 0]]
+    expected = 10
+    assert maximumAmount(coins) == expected
+
+def test_optimal_path_has_more_than_two_robbers():
+    """
+    Test where the optimal path contains more than two robbers, requiring a choice
+    of which two to neutralize (the ones with the largest losses).
+    Path R,D,R,D: [0, -1, -3, -4, 0]. Robbers: -1, -3, -4.
+    Neutralize -3 and -4. Sum: 0 + (-1) + 0 + 0 + 0 = -1.
+    Path R,R,D,D: [0, -1, -100, -4, 0]. Robbers: -1, -100, -4.
+    Neutralize -100 and -4. Sum: 0 + (-1) + 0 + 0 + 0 = -1.
+    Path D,R,D,R: [0, -2, -3, -5, 0]. Robbers: -2, -3, -5.
+    Neutralize -3 and -5. Sum: 0 + (-2) + 0 + 0 + 0 = -2.
+    The maximum profit is -1.
+    """
+    coins = [[0, -1, -100], [-2, -3, -4], [-200, -5, 0]]
+    expected = -1
+    assert maximumAmount(coins) == expected
+
+def test_start_cell_is_robber():
+    """
+    Test where the starting cell (0,0) is a robber, which can be neutralized.
+    Path: [-10, 1, 1]. Neutralize -10. Sum: 0 + 1 + 1 = 2.
+    """
+    coins = [[-10, 1], [1, 1]]
+    expected = 2
+    assert maximumAmount(coins) == expected
+
+def test_end_cell_is_robber():
+    """
+    Test where the ending cell is a robber, which can be neutralized.
+    Path: [1, 1, -10]. Neutralize -10. Sum: 1 + 1 + 0 = 2.
+    """
+    coins = [[1, 1], [1, -10]]
+    expected = 2
+    assert maximumAmount(coins) == expected
+
+def test_all_cells_are_robbers_resulting_in_negative_profit():
+    """
+    Test a grid where all cells are robbers. The final profit can be negative.
+    Any path has 3 cells, e.g., [-1, -1, -1].
+    With two neutralizations, the sum is 0 + 0 + (-1) = -1.
+    """
+    coins = [[-1, -1], [-1, -1]]
+    expected = -1
+    assert maximumAmount(coins) == expected
+
+def test_all_zero_value_cells():
+    """
+    Test a grid of all zeros. The profit should be zero.
+    """
+    coins = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
+    # Any path sums to 0.
+    expected = 0
+    assert maximumAmount(coins) == expected
+
+def test_optimal_path_is_high_value_with_small_robber():
+    """
+    Test that the optimal path might be one with a very high value but a small
+    robbery, which is worth neutralizing.
+    Path R,R,D,D: [1, 100, -1, 1, 1]. Neutralize -1. Sum: 1 + 100 + 0 + 1 + 1 = 103.
+    Path D,R,R,D: [1, 1, 1, 1, 1]. No robbers. Sum: 5.
+    The high-value path is better.
+    """
+    coins = [[1, 100, -1], [1, 1, 1], [100, -1, 1]]
+    expected = 103
+    assert maximumAmount(coins) == expected
+
+def test_optimal_path_avoids_robbers_altogether():
+    """
+    Test that sometimes the best path is one that avoids robbers, even if other
+    paths have high-value cells next to robbers.
+    Path D,R,R,D: (0,0)->(1,0)->(1,1)->(1,2)->(2,2) -> values [1,1,1,1,1]. Sum = 5.
+    Path R,R,D,D: (0,0)->(0,1)->(0,2)->(1,2)->(2,2) -> values [1, -10, -100, 1, 1].
+    Neutralizing -10 and -100: 1+0+0+1+1 = 3.
+    The path with no robbers is optimal.
+    """
+    coins = [[1, -10, -100], [1, 1, 1], [-20, -30, 1]]
+    expected = 5
+    assert maximumAmount(coins) == expected
+```
+
+## Failing implementation
+
+```python
+from typing import List
+
+def maximumAmount(coins: List[List[int]]) -> int:
+    m, n = len(coins), len(coins[0])
+    dp = [[[-float('inf')] * 3 for _ in range(n)] for _ in range(m)]
+    dp[0][0][0] = coins[0][0]  # Initialize starting point
+    if coins[0][0] < 0:
+        dp[0][0][1] = 0  # Neutralize if starting cell is a robber
+
+    for i in range(m):
+        for j in range(n):
+            for k in range(3):  # k indicates number of robbers neutralized
+                if i == 0 and j == 0:
+                    continue  # Skip starting cell
+                value = coins[i][j]
+                from_top = -float('inf')
+                if i > 0:
+                    # Option 1: Don't neutralize current cell
+                    from_top = dp[i-1][j][k] + value
+                    # Option 2: Neutralize current cell (if it's a robber)
+                    if value < 0 and k > 0:
+                        from_top = max(from_top, dp[i-1][j][k-1])
+                from_left = -float('inf')
+                if j > 0:
+                    # Option 1: Don't neutralize current cell
+                    from_left = dp[i][j-1][k] + value
+                    # Option 2: Neutralize current cell (if it's a robber)
+                    if value < 0 and k > 0:
+                        from_left = max(from_left, dp[i][j-1][k-1])
+                dp[i][j][k] = max(from_top, from_left)
+
+    return max(dp[m-1][n-1])  # Return the maximum profit at the bottom-right corner
+
+```
+
+## Test execution output
+
+```
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bsb/Code/research-papers/test-spec-gap/self-grading-gap/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /tmp/tmprm5hvdc9/solution
+configfile: pyproject.toml
+plugins: anyio-4.14.1, langsmith-0.10.1, timeout-2.4.0
+collecting ... collected 14 items
+
+tests/test_task.py::test_canonical_example_1 PASSED                      [  7%]
+tests/test_task.py::test_canonical_example_2 PASSED                      [ 14%]
+tests/test_task.py::test_single_cell_grid_with_positive_coins PASSED     [ 21%]
+tests/test_task.py::test_single_cell_grid_with_robber_neutralized PASSED [ 28%]
+tests/test_task.py::test_single_row_grid_with_two_robbers_neutralized PASSED [ 35%]
+tests/test_task.py::test_single_column_grid_with_two_robbers_neutralized PASSED [ 42%]
+tests/test_task.py::test_optimal_path_has_two_robbers_to_neutralize PASSED [ 50%]
+tests/test_task.py::test_optimal_path_has_more_than_two_robbers PASSED   [ 57%]
+tests/test_task.py::test_start_cell_is_robber PASSED                     [ 64%]
+tests/test_task.py::test_end_cell_is_robber PASSED                       [ 71%]
+tests/test_task.py::test_all_cells_are_robbers_resulting_in_negative_profit PASSED [ 78%]
+tests/test_task.py::test_all_zero_value_cells PASSED                     [ 85%]
+tests/test_task.py::test_optimal_path_is_high_value_with_small_robber FAILED [ 92%]
+tests/test_task.py::test_optimal_path_avoids_robbers_altogether PASSED   [100%]
+
+=================================== FAILURES ===================================
+______________ test_optimal_path_is_high_value_with_small_robber _______________
+tests/test_task.py:155: in test_optimal_path_is_high_value_with_small_robber
+    assert maximumAmount(coins) == expected
+E   assert 104 == 103
+E    +  where 104 = maximumAmount([[1, 100, -1], [1, 1, 1], [100, -1, 1]])
+=========================== short test summary info ============================
+FAILED tests/test_task.py::test_optimal_path_is_high_value_with_small_robber
+========================= 1 failed, 13 passed in 0.02s =========================
+
+```
+
+## Method
+
+For EACH failing test in the output: state the inputs it uses, what it expects, trace what
+the implementation computes for those inputs (do the arithmetic explicitly), and name the
+exact line or expression where the computation diverges. Check mechanical causes first —
+import errors, name mismatches, wrong signatures, missing typing imports — before algorithmic
+ones: a mechanical cause explains every failure at once. If several tests fail for one root
+cause, say so once and reference it. If the execution output is insufficient to identify the
+cause of a failure, say exactly that for that test — a wrong guess sends the implementer in
+the wrong direction.
+
+## Output format (exactly this structure)
+
+1. One block per failing test, in this shape:
+   `test_canonical_example_2 — expected 5, got 4, because max_length stops one element early
+   (loop bound uses len(nums)-1)`
+2. A final section headed `FIX DIRECTIVES:` — one directive per line, each a concrete change
+   to the implementation (name the function and the change; a short code fragment is fine),
+   for example:
+   `FIX: in maxLength, change the loop bound from range(len(nums)-1) to range(len(nums))`
+   Do not restate the whole implementation.
