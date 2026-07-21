@@ -17,6 +17,7 @@
 \usepackage{amssymb}
 \usepackage{microtype}
 \usepackage{graphicx}
+\usepackage{float}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 
@@ -118,17 +119,19 @@ tests vetoed them.
 % trace: experiments/exp007_lcb_asymmetry/results/ANALYSIS.md (control)
 
 The most common solution to a model misinterpreting a requirement is to use a stronger model to
-write the tests. LLM-as-a-judge is also a common tool used to review the generated code at every
+write the tests. LLM-as-a-judge is also a common technique used to review the generated code at every
 level. Production systems increasingly follow this asymmetric recipe: use a cheap model to
 generate and a frontier model somewhere in the verification roles. The \emph{test author} turns
 the specification into the test suite; the \emph{judge} reviews tests and code and analyzes
-failures. We test both in two experiments that swap a frontier model (gpt-5.6-terra) into the
-test-author role, the judge role, and both, against a weak generator (gpt-4o-mini), on both
-benchmarks (Sec.~\ref{sec:design}). The result is the paper's central finding:
+failures. We test both by swapping a frontier model into the test-author role, the judge role, and both,
+against a fixed weak generator (gpt-4o-mini) on both benchmarks, and rerun the design across three
+frontier verifiers spanning three providers (GPT-5.6 Terra, Gemini-2.5-Pro, Claude-4.5-Sonnet;
+Sec.~\ref{sec:design}). The result is the paper's central finding:
 \textbf{verification strength is asymmetric}. The false-success rate, the gap proper, does not
-change in any configuration on either benchmark. False rejects collapse to zero in every
-frontier-judge run, and on unseen problems the frontier judge's feedback raises the true success
-rate by five to six problems in thirty ($p{\leq}.03$). It coaches the weak generator toward
+change in any configuration, on either benchmark, or under any of the three verifiers. False rejects
+collapse under the frontier judge---to zero in every LiveCodeBench run with GPT-5.6 Terra---and on
+unseen problems its feedback raises the true success rate by five to six problems in thirty
+($p{\leq}.03$). It coaches the weak generator toward
 better tests and better code, but it keeps its verdicts as blind as the weak judge's. A frontier
 model authoring tests moves nothing at all.
 
@@ -171,8 +174,8 @@ while accepting the same self-consistent failures (Sec.~\ref{sec:discussion}).
 (5)~A reviewed instrument with documented prompt contracts and defect register, plus all
 runners, raw results, analyses, pre-registrations, and a runbook; every experiment
 pre-registered, nulls reported as results.\footnote{Instruments, prompts, pre-registrations,
-raw results, and analyses: \url{https://github.com/integrallis/self-grading-gap} (public on
-publication). \textsc{RGRBench}: \url{https://github.com/integrallis/rgrbench}.}
+raw results, and analyses: \url{https://github.com/integrallis/self-grading-gap}.
+\textsc{RGRBench}: \url{https://github.com/integrallis/rgrbench}.}
 (6)~An application-scale replication on \textsc{RGRBench}, a released 89-package TDD corpus
 with mutation-measured oracle error bars: the gap widens to $\sim$$42\%$, scales with task
 complexity, worsens under refinement, and stays invariant to a frontier judge. An automated
@@ -190,7 +193,8 @@ contamination problem with rolling problem collection~\cite{jain2024livecodebenc
 both. EvalPlus serves as a strong oracle, and for LiveCodeBench we use a post-cutoff window as a
 hidden oracle. In the TDD pipeline, when the tests are weak, the overestimation occurs inside
 the loop, and the pipeline's self-assessment shows the same blindness EvalPlus documented for
-benchmarks. At the scale of repositories, we can now measure this overestimation directly:
+benchmarks. At repository scale (whole software projects, not single functions), the same
+overestimation has been measured directly:
 strengthened or held-out suites reject around one in five to one in three of the patches
 accepted by a benchmark's original tests~\cite{ahmed2025overfitting,yu2026sweabs}. Our
 verification gap is the TDD-internal, agent-native manifestation of this result, measured
@@ -271,17 +275,29 @@ the oracle rejects, the \emph{false accepts}. We report it as a per-run count ov
 where the denominator matters, as the \emph{conditional gap} $|G| / |\{ i : s_i = 1 \}|$, the
 probability that a claimed success is wrong. The complementary error set
 $R = \{\, i : s_i = 0 \wedge o_i = 1 \,\}$ (\emph{false rejects}: correct code vetoed by the
-pipeline's own tests) completes the picture; self-verification error runs in both directions.
+pipeline's own tests) completes the picture; self-verification error runs in both directions
+(Table~\ref{tab:confusion}).
 
-\begin{figure}[t]
+\begin{table}[H]
 \centering
-\includegraphics[width=0.9\linewidth]{figures/fig1_loop.png}
-\caption{The pipeline authors tests $T$ and code $y$, grades
-itself by running $T(y)$, and emits self-verdict $s_i$; the oracle sees $y$ but never $T$.
-The verification gap is the set of problems where the two verdicts disagree in the pipeline's
-favor.}
-\label{fig:loop}
-\end{figure}
+\small
+\caption{Self-verification as a $2\times2$ confusion matrix: the pipeline's self-verdict $s_i$
+against the held-out oracle $o_i$. The loop observes only the rows---its own verdict; the columns
+are hidden from it. Both off-diagonal cells are errors, but they differ in visibility: a
+\emph{false reject} fails the pipeline's own tests and can be re-examined, whereas a
+\emph{false accept} passes them and is, from inside the loop, indistinguishable from a true
+success. The verification gap $G$ is the upper-right cell (what \emph{soundness} concerns); the
+false rejects $R$ are the lower-left (what \emph{completeness} concerns).}
+\label{tab:confusion}
+\begin{tabular}{lcc}
+\toprule
+ & oracle pass ($o_i{=}1$) & oracle fail ($o_i{=}0$) \\
+\midrule
+self-verdict accept ($s_i{=}1$) & true accept & \textbf{false accept} ($G$) \\
+self-verdict reject ($s_i{=}0$) & \textbf{false reject} ($R$) & true reject \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 Every element of $G$ is, by construction, a case of \emph{self-consistent misalignment}: $y_i$
 satisfies $T_i$, and both jointly deviate from $\mathit{spec}_i$. The gap is therefore not a
@@ -291,6 +307,16 @@ tests inherit. In the vocabulary of TDD practice, every gap member is an ugly
 mirror~\cite{rudolph2008uglymirror} the pipeline built for itself: the tests reflect an
 interpretation rather than the specification, and the implementation faithfully mirrors the
 tests.
+
+\begin{figure}[b]
+\centering
+\includegraphics[width=0.9\linewidth]{figures/fig1_loop.png}
+\caption{The pipeline authors tests $T$ and code $y$, grades
+itself by running $T(y)$, and emits self-verdict $s_i$; the oracle sees $y$ but never $T$.
+The verification gap is the set of problems where the two verdicts disagree in the pipeline's
+favor.}
+\label{fig:loop}
+\end{figure}
 
 \subsection{Subject pipeline}
 
@@ -349,7 +375,7 @@ will see''), the task description and full specification, the scenario list, the
 one-line derivation comment. Five rules follow (test only specified behavior; exact
 signatures; computed expected values; import from the solution package; plain pytest). On
 retries, the judge's directives and the previous attempt are appended. Output contract: one
-fenced Python block; code is never requested as JSON.
+fenced Python block.
 
 \emph{RED judge.} Judges one question, whether the suite faithfully verifies the
 specification, via ordered checks: canonical-example coverage (an anchoring block mirroring the
@@ -358,7 +384,7 @@ generator's; a missing or altered example forces the minimum score), assertion f
 sanity. A deduction schedule maps findings to a score; the response must end with the exact
 line \texttt{Final score: <x.xx>}, and feedback is emitted as apply-verbatim
 \texttt{ADD:}/\texttt{REMOVE:}/\texttt{FIX:} directives, the feedback channel that
-Sec.~\ref{sec:discussion} shows doing the real work.
+Sec.~\ref{sec:discussion} shows doing the work.
 
 \emph{GREEN generator.} The tests are presented as the acceptance criterion; rules forbid
 hardcoding test inputs and invented behavior; output is a single JSON object carrying the
@@ -392,7 +418,7 @@ Three requirements make the gap measurable rather than anecdotal (Algorithm~\ref
 \Require pipeline $P$, problems $\mathcal{P}$, held-out oracle suites $O$, runs $N$
 \For{each problem $i \in \mathcal{P}$, run $r \in 1..N$}
   \State $(y_{ir}, T_{ir}, s_{ir}) \gets P(i)$ \Comment{harness captures artifacts + the executed self-verdict}
-  \State $o_{ir} \gets \mathrm{Exec}(O_i \text{ on } y_{ir})$ \Comment{standard harness (EvalPlus / LCB), outside the loop}
+  \State $o_{ir} \gets \mathrm{Exec}(O_i \text{ on } y_{ir})$ \Comment{standard harness (EvalPlus / LCB / RGRBench adapter), outside the loop}
 \EndFor
 \State $G \gets \{ (i,r) : s_{ir}{=}1 \wedge o_{ir}{=}0 \}$;\quad $R \gets \{ (i,r) : s_{ir}{=}0 \wedge o_{ir}{=}1 \}$
 \State \Return $G, R$, per-run provenance and cost
@@ -403,9 +429,11 @@ Three requirements make the gap measurable rather than anecdotal (Algorithm~\ref
 harness observes, not a claim the pipeline makes about itself: the executed result of the
 pipeline's own final test run, captured with per-call token and cost accounting. The oracle
 verdict is computed on the produced implementation, outside the loop, by the benchmark's own
-harness: EvalPlus~\cite{liu2023evalplus} for HumanEval and LiveCodeBench's
-evaluator~\cite{jain2024livecodebench} for the hidden-test problems. Every number in this paper
-derives from these two captured streams and is regenerable from committed per-run artifacts.
+harness: EvalPlus~\cite{liu2023evalplus} for HumanEval, LiveCodeBench's
+evaluator~\cite{jain2024livecodebench} for the hidden-test problems, and, at application scale,
+RGRBench's hand-verified suites through the non-cheating adapter
+(Sec.~\ref{sec:results-scale}). Every number in this paper derives from these two captured
+streams---the self-verdict and the oracle---and is regenerable from committed per-run artifacts.
 % trace: src/vgap/pipeline/humaneval_runner.py, lcb_runner_local.py;
 % trace: experiments/exp007_lcb_asymmetry/score_lcb.py (harness-side scoring)
 
@@ -434,35 +462,44 @@ literature, cannot distinguish intervention effects of this size from run-to-run
 \section{Study Design}
 \label{sec:design}
 
-The study asks four questions. \textbf{RQ1 (phenomenon):} how large is the verification
-gap, against visible-adjacent, strong, and hidden oracles, and how does it decompose into
-false accepts and false rejects? \textbf{RQ2 (asymmetry):} does a frontier model in the
-verification roles (as test author, as LLM-as-a-judge reviewer, or both) close the gap?
-\textbf{RQ3 (mechanism):} when a stronger verifier does help, does the improvement flow
-through its \emph{verdicts} (better gatekeeping) or through its \emph{feedback} (better
-generation)? \textbf{RQ4 (scale):} do the gap's magnitude and its invariance to verifier
-strength survive the move from single-function algorithms to application-scale, multi-concern
-programs, and how does the gap respond to task complexity and to the loop's own refinement?
+The study asks four questions.
+\begin{description}
+\item[\textbf{RQ1 (phenomenon).}] How large is the verification gap, against visible-adjacent,
+strong, and hidden oracles, and how does it decompose into false accepts and false rejects?
+\item[\textbf{RQ2 (asymmetry).}] Does a frontier model in the verification roles (as test author,
+as LLM-as-a-judge reviewer, or both) close the gap?
+\item[\textbf{RQ3 (mechanism).}] When a stronger verifier does help, does the improvement flow
+through its \emph{verdicts} (better gatekeeping) or through its \emph{feedback} (better generation)?
+\item[\textbf{RQ4 (scale).}] Do the gap's magnitude and its invariance to verifier strength survive
+the move from single-function algorithms to application-scale, multi-concern programs, and how does
+the gap respond to task complexity and to the loop's own refinement?
+\end{description}
 
-\paragraph{Experiments.} Two experiments share one design with four conditions
-(\emph{cells}): weak model W (gpt-4o-mini)\footnote{\texttt{gpt-4o-mini} is OpenAI's GPT-4o mini;
-\texttt{gpt-5.6-terra} is the mid-tier model of OpenAI's GPT-5.6 family, released 2026-07-09
-(model card: \url{https://developers.openai.com/api/docs/models/gpt-5.6-terra}). Both are accessed
-through the OpenAI API via a LiteLLM shim.} generates code in every cell; a frontier model S
-(gpt-5.6-terra) replaces W in the test-author role, the judge role (all three judge duties),
-or both; the control is W everywhere. $N{=}5$ runs per cell, $30$ problems per run,
-escalation off, judge threshold and retries fixed across cells. Both experiments were
-\emph{pre-registered}: hypotheses, decision rules, and budget caps were committed to the
-repository before the first API call, so the analyses test predictions rather than fit them.
-The first experiment (exp006) runs a HumanEval subset enriched for previously unstable
-problems, scored by both EvalPlus oracles. The second (exp007) replicates it on
-contamination-controlled ground: all $19$ easy plus the first $11$ medium LeetCode problems
-from LiveCodeBench release~v6 with contest dates $\geq$~2025-01-01, selected by a
-deterministic rule fixed in advance after a pilot located the weak model's measurable band, and
-scored by the private LCB suites. The FR reduction and FA invariance observed in exp006 were
-registered as confirmatory predictions for exp007 before its first API call.
-% trace: experiments/exp006_model_asymmetry/README.md, exp007_lcb_asymmetry/README.md
-% (pre-registrations); experiments/pilots/README.md (band-location pilot)
+\paragraph{Experiments.} The model experiments share one asymmetry design with four conditions
+(\emph{cells}): a weak model W (\texttt{gpt-4o-mini}) generates code in every cell; a frontier
+verifier S replaces W in the test-author role, the judge role (all three judge duties), or both;
+the control is W everywhere. We fill the role S with three verifiers spanning three
+providers---GPT-5.6 Terra, Gemini-2.5-Pro, and Claude-4.5-Sonnet\footnote{\texttt{gpt-4o-mini} is
+OpenAI's GPT-4o mini. The verifiers are OpenAI's \texttt{gpt-5.6-terra} (the mid-tier GPT-5.6 model,
+released 2026-07-09; model card
+\url{https://developers.openai.com/api/docs/models/gpt-5.6-terra}), Google's \texttt{gemini-2.5-pro}
+(via Vertex AI), and Anthropic's \texttt{claude-sonnet-4-5}. All models are called through a LiteLLM
+shim.}---and run the design on both benchmarks for each. $N{=}5$ runs per cell, $30$ problems per
+run, escalation off, judge threshold and retries fixed across cells. Every experiment was
+\emph{pre-registered}: hypotheses, decision rules, and budget caps were committed to the repository
+before the first API call, so the analyses test predictions rather than fit them. The primary pair
+uses GPT-5.6 Terra: exp006 runs a HumanEval subset enriched for previously unstable problems, scored
+by both EvalPlus oracles, and exp007 replicates it on contamination-controlled ground---all $19$ easy
+plus the first $11$ medium LeetCode problems from LiveCodeBench release~v6 with contest dates
+$\geq$~2025-01-01, selected by a deterministic rule fixed in advance after a pilot located the weak
+model's measurable band, and scored by the private LCB suites; the FR reduction and FA invariance
+observed in exp006 were registered as confirmatory predictions for exp007 before its first API call.
+A pre-registered replication (exp011) then reruns both benchmark designs with the two non-OpenAI
+verifiers, Gemini-2.5-Pro and Claude-4.5-Sonnet, to test whether the soundness null depends on the
+choice of frontier model (Sec.~\ref{sec:results-asym}).
+% trace: experiments/exp006_model_asymmetry/README.md, exp007_lcb_asymmetry/README.md,
+% exp011_verifier_generalization/PRE_REGISTRATION.md (pre-registrations);
+% experiments/pilots/README.md (band-location pilot)
 
 \paragraph{The application-scale experiment.} A third experiment (exp010) moves to
 \textsc{RGRBench}'s $89$ packages. The pipeline receives only each package's requirements
@@ -470,7 +507,7 @@ document (user-story acceptance criteria derived from the tests alone, with the 
 themselves never shown) and is graded by the hidden hand-verified suite through a non-cheating
 adapter (Sec.~\ref{sec:results-scale}). The design keeps the soundness-invariance contrast in its most
 consequential form: a \emph{control} cell (weak model in every role) against a
-\emph{strong-judge} cell (frontier model in all judge duties), $N{=}3$ runs per package per
+\emph{strong-judge} cell (GPT-5.6 Terra in all judge duties), $N{=}3$ runs per package per
 cell ($534$ runs). Because RGRBench labels each package by difficulty tier and the harness
 records whether a claim arrived on the first attempt or only after retries, the same runs test
 whether the gap scales with complexity (H-D4) and whether refinement worsens it (H-D2), both
@@ -488,14 +525,13 @@ as per-run totals, never as single runs. Null results are reported as results.
 \paragraph{Telemetry.} Every LLM call is logged with token counts, cost, and a
 problem/cell/run tag. This telemetry is what makes the mechanism analysis of
 Sec.~\ref{sec:results-mech} possible, and it ships with the artifact.
-Table~\ref{tab:config} lists the configuration held fixed across all cells and the
-per-experiment spend.
+Table~\ref{tab:config} lists the configuration held fixed across all cells.
 % trace: per-run usage.jsonl files; totals in each asym_summary.json
 
 \begin{table}[t]
 \centering
 \small
-\caption{Pipeline configuration held fixed across all cells, and per-experiment API spend.
+\caption{Pipeline configuration held fixed across all cells.
 The frontier model is called at its provider-default temperature; \texttt{max\_tokens},
 \texttt{top\_p}, and seed are left unset (provider defaults).}
 \label{tab:config}
@@ -510,8 +546,6 @@ Judge acceptance threshold $\tau$ & $0.70$ \\
 Retries $R$ (RED and GREEN) & $3$ \\
 Test-execution timeout & $30$\,s \\
 Oracle-execution timeout & $120$\,s \\
-\midrule
-API spend: exp006 / exp007 / exp010 & \$14.72 / \$37.32 / \$50.78 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -589,7 +623,7 @@ three ways of inserting a frontier model into verification: no false-accept cont
 the decision bar. On HumanEval the counts do not even move directionally with the judge
 ($4.0 \to 3.2/4.4/3.4$, all $p{=}1.0$; the frontier-judge cell sits \emph{above} control);
 on LiveCodeBench they lean down ($4.8 \to 2.8/2.4/3.0$) but no contrast is significant
-($p \in [0.125, 0.375]$), and we report the direction honestly: at $N{=}5$ an effect this
+($p \in [0.125, 0.375]$), and we report the direction: at $N{=}5$ an effect this
 size cannot be distinguished from run noise. This was the pre-registered confirmatory
 prediction (H-B2), and it held: the probability that a claimed success is wrong stays
 material, $2.4$--$4.4$ per run, whoever grades. The residual false accepts are not
@@ -697,13 +731,28 @@ of $261$ valid runs end in a self-claimed success, and $41.5\%$ of those claims 
 hand-verified oracle ($95\%$ Wilson CI $[30.4, 53.7]$); the strong-judge cell claims $50$
 successes over $251$ valid runs at a statistically indistinguishable $42.0\%$
 ($[29.4, 55.8]$). This is roughly double the $18\%$/$29\%$ of the algorithmic benchmarks, and
-even the lower confidence bound ($30\%$) exceeds their point estimates. RGRBench grades a
+even the lower confidence bound ($30\%$) exceeds their point estimates.
+Figure~\ref{fig:misalignment} makes one of these false accepts concrete on a fully specified
+package. RGRBench grades a
 candidate through a generated \emph{adapter} that re-exposes it under the oracle's expected
 import names, statically constrained so it can carry no behavior of its own, so we can bound
 the adapter's contribution to these numbers directly; an automated calibration puts it at
 $0.000$ (Sec.~\ref{sec:threats}). Three pre-registered properties sharpen the picture
 (Table~\ref{tab:scale}).
 % trace: exp010 results/ANALYSIS.md (control/strong_judge H-D1); calibration/calibration.json
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/fig6_misalignment.png}
+\caption{A false accept on a fully specified requirement (RGRBench's \texttt{numbers\_to\_words}).
+AC-5.1 pins the error \emph{message} but not its Python \emph{type}; the pipeline's own test
+accepts any \texttt{Exception}, the code raises one, and the two agree---so the loop reports
+success. The held-out oracle encodes the idiomatic contract (\texttt{ValueError}), which a bare
+\texttt{Exception} does not satisfy, and two of the twenty-two tests fail. The tests inherited the
+code's misreading, so nothing inside the loop could catch it. Full requirements, tests, code, and
+oracle in App.~\ref{app:telephone}.}
+\label{fig:misalignment}
+\end{figure}
 
 \begin{table}[t]
 \centering
@@ -796,7 +845,7 @@ five-to-six-problem pass-rate lift on unseen problems, is not a verification eff
 is the frontier judge \emph{teaching} the weak pipeline through demanded tests and directive
 feedback, visible in the tripled suite sizes and the recovered cycle completions. This
 reframes the production intuition that motivated the experiments: asymmetric deployments
-(cheap generator, frontier model in the loop) are genuinely valuable, and our data says the
+(cheap generator, frontier model in the loop) are valuable, and our data says the
 value concentrates in the judge seat rather than the test-author seat. But the mechanism is
 generation quality rather than verdict quality. The verdicts that matter for trust, ``this is
 correct, ship it,'' are exactly as unreliable as before.
@@ -832,7 +881,8 @@ an external oracle (a customer, a failing production case) could expose the misr
 self-testing agent removes that oracle and re-runs the same misunderstanding at inference
 speed. The pattern holds even when the input is pre-structured. On RGRBench the pipeline is
 handed a user-story requirements document with explicit acceptance criteria, not a bare
-prompt, and the false-accept rate is still $42\%$. Structure at the story level does not
+prompt, and the false-accept rate is still $42\%$ (Figure~\ref{fig:misalignment} traces one such
+false accept end to end). Structure at the story level does not
 remove the interpretive freedom of the natural-language-to-test step where the gap is born.
 
 \paragraph{Attacking the initial conditions.} If the gap is set at comprehension, the lever our
@@ -923,7 +973,7 @@ hand-verified, error-barred oracles), then paid for the obvious remedy: a fronti
 the verification roles. The report card is wrong about roughly one claimed success in four,
 and it stays wrong under a frontier test author, a frontier judge, and both at once---and under
 all three frontier verifiers we tried, across three providers. What the
-frontier judge buys is real and worth buying: false rejects vanish, and on unseen problems its
+frontier judge buys is worth buying: false rejects vanish, and on unseen problems its
 feedback lifts true pass rates by a third. But it is a better coach, not a better gatekeeper,
 and every gain arrives through the feedback channel while the accept verdicts stay blind.
 Verification strength inside a self-testing loop purchases completeness, never soundness. And
@@ -1058,7 +1108,130 @@ rejects.
 
 \paragraph{At application scale.} The same signature recurs on RGRBench. The
 \texttt{strong\_judge} run on \texttt{numbers\_to\_words} self-certifies, yet the held-out oracle
-passes only $20$ of its $22$ tests. The per-package artifacts (self-authored tests, generated
-package, and oracle outcome) are committed for all $534$ runs.
+passes only $20$ of its $22$ tests; App.~\ref{app:telephone} reproduces this false accept in
+full. The per-package artifacts (self-authored tests, generated package, and oracle outcome) are
+committed for all $534$ runs.
+
+\section{An RGRBench false accept in full: \texttt{numbers\_to\_words}}
+\label{app:telephone}
+
+The false accept of Figure~\ref{fig:misalignment}, laid out end to end. The pipeline sees only
+the requirements below; from them it authors its tests and its implementation, and reports success
+once the implementation passes those tests. The held-out oracle is applied afterward and never
+enters the loop. The implementation is correct on every spelling rule; the single defect is the
+exception \emph{type} on the range check---which the requirement leaves implicit (it fixes the
+message, not the type), the pipeline's own test does not pin down (it accepts any
+\texttt{Exception}), and the oracle does (it demands \texttt{ValueError}).
+
+\paragraph{Requirements given to the pipeline.} User-story narratives are elided; the acceptance
+criteria are verbatim.
+\begin{small}
+\begin{verbatim}
+# Spelling numbers as English words
+
+## Overview
+A number-spelling service turns any whole number from 0 through
+9999 into its English words, following everyday conventions:
+hyphenated compounds for twenty-one through ninety-nine, no "and"
+between parts, and plain spaces between the thousands, hundreds,
+and remainder portions.
+
+### US-1: Spelling numbers up to twenty
+- AC-1.1: Zero is spelled "zero", and single digits use their
+  names, such as "five" and "eight".
+- AC-1.2: Ten is spelled "ten", and the teens are single
+  unhyphenated words, such as "thirteen" and "nineteen".
+
+### US-2: Spelling two-digit numbers
+- AC-2.1: Round tens are single words with no hyphen, such as
+  "twenty" and "ninety".
+- AC-2.2: Other two-digit numbers are hyphenated tens-units
+  compounds: 21 is "twenty-one", 77 is "seventy-seven", and 99
+  is "ninety-nine".
+
+### US-3: Spelling hundreds
+- AC-3.1: 100 is "one hundred"; the leading "one" is always kept.
+- AC-3.2: A hundreds part is followed by the spelled remainder
+  separated by a space: 303 is "three hundred three", 555 is
+  "five hundred fifty-five", and 115 is "one hundred fifteen".
+- AC-3.3: The word "and" never joins the hundreds to the
+  remainder.
+
+### US-4: Spelling thousands
+- AC-4.1: 1000 is "one thousand" with the leading "one" kept,
+  and round thousands follow the same pattern, such as "two
+  thousand".
+- AC-4.2: The thousands part is followed by the spelled
+  remainder: 2400 is "two thousand four hundred", 3466 is "three
+  thousand four hundred sixty-six", and an empty hundreds part is
+  simply omitted, so 5005 is "five thousand five".
+- AC-4.3: The largest supported number, 9999, is "nine thousand
+  nine hundred ninety-nine".
+
+### US-5: Rejecting numbers outside the range
+- AC-5.1: Negative numbers are rejected with an error whose
+  message includes "must be in 0..9999".
+- AC-5.2: Numbers greater than 9999 are rejected with the same
+  error message wording.
+\end{verbatim}
+\end{small}
+
+\paragraph{Tests the pipeline authored (range check).} It also wrote a passing test for every
+spelling rule; the two range checks are the ones that decide this case. Each asks only for a
+generic \texttt{Exception}.
+\begin{small}
+\begin{verbatim}
+def test_reject_negative_numbers():
+    with pytest.raises(Exception, match=r"must be in 0\.\.9999"):
+        number_to_words(-1)                        # AC-5.1
+
+def test_reject_numbers_greater_than_[...]ninety_nine():
+    with pytest.raises(Exception, match=r"must be in 0\.\.9999"):
+        number_to_words(10000)                     # AC-5.2
+\end{verbatim}
+\end{small}
+
+\paragraph{The generated implementation.} Digit tables and the remainder-spelling branch (both
+correct) are elided with \texttt{...} and \texttt{[...]}; all other lines are verbatim. The range
+check raises a bare \texttt{Exception}.
+\begin{small}
+\begin{verbatim}
+def number_to_words(n):
+    if n < 0 or n > 9999:
+        raise Exception("must be in 0..9999")
+    if n == 0:
+        return "zero"
+    units = ["", "one", "two", ...]      # digit tables abbreviated
+    teens = ["ten", "eleven", "twelve", ...]
+    tens = ["", "", "twenty", "thirty", ...]
+    thousands = n // 1000
+    hundreds = (n % 1000) // 100
+    remainder = n % 100
+    words = []
+    if thousands:
+        words.append(units[thousands] + " thousand")
+    if hundreds:
+        words.append(units[hundreds] + " hundred")
+    if remainder:
+        [...]  # spell the 0..99 remainder, hyphenating 21..99
+    return " ".join(words)
+\end{verbatim}
+\end{small}
+
+\paragraph{The held-out oracle (applied after the loop).} The other twenty tests cover the
+spelling rules and all pass; the two range checks demand \texttt{ValueError}, which a bare
+\texttt{Exception} is not, so running the full oracle against the implementation gives $20$ of
+$22$.
+\begin{small}
+\begin{verbatim}
+def test_negative_numbers_are_rejected() -> None:
+    with pytest.raises(ValueError, match="must be in 0..9999"):
+        number_to_words(-1)
+
+def test_numbers_above_9999_are_rejected() -> None:
+    with pytest.raises(ValueError, match="must be in 0..9999"):
+        number_to_words(10000)
+\end{verbatim}
+\end{small}
 
 \end{document}
