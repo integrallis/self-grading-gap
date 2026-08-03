@@ -40,41 +40,27 @@
 \maketitle
 
 \begin{abstract}
-Test-Driven Development (TDD), born in the early 2000s, treats the test as a runnable
-specification: write the test first, then only the code needed to pass it. Agentic software
-engineering today rediscovers that loop at machine speed. An LLM writes tests for a
-natural-language specification, an LLM writes code against the specification, LLM-as-a-judge
-reviewers gate each step, and the pipeline reports success once its code passes its own tests.
-The only way TDD could guarantee this is if a human could understand precisely what the
-specification intended. When models write the tests and code, nothing in the loop checks if the
-tests mean what the specification says. We call this failure mode the \emph{verification gap}:
-problems a pipeline reports as solved fail held-out benchmark tests that the pipeline never
-sees. We measure an instrumented TDD pipeline on two benchmarks, HumanEval and a LiveCodeBench
-window published after the generating model's training cutoff. The gap is systematic. When a single
-cheap model writes the tests, writes the code, and judges both, about one reported success in
-four is false, and every wrong one has
-the same signature: tests and code that agree with each other but not with the specification.
-We then test the remedy builders reach for: a frontier model as the test author or the
-LLM-as-a-judge reviewer. The upgrade drives the efficiency of the loop. Wrongly rejected correct
-solutions go to zero and on the unseen problems the frontier reviewer's feedback improves true
-success rates by a third. The rate of false success claims, however, does not move---not under a
-frontier test author or judge, and not across the three frontier verifiers we test, spanning three
-providers.
-
-Model strength inside the loop buys completeness, not soundness. The recipe and its caveat are
-both concrete for builders: a cheap generator coached by a frontier reviewer is an efficient
-production configuration, but its ``all tests pass'' means the code agrees with its own tests,
-which is not the same as being correct, so shipping decisions still need one check from outside
-the loop, such as held-out tests or differential verification.
-
-Both benchmarks so far are single-function algorithms, whereas real applications are more
-complex assemblies of interconnected entities collaborating to achieve a goal. To check that this gap is not an
-artifact of the simpler code benchmarks, we replicate on \textsc{RGRBench}, a released corpus of $89$
-application-scale, multi-concern Python packages whose hand-verified oracles carry measured
-error bars. The gap widens at scale; the ratio of claimed successes that are failures is two in
-five. The rate increases with application complexity and it gets worse as the pipeline retries
-itself. A frontier judge leaves it untouched again, and three independent instruments all land
-in the same range. We release all instruments, prompts, raw results, and analyses.
+Agentic software engineering rediscovers the Test-Driven Development loop at machine speed:
+an LLM writes tests from a natural-language specification, an LLM writes code against those
+tests, LLM-as-a-judge reviewers gate each step, and the pipeline reports success once its
+code passes its own tests. Nothing in that loop checks whether the tests mean what the
+specification says. We call the resulting failure mode the \emph{verification gap}: problems
+a pipeline reports as solved that fail held-out benchmark tests it never sees. On HumanEval
+and a post-training-cutoff LiveCodeBench window, an instrumented TDD pipeline shows the gap
+is systematic: when a single cheap model writes the tests, writes the code, and judges both,
+about one reported success in four is false, always with the same signature---tests and code
+that agree with each other but not with the specification. The remedy builders reach for, a
+frontier model as test author or judge, buys completeness, not soundness: wrongly rejected
+correct solutions go to zero and frontier-judge feedback lifts true success on unseen
+problems by a third, but the false-success rate does not move---not under a frontier test
+author or judge, and not for any of three frontier verifiers spanning three providers.
+Replicating on \textsc{RGRBench}, a released corpus of $89$ application-scale, multi-concern
+Python packages with hand-verified, error-barred oracles, the gap widens to two claimed
+successes in five, grows with application complexity, worsens as the pipeline retries itself,
+and is again untouched by a frontier judge. A cheap generator coached by a frontier reviewer
+is an efficient configuration, but ``all tests pass'' means only that the code agrees with
+its own tests, so shipping decisions need one check from outside the loop. We release all
+instruments, prompts, raw results, and analyses.
 \end{abstract}
 
 \section{Introduction}
@@ -737,7 +723,11 @@ On RGRBench the gap is not a small-problem artifact; it is larger. In the contro
 of $261$ valid runs end in a self-claimed success, and $41.5\%$ of those claims fail the
 hand-verified oracle ($95\%$ Wilson CI $[30.4, 53.7]$); the strong-judge cell claims $50$
 successes over $251$ valid runs at a statistically indistinguishable $42.0\%$
-($[29.4, 55.8]$). This is roughly double the $18\%$/$29\%$ of the algorithmic benchmarks, and
+($[29.4, 55.8]$). The design's $267$ runs per cell reduce to $261$ and $251$ valid runs
+because the pre-registered protocol excludes evaluations with no usable oracle verdict: in
+$21$ of the $22$ excluded runs the oracle collected zero tests because the generated adapter
+failed to import the candidate package at collection time, and one control run failed on a
+harness environment error. This is roughly double the $18\%$/$29\%$ of the algorithmic benchmarks, and
 even the lower confidence bound ($30\%$) exceeds their point estimates.
 Figure~\ref{fig:misalignment} makes one of these false accepts concrete on a fully specified
 package. RGRBench grades a
@@ -1009,7 +999,9 @@ crashes on 2026 models, usage-logger stacking) and nine behavioral defects
 the study instrument; B-10's underlying mechanism was later removed outright, so the failure
 analyst no longer produces code at all and nothing the judge writes can ship. The
 prompt templates were separately rewritten after review (Sec.~\ref{sec:prompts}). Identifiers are stable against the
-repository's full register, which includes locations, failure scenarios, and dispositions.
+repository's full register, which includes locations, failure scenarios, and dispositions;
+that register never assigned the identifier B-9, so the nine behavioral defects carry the
+identifiers B-1--B-8 and B-10, and Table~\ref{tab:register} has no B-9 row by construction.
 % trace: src/vgap/pipeline/REVIEW.md (B-9 was never assigned; IDs kept stable)
 
 \begin{table}[h]
