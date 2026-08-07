@@ -28,7 +28,10 @@ Identical to exp010's strong-judge cell in every respect except the RED/GREEN ju
 - **Runs per package:** **N=1** at each new τ (89 runs/τ). This powers aggregate accept/FA rates
   per τ, not per-package run variance; a confirmatory N=3 at the single matched-acceptance τ is a
   pre-approved cheap follow-up if that point lands informatively.
-- **Budget cap:** $60 hard stop (`spent_usd` gate); if hit, report exactly where it stopped.
+- **Budget cap:** $120 hard stop (`spent_usd` gate). Raised from $60 to $120 before the run,
+  authorized after a smoke run measured the per-run cost at $0.358 (3m42s, 26 calls) — the full
+  89-package × 3-τ × N=1 design projects to ~$96. If the cap is hit, report exactly where it
+  stopped (honest partial).
 - **Exclusions:** the exp010 rule unchanged — runs whose oracle collects no tests (adapter import
   failure / harness error) are invalid and dropped; report the count per τ.
 
