@@ -1,0 +1,38 @@
+# test_fibonacci.py
+
+import pytest
+from solution import fibonacci
+
+def test_fibonacci_position_1():
+    # The number at position 1 is defined as 0.
+    assert fibonacci(1) == 0
+
+def test_fibonacci_position_2():
+    # The number at position 2 is defined as 1.
+    assert fibonacci(2) == 1
+
+def test_fibonacci_position_3():
+    # The number at position 3 is defined as 1.
+    assert fibonacci(3) == 1
+
+def test_fibonacci_position_6():
+    # The number at position 6 is defined as 5.
+    # Fibonacci sequence: 0, 1, 1, 2, 3, 5
+    assert fibonacci(6) == 5
+
+def test_fibonacci_position_10():
+    # The number at position 10 is defined as 34.
+    # Fibonacci sequence: 0, 1, 1, 2, 3, 5, 8, 13, 21, 34
+    assert fibonacci(10) == 34
+
+def test_fibonacci_negative_position():
+    # A negative position is refused as an invalid value.
+    with pytest.raises(ValueError) as excinfo:
+        fibonacci(-1)
+    assert str(excinfo.value) == "Fibonacci sequence is not defined for negative numbers"
+
+def test_fibonacci_efficiency():
+    # Testing memoization/effectiveness for larger positions
+    assert fibonacci(30) == 832040  # The number at position 30 is 832040
+    assert fibonacci(31) == 1346269  # The number at position 31 is 1346269
+    assert fibonacci(32) == 2178309  # The number at position 32 is 2178309
