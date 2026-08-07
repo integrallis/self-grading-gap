@@ -57,7 +57,7 @@ author or judge, and not for any of three frontier verifiers spanning three prov
 Replicating on \textsc{RGRBench}, a released corpus of $89$ application-scale, multi-concern
 Python packages with hand-verified, error-barred oracles, the gap widens to two claimed
 successes in five, grows with application complexity, worsens as the pipeline retries itself,
-and is again untouched by a frontier judge. A cheap generator coached by a frontier reviewer
+and is again not reduced by a frontier judge. A cheap generator coached by a frontier reviewer
 is an efficient configuration, but ``all tests pass'' means only that the code agrees with
 its own tests, so shipping decisions need one check from outside the loop. We release all
 instruments, prompts, raw results, and analyses.
@@ -813,10 +813,11 @@ at application scale on a third independent instrument (the false-reject collaps
 reads differently here---see the next paragraph). Across HumanEval\texttt{+}
 ($18\%$), a post-cutoff LiveCodeBench window ($29\%$), and RGRBench ($42\%$), and alongside
 the external SWE-bench overfitting measurements
-($\sim$$20$–$33\%$~\cite{ahmed2025overfitting,yu2026sweabs}), the false-accept rate of a
-self-testing loop reads as a stable, oracle-independent regularity across the settings we test
-(Figure~\ref{fig:convergence}), one that verifier strength does not touch. We report this as a
-recurring pattern under three oracles and one pipeline family, not as a constant of nature.
+($\sim$$20$–$33\%$~\cite{ahmed2025overfitting,yu2026sweabs}), the false-accept gap of a
+self-testing loop appears under every oracle we test (Figure~\ref{fig:convergence}) and is not
+reduced by verifier strength. We report this as a recurring pattern under three oracles and one
+pipeline family; the threshold sweep below shows it is a tradeoff a stronger verifier shifts
+unfavorably, not a constant of nature.
 % trace: exp010 results/ANALYSIS.md (H-D1/H-D3); exp006/exp007 ANALYSIS.md (conditional FA)
 
 \paragraph{At application scale the judge gates rather than coaches.} Read as a full confusion
@@ -833,17 +834,55 @@ self-authored test suite on $189$ of $251$ packages, which are abandoned before 
 vanish not because correct solutions are recovered but because they are never produced---the mass
 moves from FR into TR. At application scale the frontier judge buys neither soundness
 ($41.5\% \to 42.0\%$) nor net completeness ($38 \to 29$ true accepts); the coaching effect we
-report on single-function problems (Sec.~\ref{sec:discussion}) does not replicate here. Across
-all three instruments the one quantity that stays put is the false-accept rate.
+report on single-function problems (Sec.~\ref{sec:discussion}) does not replicate here. And even
+the false-accept rate itself is not fixed: it is set by the RED acceptance threshold, swept next.
 % trace: exp010 results/ (result.json: self_verdict x oracle.pass_fraction; red_attempts/green_attempts)
+
+\paragraph{The false-accept rate is a threshold tradeoff, not a constant.} The $42\%$ above is one
+operating point. A pre-registered sweep of the RED acceptance threshold $\tau$ on the strong-judge
+cell (exp013; $\tau \in \{0.40, 0.55, 0.70, 0.85\}$) moves it across $33$--$68\%$
+(Table~\ref{tab:tausweep}): loosening the gate ($\tau{:}\,0.70 \to 0.40$) raises the rate from
+$42\%$ to $67.6\%$ [$51.5, 80.4$] as more claims are admitted; tightening it throttles output
+without pushing the rate below $\sim$$42\%$. The matched comparison is clean: at $\tau{=}0.40$ the
+frontier judge admits \emph{more} claims than the weak control ($43.0\%$ against $24.9\%$) at a
+\emph{worse} false-accept rate ($67.6\%$ against $41.5\%$), and no swept threshold matches the
+control's acceptance without a higher false-accept rate. The $41.5\% \to 42.0\%$ agreement at the
+shared $\tau{=}0.70$ was the frontier judge admitting fewer claims, not a soundness its strength
+bought. Strengthen the verifier and the rate does not fall; equalize throughput and it rises. The
+gap is a throughput--soundness tradeoff internal to the loop, and the frontier judge shifts it the
+wrong way.
+% trace: experiments/exp013_tau_sweep/results/ANALYSIS.md; PRE_REGISTRATION.md (H1 refuted; H2; H3)
+
+\begin{table}[t]
+\centering
+\caption{RED-threshold sweep on the strong-judge RGRBench cell (exp013, pre-registered). New
+$\tau$ points are $N{=}1$ ($89$ packages each); $\tau{=}0.70$ is the exp010 anchor ($N{=}3$). The
+weak-judge control is shown for the matched comparison. Loosening the gate raises both acceptance
+and the false-accept rate. Brackets are $95\%$ Wilson intervals.}
+\label{tab:tausweep}
+\small
+\begin{tabular}{lccc}
+\toprule
+cell & accept\% & FA\% [$95\%$] & RED-gate\% \\
+\midrule
+control (weak), $\tau{=}0.70$ & $24.9$ & $41.5$ [$30.4, 53.7$] & $1.1$  \\
+strong, $\tau{=}0.85$         & $7.4$  & $33.3$ [$9.7, 70.0$]  & $91.4$ \\
+strong, $\tau{=}0.70$         & $19.9$ & $42.0$ [$29.4, 55.8$] & $75.3$ \\
+strong, $\tau{=}0.55$         & $20.0$ & $52.9$ [$31.0, 73.8$] & $72.9$ \\
+strong, $\tau{=}0.40$         & $43.0$ & $67.6$ [$51.5, 80.4$] & $47.7$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.66\linewidth]{figures/fig4_convergence.pdf}
-\caption{The false-accept rate of a self-testing loop is a stable, oracle-independent pattern across the settings we test.
+\caption{The false-accept gap of a self-testing loop appears under every oracle we test and is not
+reduced by verifier strength.
 Three independent instruments (HumanEval\texttt{+}, a post-cutoff LiveCodeBench window, and
 RGRBench with its $95\%$ Wilson interval) land in the same band as the external SWE-bench
-overfitting literature~\cite{ahmed2025overfitting,yu2026sweabs}.}
+overfitting literature~\cite{ahmed2025overfitting,yu2026sweabs}. The RGRBench point is one
+threshold on the tradeoff of Table~\ref{tab:tausweep}, not a fixed constant.}
 \label{fig:convergence}
 \end{figure}
 
@@ -953,11 +992,15 @@ packages (Sec.~\ref{sec:results-scale}), so its claimed successes are drawn from
 judge-selected survivor set than the control's. Two consequences follow. The cross-cell
 false-accept rate is then compared across shifted selection regimes; we report the matched-set
 rate on packages valid in both cells as the like-for-like comparison, and it moves no more than
-the raw rate. And the RED-gate abandonment is observed at a single threshold shared with the weak
-judge, so we cannot separate a frontier-judge behavior from a threshold-calibration effect---a
-$\tau$-sweep and a matched-acceptance-rate design are the clean tests, left as future work. The
-application-scale results also rest on a single frontier judge (GPT-5.6 Terra); whether the
-completeness reversal generalizes to other frontier judges is untested at this scale.
+the raw rate. The pre-registered $\tau$-sweep and matched-acceptance design (exp013,
+Sec.~\ref{sec:results-scale}) settle the calibration question directly: the RED-gate abandonment
+does track $\tau$ but stays far above the weak judge's rate even at the most permissive threshold,
+so it is both threshold-driven and intrinsic; and at matched acceptance the frontier judge's
+false-accept rate is worse, not equal, so the shared-$\tau$ agreement was a selection effect. The
+application-scale results still rest on a single frontier judge (GPT-5.6 Terra); whether the
+threshold tradeoff and the completeness reversal generalize to other frontier judges at this scale
+is untested, and the new $\tau$ points are $N{=}1$ (a confirmatory $N{=}3$ at the matched threshold
+is the one remaining tightening).
 
 \paragraph{Internal.} We study one pipeline. Its complete instrument (engine, prompts,
 and the defect register from a line-by-line review of the pipeline) ships with the artifact, and
