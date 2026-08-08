@@ -1,0 +1,8 @@
+# file: find_min/__init__.py
+from candidate import find_min_two_numbers as get_min
+from candidate import find_min_with_bounds as get_min_bounded
+from candidate import find_min_any_count as get_min_with_many_arguments
+from candidate import find_min_single_value as get_min_with_one_argument
+from candidate import find_min_at_least_one as get_min_with_one_or_more_arguments
+from candidate import find_min_no_arguments as get_min_without_arguments
+from candidate import manufacture_bounded_finder as make_min

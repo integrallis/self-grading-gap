@@ -1,0 +1,8 @@
+# file: find_max/__init__.py
+from candidate import always_refuse as get_max_without_arguments
+from candidate import create_bounded_finder as make_max
+from candidate import find_largest_any as get_max_with_many_arguments
+from candidate import find_largest_at_least_one as get_max_with_one_or_more_arguments
+from candidate import find_largest_single as get_max_with_one_argument
+from candidate import find_largest_two as get_max
+from candidate import find_largest_within_bounds as get_max_bounded
