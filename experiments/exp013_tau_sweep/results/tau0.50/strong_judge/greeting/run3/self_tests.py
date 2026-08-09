@@ -1,0 +1,63 @@
+from solution import greet
+
+def test_greet_single_name():
+    # AC-1.1: A single name is greeted as "Hello, <name>."
+    assert greet("Bob") == "Hello, Bob."
+
+def test_greet_no_name():
+    # AC-1.2: A missing name, or an empty list of names, yields "Hello, my friend."
+    assert greet([]) == "Hello, my friend."
+    # No test for "" as it is not specified as missing input
+
+def test_greet_single_name_in_list():
+    # AC-1.3: A list containing exactly one name is greeted the same way as that single name on its own.
+    assert greet(["Bob"]) == "Hello, Bob."
+
+def test_greet_two_names():
+    # AC-2.1: Two names are joined with "and": "Hello, Jill and Jane."
+    assert greet(["Jill", "Jane"]) == "Hello, Jill and Jane."
+
+def test_greet_three_names():
+    # AC-2.2: Three or more names are separated by commas with an Oxford comma before the final "and".
+    assert greet(["Amy", "Brian", "Charlotte"]) == "Hello, Amy, Brian, and Charlotte."
+
+def test_greet_four_names():
+    # Additional test for four names for Oxford comma usage.
+    assert greet(["Amy", "Brian", "Charlotte", "David"]) == "Hello, Amy, Brian, Charlotte, and David."
+
+def test_greet_shouted_name():
+    # AC-3.1: A name written entirely in uppercase is a shout and is answered with a shouted greeting.
+    assert greet("JERRY") == "HELLO JERRY!"
+
+def test_greet_mixed_case_and_shouted_names():
+    # AC-3.3: When normal and shouted names are mixed, the normal greeting comes first, followed by a separate shouted greeting introduced by "AND".
+    assert greet(["Amy", "BRIAN", "Charlotte"]) == "Hello, Amy and Charlotte. AND HELLO BRIAN!"
+
+def test_greet_multiple_shouted_names():
+    # AC-3.4: Several shouted names share a single shout, joined by "AND".
+    assert greet(["BRIAN", "JERRY"]) == "HELLO BRIAN AND JERRY!"
+
+def test_greet_lower_case_and_mixed_case_names():
+    # AC-3.2: Lowercase and mixed-case names are not shouts and receive the normal greeting.
+    assert greet(["alice", "Bob"]) == "Hello, alice and Bob."
+
+def test_greet_names_with_commas():
+    # AC-4.1: An entry containing a comma is split into separate names.
+    assert greet("Alice, Bob, Charlie") == "Hello, Alice, Bob, and Charlie."
+    assert greet(" Alice , Bob ") == "Hello, Alice and Bob."  # Test with spaces around commas
+
+def test_greet_quoted_name_with_commas():
+    # AC-4.2: An entry wrapped in double quotes is a single name.
+    assert greet('"Charlie, Dianne"') == "Hello, Charlie, Dianne."
+
+def test_greet_lone_opening_quote():
+    # AC-4.3: A lone opening quote does not make an entry quoted.
+    assert greet('"Bob') == 'Hello, "Bob.'
+
+def test_greet_empty_quotes():
+    # AC-4.4: An entry consisting only of a pair of double quotes has its quotes removed, leaving an empty name.
+    assert greet('""') == "Hello, ."
+
+def test_greet_combined_splitting_and_shouting():
+    # Additional test combining splitting and shouting.
+    assert greet("Amy, BRIAN") == "Hello, Amy. AND HELLO BRIAN!"
