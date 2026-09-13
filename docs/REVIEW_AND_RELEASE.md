@@ -1,5 +1,10 @@
 # Manuscript review and revision — 2026-09-13
 
+**Submission update:** arXiv confirmed “Article submitted” for **8074393**, with
+status **processing**. See the [submission receipt](../release/arxiv-submission.json)
+and [final upload record](ARXIV_UPLOAD.md). The route advice below predates the
+original record’s server failures and the completed fresh submission.
+
 The revised [paper](../paper/main.pdf) is defensible as an **author preprint about measured
 pipeline verdict reliability**. The previous universal conclusion—stronger verification
 cannot improve soundness—was not supported. The review preserves original model outputs and

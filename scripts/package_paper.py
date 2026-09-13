@@ -70,7 +70,7 @@ def main():
     (OUT / "submission-comments.txt").write_text(comments + "\n")
     manifest = {"status": "local author-preprint revision; not uploaded",
                 "generated_at_utc": datetime.now(timezone.utc).isoformat(),
-                "existing_submission": "submit/7939730", "pages": pages,
+                "existing_submission": "submit/8074393", "pages": pages,
                 "figures": len(figures), "tables": tables,
                 "base_revision": revision, "working_tree_dirty": bool(dirty),
                 "tracked_diff_sha256": hashlib.sha256(diff).hexdigest(),

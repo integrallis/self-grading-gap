@@ -1,24 +1,31 @@
 # arXiv upload troubleshooting
 
-## Current status: original record still errors; fresh draft compiles but is not submitted
+## Current status: submission 8074393 confirmed; processing
+
+On September 13, 2026, arXiv confirmed **“Article submitted”** and redirected to the
+user dashboard. Its row for **submit/8074393** shows **processing**, with no
+expiration date. Submission is complete; moderation and public announcement are
+not yet confirmed. The final preview showed **CC BY 4.0**, primary **cs.AI**, and
+cross-lists **cs.LG** and **cs.SE**, with the full 244-word abstract and comments
+reporting 23 pages, 6 figures, and 7 tables. The
+[submission receipt](../release/arxiv-submission.json) records the verified outcome
+and artifact checksums.
 
 On September 13, 2026, fresh draft **8074393** passed arXiv's live preflight and
 compiled successfully with **pdfLaTeX / TeX Live 2025**, producing a **23-page PDF**.
-Saving its metadata then produced an explicit duplicate-submission block referring
-to the existing submission **7939730**. The revised paper has **not been submitted**
-through the fresh draft. The existing submission remains preserved. Both records
-are listed as **incomplete**, with the same September 27 expiration date; this
-date is not their original submission date. The author subsequently preferred
-repairing the original record and retiring the fresh draft if possible. Preserving
-the original record does not establish that it retains a moderation queue position.
+Saving its metadata initially produced a duplicate-submission block referring to
+**7939730**. After attempts to update the original record failed, the author
+authorized proceeding with the new submission and declined a repair request.
+The normal Delete action removed **7939730**; arXiv confirmed “Submission deleted,”
+and the dashboard then listed only **8074393**. Metadata saving then succeeded,
+allowing final preview and the confirmed submission above. No former queue
+position is claimed.
 
-The author authorized trying a fresh submission if needed. The new record contains
-the same paper, so the interface's exception for a different article with a report
-number does not apply. The remaining blocker is the duplicate-submission check;
-the original record's server error also remains unresolved. The
-[support draft](ARXIV_SUPPORT_REQUEST.txt) records both problems and has not been sent.
+The [support draft](ARXIV_SUPPORT_REQUEST.txt) is retained as an **unsent historical
+record** and is **not to be sent**, per the author's instruction. The troubleshooting
+details below describe earlier attempts, not the current existence of both records.
 
-## Original record: missing controls and a remaining server exception
+## Historical original-record errors
 
 The author first reported that uploading `self-grading-gap-reviewed-source.tar.gz`
 to **7939730** and clicking **Check Files** produced
@@ -50,8 +57,14 @@ ordinary README. The normal interface reached **Review Files**, selected
 `main.tex` and `pdflatex`, and reported empty issue lists for the dependency tree.
 No DOM repairs were needed on this record.
 
-Live arXiv compilation then produced a 23-page PDF with TeX Live 2025. A downloaded
-local copy is `/private/tmp/arxiv-8074393-compiled.pdf`. Inspection confirmed that
+Live arXiv compilation then produced a 23-page PDF with TeX Live 2025. The actual
+download is preserved as [self-grading-gap-arxiv-compiled.pdf](../release/self-grading-gap-arxiv-compiled.pdf),
+with a [SHA-256 sidecar](../release/self-grading-gap-arxiv-compiled.pdf.sha256).
+This is arXiv's pdfLaTeX output, separate from the locally built Tectonic/XeTeX
+[reviewed PDF](../release/self-grading-gap-reviewed.pdf). The preserved file is
+byte-identical to `/private/tmp/arxiv-8074393-compiled.pdf` (1,948,665 bytes), with
+SHA-256 `47cd2628753b55931e0ef6af84eb4081137d10ad68cbfe84b76cd370ee6c8362`.
+Inspection confirmed that
 all 23 pages are portrait with no rotation, both detailed diagrams are upright
 and unclipped, all six figures and seven tables are present, and all 39 references
 render without unresolved citation markers. Compilation success is separate from
@@ -62,7 +75,7 @@ The fresh-record success does not isolate whether omitting configuration,
 changing record state, or another difference affected the original error. It
 does show that arXiv can process the reviewed manuscript and its bundled styles.
 
-## Attempt to preserve and update the original record
+## Historical attempt to preserve and update the original record
 
 The author preferred updating **7939730** if possible. Its Start page displayed
 an on-hold classification notice but exposed enabled archive and subject controls
@@ -73,12 +86,11 @@ Intelligence through those enabled controls, then clicking **Continue**, produce
 another generic arXiv server exception at **Sun Sep 13 18:51:28 2026**. No disabled
 control or server restriction was bypassed.
 
-Neither record has been deleted. Removing the fresh draft would not repair this
-original-record failure. The prepared support request therefore asks administrators
-to repair the original and advise how to reconcile the fresh draft. It has not
-been sent. The [status guidance](https://info.arxiv.org/help/submit_status.html)
-defines incomplete as not submitted; preserving the old identifier does not prove
-that a previous queue position remains.
+At that stage, both records were incomplete. The author subsequently chose the
+new-record route, and **7939730** was deleted as recorded above. The original server
+failure was not repaired. The [status guidance](https://info.arxiv.org/help/submit_status.html)
+defines incomplete as not submitted; keeping an old identifier would not by itself
+establish that a previous queue position remained.
 
 ## Source and packaging verification
 
@@ -94,6 +106,12 @@ That public-parser run used Debian TeX Live 2022 with the required standard
 packages, including `texlive-science`. It did not reproduce arXiv's deployed
 services or private plugins. The separate successful live compilation above used
 arXiv's TeX Live 2025 environment.
+
+[manifest.json](../release/manifest.json) preserves the source hashes and the
+packaging-time provenance of the local reviewed release. Its original “not
+uploaded” status and old submission ID describe that earlier build, not the
+current submission. [arxiv-submission.json](../release/arxiv-submission.json)
+records the subsequent confirmed arXiv submission separately.
 
 The reproducible [source-only ZIP](../release/self-grading-gap-arxiv-source-only.zip)
 has the same member names and source bytes as the uploaded source-only ZIP.
