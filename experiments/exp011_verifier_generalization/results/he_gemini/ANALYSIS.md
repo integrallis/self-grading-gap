@@ -1,7 +1,7 @@
 # exp011 ANALYSIS — he_gemini (generated; do not hand-edit)
 
 strong verifier: vertex_ai/gemini-2.5-pro
-instrument @ 1a14ca82d; spend (global exp011) $147.08
+instrument @ f02775d2e; spend (global exp011) $303.89
 
 ## control
 - oracle pass /30: [24, 23, 24, 23, 24] (mean 23.6)

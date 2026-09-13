@@ -1,6 +1,6 @@
 # exp010 ANALYSIS (generated; do not hand-edit)
 
-runs: 534; spend $0.00
+runs: 534; spend $51.99
 
 ## control: runs=267 valid=261 claims=65
 - H-D1 conditional FA of claims: 0.415 [0.304, 0.537] (n=65)

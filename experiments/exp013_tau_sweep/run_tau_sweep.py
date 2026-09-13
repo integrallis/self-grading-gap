@@ -259,39 +259,59 @@ def wilson(k: int, n: int) -> tuple[float, float]:
 
 
 def stage_analyze():
-    rows = [json.loads(f.read_text()) for f in RESULTS.rglob("result.json")]
-    L = ["# exp010 ANALYSIS (generated; do not hand-edit)", "",
-         f"runs: {len(rows)}; spend ${spent_usd():.2f}", ""]
-    for cell in CELLS:
-        rs = [r for r in rows if r["cell"] == cell]
-        valid = [r for r in rs if r["oracle"]["valid"]]
+    """Regenerate threshold-specific descriptives; do not infer equivalence from CIs."""
+    anchor = HERE.parent / "exp010_flagship" / "results"
+    specs = [("control τ=0.70 (N=3)", anchor / "control"),
+             ("strong τ=0.85 (N=1)", RESULTS / "tau0.85" / "strong_judge"),
+             ("strong τ=0.70 (N=3, anchor)", anchor / "strong_judge"),
+             ("strong τ=0.55 (N=1)", RESULTS / "tau0.55" / "strong_judge"),
+             ("strong τ=0.50 (N=3, adaptive follow-up)", RESULTS / "tau0.50" / "strong_judge"),
+             ("strong τ=0.40 (N=1)", RESULTS / "tau0.40" / "strong_judge")]
+    L = ["# exp013 — τ-sweep ANALYSIS (generated; do not hand-edit)", "",
+         f"Total spend ${spent_usd():.2f}. Regenerate with run_tau_sweep.py --stage analyze.",
+         "τ=0.70 anchors reuse exp010. τ=0.50 is an adaptive follow-up outside the originally",
+         "enumerated threshold set; it approximates throughput rather than matching it exactly.",
+         "The parameter changes both RED and GREEN judge thresholds. Wilson intervals below",
+         "are nominal run-level intervals and do not account for repeated packages.", "",
+         "| cell | valid | acc | acc% | FA | FA% [95% Wilson] | RED% | oPass |",
+         "|---|--:|--:|--:|--:|--:|--:|--:|"]
+    metrics = []
+    for label, directory in specs:
+        rows = [json.loads(f.read_text()) for f in sorted(directory.glob("*/run*/result.json"))]
+        if not rows:
+            sys.exit(f"analyze refuses: no records in {directory}")
+        valid = [r for r in rows if r["oracle"]["valid"]]
         claims = [r for r in valid if r["self_verdict"]]
-        fa = [r for r in claims if (r["oracle"]["pass_fraction"] or 0) < 1.0]
-        fr = [r for r in valid if not r["self_verdict"]
-              and (r["oracle"]["pass_fraction"] or 0) == 1.0]
-        L.append(f"## {cell}: runs={len(rs)} valid={len(valid)} claims={len(claims)}")
-        if claims:
-            p = len(fa) / len(claims)
-            lo, hi = wilson(len(fa), len(claims))
-            L.append(f"- H-D1 conditional FA of claims: {p:.3f} "
-                     f"[{lo:.3f}, {hi:.3f}] (n={len(claims)})")
-        L.append(f"- false rejects: {len(fr)}; mean oracle pass fraction (valid): "
-                 f"{sum((r['oracle']['pass_fraction'] or 0) for r in valid) / max(1, len(valid)):.3f}")
-        multi = [r for r in claims if r.get("green_attempts", 0) > 1]
-        single = [r for r in claims if r.get("green_attempts", 0) <= 1]
-        for name, grp in (("first-attempt", single), ("multi-attempt", multi)):
-            g_fa = [r for r in grp if (r["oracle"]["pass_fraction"] or 0) < 1.0]
-            if grp:
-                L.append(f"- H-D2 {name} claims FA: {len(g_fa)}/{len(grp)} "
-                         f"= {len(g_fa) / len(grp):.3f}")
-        for tier in ("beginner", "intermediate", "advanced"):
-            t_claims = [r for r in claims if r["tier"] == tier]
-            t_fa = [r for r in t_claims if (r["oracle"]["pass_fraction"] or 0) < 1.0]
-            if t_claims:
-                L.append(f"- H-D4 {tier} FA: {len(t_fa)}/{len(t_claims)} "
-                         f"= {len(t_fa) / len(t_claims):.3f}")
-        L.append("")
-    (RESULTS / "ANALYSIS.md").write_text("\n".join(L) + "\n")
+        fa = sum((r["oracle"]["pass_fraction"] or 0) < 1 for r in claims)
+        red = sum(r.get("green_attempts", 0) == 0 for r in valid)
+        oracle = sum((r["oracle"]["pass_fraction"] or 0) == 1 for r in valid)
+        lo, hi = wilson(fa, len(claims))
+        acc = len(claims) / len(valid)
+        rate = fa / len(claims)
+        metrics.append({"label": label, "rate": rate, "lo": lo, "hi": hi, "acc": acc})
+        L.append(f"| {label} | {len(valid)} | {len(claims)} | {100*acc:.1f} | {fa} | "
+                 f"{100*rate:.1f} [{100*lo:.1f}, {100*hi:.1f}] | "
+                 f"{100*red/len(valid):.1f} | {oracle} |")
+    loose = metrics[-1]
+    band_hi = .42 + .12
+    L += ["", "## Interpretation and deviations", "",
+          "- H1: the loosest threshold's point estimate is outside the registered ±12pp band",
+          f"  around 42% ({100*loose['rate']:.1f}% versus upper edge {100*band_hi:.1f}%).",
+          f"  Its Wilson interval [{100*loose['lo']:.1f}, {100*loose['hi']:.1f}]% overlaps that edge;",
+          "  the previous claim that the entire interval lies above it was incorrect.",
+          "- H2: RED abandonment decreases as the threshold decreases in these runs, but the",
+          "  shared threshold also changes GREEN gating, so this is not a RED-only intervention.",
+          "- H3: compare acceptance percentages, not raw claim counts from different run counts.",
+          "  The τ=0.50 follow-up was not in the originally enumerated grid and shares selection",
+          "  data with its N=3 aggregate. It is adaptive rather than an independent confirmatory",
+          "  comparison. Similar throughput also does not equalize which packages are accepted.",
+          "- Overlapping separate intervals establish neither equality nor the absence of an",
+          "  improvement. These point estimates show no improvement at the tested settings with",
+          "  comparable-or-higher throughput; a paired, package-cluster analysis is needed for",
+          "  uncertainty on contrasts. No pure verifier-strength or whole-curve claim follows.",
+          "- The conditional FA point estimates are not monotone at every adjacent threshold",
+          "  (τ=0.50 versus τ=0.55), and the strictest setting has a lower point estimate than 42%.", ""]
+    (RESULTS / "ANALYSIS.md").write_text("\n".join(L))
     print("\n".join(L))
 
 

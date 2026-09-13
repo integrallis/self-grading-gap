@@ -1,7 +1,7 @@
 # exp011 ANALYSIS — he_claude (generated; do not hand-edit)
 
 strong verifier: claude-sonnet-4-5
-instrument @ 1a14ca82d; spend (global exp011) $65.23
+instrument @ f02775d2e; spend (global exp011) $303.89
 
 ## control
 - oracle pass /30: [25, 23, 22, 24, 25] (mean 23.8)

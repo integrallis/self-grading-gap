@@ -1,6 +1,6 @@
 # exp007 ANALYSIS (generated; do not hand-edit)
 
-instrument @ e191d0a7d; spend $37.32
+instrument @ f02775d2e; spend $37.32
 
 ## control
 - oracle pass /30: [15, 16, 16, 13, 16] (mean 15.2)

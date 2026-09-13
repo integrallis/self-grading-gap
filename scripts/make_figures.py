@@ -1,15 +1,17 @@
-"""Regenerate every paper figure from committed raw result files. No API, no hand-drawn data.
+"""Regenerate paper figures from recorded outcomes and the post hoc statistical audit.
 
-Palette: Okabe-Ito pair, validated (CVD ΔE≥91.9, contrast ≥3:1): PASS=#0072B2, GAP=#D55E00
-with hatching as secondary encoding so figures survive grayscale printing. Ink is neutral.
+No API calls. Schematics describe the instrument; numeric plots read recorded data.
+The Okabe-Ito palette and secondary marker/hatch encoding aid grayscale reading.
 """
 
 from __future__ import annotations
 
 import json
-import re
+import os
 from pathlib import Path
 
+# Use the bundled DejaVu fonts requested below, avoiding host-specific font scans.
+os.environ.setdefault("MPL_IGNORE_SYSTEM_FONTS", "1")
 import matplotlib
 
 matplotlib.use("Agg")
@@ -22,6 +24,7 @@ EXP6 = REPO / "experiments" / "exp006_model_asymmetry" / "results"
 EXP7 = REPO / "experiments" / "exp007_lcb_asymmetry" / "results"
 EXP10 = REPO / "experiments" / "exp010_flagship" / "results"
 EXP = REPO / "experiments"
+AUDIT = EXP / "review_audit" / "results" / "audit.json"
 
 BLUE = "#0072B2"   # pass / false rejects (visible failure)
 RED = "#D55E00"    # false accepts (invisible failure; always hatched for grayscale)
@@ -84,20 +87,49 @@ CELL_LABELS = [("control", "control\n(W everywhere)"), ("strong_testgen", "S aut
 
 
 def _cells(summary_file: Path, fa_key: str, cell_map: dict[str, str]) -> list[dict]:
-    cells = json.loads(summary_file.read_text())["cells"]
+    """Use complete HumanEval+ matrices; original summaries mix base and plus."""
+    human = fa_key == "fa_plus"
+    directory = summary_file.parent
+    audit = json.loads(AUDIT.read_text())["single_function"]["exp006" if human else "exp007"]
     out = []
     for key, _ in CELL_LABELS:
-        c = cells[cell_map.get(key, key)]
-        out.append({"fa": c[fa_key], "fr": c["fr"], "pass": c["pass"]})
+        cell = cell_map.get(key, key)
+        arrays = {"fa": [], "fr": [], "pass": []}
+        for rd in sorted((directory / cell).glob("run*")):
+            pattern = "humaneval_tdd_*p_*.json" if human else "lcb_tdd_*p_*.json"
+            files = sorted(rd.glob(pattern))
+            if not files:
+                continue
+            records = json.loads(files[-1].read_text())["results"]
+            score_name = (f"samples_{cell}__{rd.name}_eval_results.json" if human
+                          else f"{cell}__{rd.name}_oracle.json")
+            scores = json.loads((directory / "scores" / score_name).read_text())["eval" if human else "oracle"]
+            fas = frs = passes = 0
+            for r in records:
+                pid = r["problem_id" if human else "question_id"]
+                v = scores[str(pid)]
+                if human:
+                    v = v[0] if isinstance(v, list) else v
+                    oracle = v["base_status"] == "pass" and v["plus_status"] == "pass"
+                else:
+                    oracle = bool(v["oracle_pass"])
+                fas += r["tdd_success"] and not oracle
+                frs += not r["tdd_success"] and oracle
+                passes += oracle
+            arrays["fa"].append(fas)
+            arrays["fr"].append(frs)
+            arrays["pass"].append(passes)
+        expected = audit["cells"][cell]["plus" if human else "hidden"]["per_run_mean"]
+        for key, canonical in (("fa", "FA"), ("fr", "FR"), ("pass", "oracle_pass")):
+            assert sum(arrays[key]) / len(arrays[key]) == expected[canonical]
+        out.append(arrays)
     return out
 
 
 def fig2_asym() -> None:
-    """Per-cell false accepts vs false rejects (bars = means, dots = runs), both experiments.
-    The figure carries the paper's two headline results at once: FA flat everywhere
-    (soundness invariant), FR collapsing and pass rising in the strong-judge cells."""
+    """Per-cell oracle-relative errors: bars are means; dots are individual runs."""
     data = [
-        ("HumanEval subset-30 (exp006)",
+        ("HumanEval+ subset-30 (exp006)",
          _cells(EXP6 / "asym_summary.json", "fa_plus", {"control": "control_rerun"})),
         ("LiveCodeBench lcb30, post-cutoff (exp007)",
          _cells(EXP7 / "asym_summary.json", "fa", {})),
@@ -114,7 +146,7 @@ def fig2_asym() -> None:
             ax.scatter([i + w / 2] * len(c["fr"]), c["fr"], s=8, color=BLUE, zorder=3,
                        edgecolor="white", lw=0.4)
             pm = sum(c["pass"]) / len(c["pass"])
-            ax.annotate(f"pass {pm:.1f}", (i, -1.55), ha="center", fontsize=7.5,
+            ax.annotate(f"pass {pm:.1f}", (i, -2.0), ha="center", fontsize=7.5,
                         color=INK, annotation_clip=False)
         ax.set_xticks(range(len(cells)))
         ax.set_xticklabels([lbl for _, lbl in CELL_LABELS], fontsize=7.5)
@@ -122,8 +154,8 @@ def fig2_asym() -> None:
         ax.spines[["top", "right"]].set_visible(False)
         ax.set_ylim(0, 8)
     axes[0].set_ylabel("problem-runs / 30")
-    axes[0].bar(0, 0, color="white", edgecolor=RED, hatch="///", label="false accepts (invisible)")
-    axes[0].bar(0, 0, color=BLUE, alpha=0.85, label="false rejects (visible)")
+    axes[0].bar(0, 0, color="white", edgecolor=RED, hatch="///", label="false accepts")
+    axes[0].bar(0, 0, color=BLUE, alpha=0.85, label="false rejects")
     axes[0].legend(frameon=False, fontsize=7.5, loc="upper right")
     fig.tight_layout()
     fig.savefig(FIG / "fig2_asym.pdf", bbox_inches="tight")
@@ -131,25 +163,21 @@ def fig2_asym() -> None:
 
 
 def _exp10() -> dict:
-    """Parse committed exp010 ANALYSIS.md for per-tier and headline conditional FA rates."""
-    txt = (EXP10 / "ANALYSIS.md").read_text()
-    ctrl_sec = txt.split("## control:")[1].split("## strong_judge:")[0]
-    strong_sec = txt.split("## strong_judge:")[1]
-
-    def tiers(sec: str) -> list[float]:
-        return [float(re.search(rf"H-D4 {t} FA:.*?= ([\d.]+)", sec).group(1))
-                for t in ("beginner", "intermediate", "advanced")]
-
-    def hd1(sec: str) -> tuple[float, float, float]:
-        m = re.search(r"H-D1 conditional FA of claims: ([\d.]+) \[([\d.]+), ([\d.]+)\]", sec)
-        return float(m.group(1)), float(m.group(2)), float(m.group(3))
-
-    return {"control": {"tiers": tiers(ctrl_sec), "hd1": hd1(ctrl_sec)},
-            "strong": {"tiers": tiers(strong_sec), "hd1": hd1(strong_sec)}}
+    """Read exact tier numerators and denominators from raw package-run records."""
+    result = {}
+    for label, cell in (("control", "control"), ("strong", "strong_judge")):
+        rows = [json.loads(p.read_text()) for p in sorted((EXP10 / cell).glob("*/run*/result.json"))]
+        claims = [r for r in rows if r["oracle"]["valid"] and r["self_verdict"]]
+        counts = []
+        for tier in ("beginner", "intermediate", "advanced"):
+            subset = [r for r in claims if r["tier"] == tier]
+            counts.append((sum(r["oracle"]["pass_fraction"] < 1 for r in subset), len(subset)))
+        result[label] = {"counts": counts, "tiers": [k / n for k, n in counts]}
+    return result
 
 
 def fig3_complexity() -> None:
-    """Conditional false accepts rise monotonically with difficulty tier (RGRBench, H-D4)."""
+    """Descriptive tier associations with claim counts, including sparse strata."""
     d = _exp10()
     fig, ax = plt.subplots(figsize=(3.5, 2.6))
     x = [0, 1, 2]
@@ -161,7 +189,12 @@ def fig3_complexity() -> None:
     ax.set_yticks([0, 0.25, 0.5, 0.75, 1.0])
     ax.set_yticklabels(["0", "25%", "50%", "75%", "100%"])
     ax.set_ylabel("false accepts / claimed successes", fontsize=8)
-    ax.set_ylim(0, 1.0); ax.set_xlim(-0.25, 2.25)
+    for label, offset, color in (("control", 9, RED), ("strong", -15, INK)):
+        for i, ((k, n), value) in enumerate(zip(d[label]["counts"], d[label]["tiers"])):
+            dy = (-15 if label == "control" else 9) if i == 0 else offset
+            ax.annotate(f"{k}/{n}", (i, value), xytext=(0, dy),
+                        textcoords="offset points", ha="center", fontsize=7, color=color)
+    ax.set_ylim(0, 1.05); ax.set_xlim(-0.25, 2.25)
     ax.spines[["top", "right"]].set_visible(False)
     ax.legend(frameon=False, fontsize=7.5, loc="upper left")
     fig.tight_layout()
@@ -170,66 +203,48 @@ def fig3_complexity() -> None:
 
 
 def fig4_convergence() -> None:
-    """The false-accept rate is a constant across three instruments and the external literature.
-    RGRBench point + Wilson CI parsed from committed ANALYSIS.md; HumanEval+/LCB are the control
-    conditional-FA headlines (exp006/exp007, 18%/29%); the external range is the cited
-    SWE-bench overfitting literature (20-33%)."""
-    rgr, rgr_lo, rgr_hi = _exp10()["control"]["hd1"]      # 0.415 [0.304, 0.537]
+    """Show study-specific claim-error rates; do not pool incompatible external endpoints."""
+    audit = json.loads(AUDIT.read_text())
+    rgr = audit["rgrbench"]["tau0.70"]["control"]
+    he = audit["single_function"]["exp006"]["cells"]["control_rerun"]["plus"]
+    lcb = audit["single_function"]["exp007"]["cells"]["control"]["hidden"]
     rows = [
-        ("SWE-bench overfitting (external)", None, 0.20, 0.33, MUTED),
-        ("RGRBench (this work)", rgr, rgr_lo, rgr_hi, RED),
-        ("LiveCodeBench (this work)", 0.29, None, None, RED),
-        ("HumanEval+ (this work)", 0.18, None, None, RED),
+        (f"RGRBench ({rgr['FA']}/{rgr['claims']})", rgr["conditional_fa"], *rgr["package_bootstrap_fa_ci"], RED),
+        (f"LiveCodeBench ({lcb['FA']}/{lcb['claims']})", lcb["conditional_fa"], None, None, RED),
+        (f"HumanEval+ ({he['FA']}/{he['claims']})", he["conditional_fa"], None, None, RED),
     ]
-    fig, ax = plt.subplots(figsize=(4.5, 2.3))
-    ax.axvspan(0.18, 0.42, color=RED, alpha=0.06, lw=0)
+    fig, ax = plt.subplots(figsize=(4.8, 2.1))
     for y, (_, pt, lo, hi, col) in enumerate(rows):
         if pt is not None and lo is not None:
             ax.errorbar(pt, y, xerr=[[pt - lo], [hi - pt]], fmt="o", color=col, ms=6,
                         capsize=3, lw=1.3, zorder=3)
         elif pt is not None:
             ax.plot(pt, y, "o", color=col, ms=6, zorder=3)
-        else:
-            ax.plot([lo, hi], [y, y], "-", color=col, lw=5, solid_capstyle="round", alpha=0.65)
     ax.set_yticks(range(len(rows))); ax.set_yticklabels([r[0] for r in rows], fontsize=7.5)
     ax.set_ylim(-0.6, len(rows) - 0.4); ax.set_xlim(0, 0.6)
     ax.set_xticks([0, 0.15, 0.30, 0.45, 0.60])
     ax.set_xticklabels(["0", "15%", "30%", "45%", "60%"])
     ax.set_xlabel("false-accept rate (fraction of claimed successes)", fontsize=8)
+    ax.set_title("All-weak controls on different selected task sets", fontsize=8.5)
     ax.spines[["top", "right"]].set_visible(False)
     fig.tight_layout()
     fig.savefig(FIG / "fig4_convergence.pdf", bbox_inches="tight")
     plt.close(fig)
 
 
-# (benchmark, verifier, ANALYSIS.md, fa_is_plus): terra = exp006/exp007, others = exp011
+# Read all verifier outcomes from the complete-oracle post hoc audit.
 VERIFIER_ARMS = [
-    ("HumanEval+", "GPT-5.6 Terra", EXP / "exp006_model_asymmetry/results/ANALYSIS.md", True),
-    ("HumanEval+", "Gemini-2.5-Pro", EXP / "exp011_verifier_generalization/results/he_gemini/ANALYSIS.md", True),
-    ("HumanEval+", "Claude-4.5-Sonnet", EXP / "exp011_verifier_generalization/results/he_claude/ANALYSIS.md", True),
-    ("LiveCodeBench", "GPT-5.6 Terra", EXP / "exp007_lcb_asymmetry/results/ANALYSIS.md", False),
-    ("LiveCodeBench", "Gemini-2.5-Pro", EXP / "exp011_verifier_generalization/results/lcb_gemini/ANALYSIS.md", False),
-    ("LiveCodeBench", "Claude-4.5-Sonnet", EXP / "exp011_verifier_generalization/results/lcb_claude/ANALYSIS.md", False),
+    ("HumanEval+", "GPT-5.6 Terra", "exp006", "plus"),
+    ("HumanEval+", "Gemini-2.5-Pro", "exp011_he_gemini", "plus"),
+    ("HumanEval+", "Claude-4.5-Sonnet", "exp011_he_claude", "plus"),
+    ("LiveCodeBench", "GPT-5.6 Terra", "exp007", "hidden"),
+    ("LiveCodeBench", "Gemini-2.5-Pro", "exp011_lcb_gemini", "hidden"),
+    ("LiveCodeBench", "Claude-4.5-Sonnet", "exp011_lcb_claude", "hidden"),
 ]
 
 
-def _parse_fa(path: Path, fa_is_plus: bool) -> dict[str, float]:
-    """Per-cell false-accept mean from an ANALYSIS.md (HumanEval reports base/plus; LCB one number)."""
-    out = {}
-    for m in re.finditer(r"^##\s+(\S+)\s*\n(.*?)(?=^##\s|\Z)", path.read_text(), re.M | re.S):
-        cell = m.group(1).replace("control_rerun", "control")
-        if cell not in ("control", "strong_testgen", "strong_judge", "strong_both"):
-            continue
-        pat = r"false accepts base/plus:\s*[\d.]+\s*/\s*([\d.]+)" if fa_is_plus \
-            else r"false accepts:\s*([\d.]+)"
-        fm = re.search(pat, m.group(2))
-        if fm:
-            out[cell] = float(fm.group(1))
-    return out
-
-
 def fig5_verifiers() -> None:
-    """False accepts stay flat across cells for all three verifiers, on both benchmarks."""
+    """Plot observed FA means without equating nonsignificance with a flat response."""
     cells = ["control", "strong_testgen", "strong_judge", "strong_both"]
     xlabels = ["control", "S tests", "S judge", "S both"]
     benches = ["HumanEval+", "LiveCodeBench"]
@@ -237,8 +252,11 @@ def fig5_verifiers() -> None:
              "Gemini-2.5-Pro": (BLUE, "s", "white"),
              "Claude-4.5-Sonnet": (RED, "^", "white")}
     data: dict = {}
-    for bench, ver, path, isplus in VERIFIER_ARMS:
-        data.setdefault(bench, {})[ver] = _parse_fa(path, isplus)
+    audit = json.loads(AUDIT.read_text())["single_function"]
+    for bench, ver, experiment, oracle in VERIFIER_ARMS:
+        data.setdefault(bench, {})[ver] = {
+            cell.replace("control_rerun", "control"): v[oracle]["per_run_mean"]["FA"]
+            for cell, v in audit[experiment]["cells"].items()}
     fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.7), sharey=True)
     for ax, bench in zip(axes, benches):
         for ver, (col, mk, mfc) in style.items():
@@ -256,6 +274,60 @@ def fig5_verifiers() -> None:
     plt.close(fig)
 
 
+def fig6_misalignment() -> None:
+    """An oracle-relative false accept caused by an unspecified exception contract."""
+    run = EXP10 / "strong_judge" / "numbers_to_words" / "run1"
+    record = json.loads((run / "result.json").read_text())
+    code = (run / "candidate" / "__init__.py").read_text()
+    tests = (run / "self_tests.py").read_text()
+    assert 'raise Exception("must be in 0..9999")' in code
+    assert "pytest.raises(Exception," in tests
+    assert record["self_verdict"] and record["oracle"]["valid"]
+    oracle = record["oracle"]
+    assert oracle["tests_passed"] < oracle["tests_total"]
+
+    fig, ax = plt.subplots(figsize=(9.0, 3.2))
+    ax.set_xlim(0, 12)
+    ax.set_ylim(0, 4.5)
+    ax.axis("off")
+    ax.text(.1, 4.25, "A requirements–oracle mismatch: numbers_to_words", fontsize=11,
+            weight="bold", va="center")
+
+    for x, title, edge in ((.1, "Supplied requirement", INK),
+                            (4.05, "Self-testing pipeline", BLUE),
+                            (8.0, "Held-out oracle", RED)):
+        ax.add_patch(FancyBboxPatch((x, 1.05), 3.65, 2.75, boxstyle="round,pad=0.05",
+                                   facecolor="white", edgecolor=edge, linewidth=1.2))
+        ax.text(x + .15, 3.52, title, fontsize=9, weight="bold", color=edge)
+
+    ax.text(.25, 3.12, "Reject out-of-range numbers.", fontsize=9)
+    ax.text(.25, 2.72, "Error message includes:", fontsize=9)
+    ax.text(.25, 2.34, '"must be in 0..9999"', fontsize=8.6, family="monospace")
+    ax.text(.25, 1.68, "Exception type unspecified.", fontsize=9, weight="bold")
+
+    ax.text(4.2, 3.12, "Self-authored test:", fontsize=9)
+    ax.text(4.2, 2.77, "pytest.raises(Exception)", fontsize=8.6, family="monospace")
+    ax.text(4.2, 2.36, "Generated code:", fontsize=9)
+    ax.text(4.2, 2.01, "raise Exception(...)", fontsize=8.6, family="monospace")
+    ax.text(4.2, 1.43, "Self-verdict: accept", fontsize=9, weight="bold", color=BLUE)
+
+    ax.text(8.15, 3.12, "Oracle range test:", fontsize=9)
+    ax.text(8.15, 2.77, "pytest.raises(ValueError)", fontsize=8.6, family="monospace")
+    ax.text(8.15, 2.17, "Adds a specific exception type.", fontsize=9)
+    ax.text(8.15, 1.64, f"{oracle['tests_passed']} / {oracle['tests_total']} oracle tests pass",
+            fontsize=9, weight="bold", color=RED)
+    ax.text(8.15, 1.27, "Oracle-relative false accept", fontsize=8.7, color=RED)
+
+    for start, end in ((3.8, 4.0), (7.75, 7.95)):
+        ax.add_patch(FancyArrowPatch((start, 2.8), (end, 2.8), arrowstyle="-|>",
+                                     mutation_scale=10, linewidth=1.1, color=MUTED))
+    ax.text(.1, .55,
+            "The recorded disagreement does not establish that the code violates the supplied requirement.",
+            fontsize=9, color=INK)
+    fig.savefig(FIG / "fig6_misalignment.pdf", bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     FIG.mkdir(exist_ok=True)
     fig1_loop()
@@ -263,4 +335,5 @@ if __name__ == "__main__":
     fig3_complexity()
     fig4_convergence()
     fig5_verifiers()
+    fig6_misalignment()
     print(f"figures regenerated under {FIG}")
