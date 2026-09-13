@@ -41,8 +41,8 @@ oracle scores, corrects the reporting, and makes the remaining limitations expli
 - **Restore the detailed illustrations.** The manuscript uses the original loop PNG and
   a corrected copy of the detailed requirements, generated-test, code, and oracle diagram.
   Their layout is preserved; the example's labels now distinguish an omitted exception
-  type from a demonstrated model error. A landscape page keeps the detailed code
-  callouts legible. See [figure sources](../paper/figures/README.md).
+  type from a demonstrated model error. Both illustrations use the paper's normal
+  portrait layout. See [figure sources](../paper/figures/README.md).
 
 Detailed evidence: [statistical review](STATISTICAL_REVIEW.md),
 [instrument review](INSTRUMENT_REVIEW.md), and [publication review](PUBLICATION_REVIEW.md).
@@ -94,7 +94,7 @@ its source and prompt are recorded in the figure notes above.
   [self-contained TeX source](../release/self-grading-gap-reviewed-source.tar.gz),
   [revised abstract](../release/abstract.txt), and
   [submission comments](../release/submission-comments.txt) are prepared under `release/`,
-  with file hashes and a source manifest. This revision has **22 pages, 6 figures, and 7 tables**.
+  with file hashes and a source manifest. This revision has **20 pages, 6 figures, and 7 tables**.
 
 ## arXiv and public release
 

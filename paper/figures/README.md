@@ -5,7 +5,7 @@ The manuscript explicitly selects these illustration files:
 | File | Source and use |
 | --- | --- |
 | `fig1_loop.png` | Original supplied loop illustration, unchanged. Included at full text width to preserve its positioning and improve legibility. |
-| `fig6_requirements_oracle.png` | Corrected copy of the supplied `fig6_misalignment.png`, preserving its detailed requirements, test, code, pipeline, and oracle layout. Printed on a landscape page so the code remains legible. |
+| `fig6_requirements_oracle.png` | Corrected copy of the supplied `fig6_misalignment.png`, preserving its detailed requirements, test, code, pipeline, and oracle layout. Included at full text width on a portrait page, matching the rest of the paper. |
 
 The original `fig6_misalignment.png` is retained for provenance. It is not included in
 the manuscript because its title and footer incorrectly interpret the example as a
