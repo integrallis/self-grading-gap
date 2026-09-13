@@ -43,6 +43,11 @@ oracle scores, corrects the reporting, and makes the remaining limitations expli
   Their layout is preserved; the example's labels now distinguish an omitted exception
   type from a demonstrated model error. Both illustrations use the paper's normal
   portrait layout. See [figure sources](../paper/figures/README.md).
+- **Audit the bibliography and current research.** Verified all 21 original entries and
+  reviewed 26 additional primary sources through September 13, 2026. Added 18 references,
+  including earlier self-test error measurements, methods that improve verification,
+  and newer evidence of requirements–oracle mismatches. The revised Related Work limits
+  novelty and conclusions to the measured protocol. See the [literature review](LITERATURE_REVIEW.md).
 
 Detailed evidence: [statistical review](STATISTICAL_REVIEW.md),
 [instrument review](INSTRUMENT_REVIEW.md), and [publication review](PUBLICATION_REVIEW.md).
@@ -87,14 +92,16 @@ its source and prompt are recorded in the figure notes above.
   timestamps/provenance and corrects stale spend headers; it does not change raw outcomes.
 - The manuscript builds with Tectonic 0.17.0 and BibTeX, with no undefined references,
   undefined citations, overfull boxes, or duplicate PDF destinations. Remaining warnings
-  concern underfull spacing. The title page, result tables, and replacement figures were
+  concern underfull spacing. All 39 bibliography entries are cited and render successfully;
+  all 23 pages use letter portrait dimensions with zero rotation. Long bibliography links
+  wrap with `xurl` and remain clickable without colored outlines. The title page, result tables, and replacement figures were
   visually checked. The source archive also builds independently, and its extracted PDF
   text matches the reviewed PDF. Archive/source hashes were verified.
 - [Local PDF](../release/self-grading-gap-reviewed.pdf),
   [self-contained TeX source](../release/self-grading-gap-reviewed-source.tar.gz),
   [revised abstract](../release/abstract.txt), and
   [submission comments](../release/submission-comments.txt) are prepared under `release/`,
-  with file hashes and a source manifest. This revision has **20 pages, 6 figures, and 7 tables**.
+  with file hashes and a source manifest. This revision has **23 pages, 6 figures, and 7 tables**.
 
 ## arXiv and public release
 

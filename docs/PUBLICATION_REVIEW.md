@@ -1,5 +1,10 @@
 # Publication and literature review — 2026-09-13
 
+The subsequent [deep literature review](LITERATURE_REVIEW.md) extends this initial audit
+through September 13, 2026, with updated publication metadata, earlier self-test error
+studies, and newer supporting and contrary evidence. Use that review and its
+[entry-by-entry audit](research/bibliography_audit.md) for the current bibliography.
+
 This review covers the manuscript, bibliography, literature-positioning notes, and release
 metadata present at the start of the audit. It records findings for the accompanying manuscript
 revision; it is not a fresh experimental analysis. Statistical and oracle corrections require

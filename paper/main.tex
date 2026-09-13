@@ -11,7 +11,7 @@
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage{url}
+\usepackage{xurl}
 \usepackage{booktabs}
 \usepackage{amsfonts}
 \usepackage{amsmath}
@@ -22,6 +22,7 @@
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{hyperref}
+\hypersetup{hidelinks}
 
 \input{audit_numbers}
 
@@ -88,10 +89,10 @@ are now locked into code that drives the pipeline. What is the value of passing 
 checking the wrong thing? TDD practitioners already have a term for tests that mirror the code
 instead of the requirement: the \emph{ugly mirror}~\cite{rudolph2008uglymirror}.
 
-We will show that autonomous test-first pipelines create the conditions for the ugly mirror at
-the stage where natural language is turned into tests. We call the resulting mismatch the
-\emph{verification gap}: problems that a pipeline claims to have solved but that fail when checked
-by an oracle the pipeline never sees (Sec.~\ref{sec:gap}).
+We study whether an autonomous test-first pipeline accepts implementations that disagree
+with an unseen oracle, and inspect cases to distinguish possible causes. We call this
+mismatch the \emph{verification gap}: problems that a pipeline claims to have solved but
+that fail when checked by an oracle the pipeline never sees (Sec.~\ref{sec:gap}).
 
 This paper measures that gap by stress-testing an agentic test-first pipeline. In the control
 setup, using a low-cost, non-frontier model in every role (hereafter \emph{all-weak}), the gap is
@@ -103,10 +104,9 @@ by the pipeline's tests or internal gates.
 % trace: experiments/exp006_model_asymmetry/results/ANALYSIS.md (control_rerun)
 % trace: experiments/exp007_lcb_asymmetry/results/ANALYSIS.md (control)
 
-The most common fix for a model that misunderstands a requirement is to use a stronger model
-to write the tests. LLM-as-a-judge is also widely used to review the generated code at every
-stage. Production systems are increasingly using this asymmetric approach: a cheap model generates,
-and a frontier model is used somewhere in the verification roles. The \emph{test author} turns the
+One natural intervention is to use a stronger model to write the tests; another is to use
+a stronger model to review the tests and code. We evaluate these role changes while keeping
+the code generator fixed. The \emph{test author} turns the
 specification into a test suite, and the \emph{judge} reviews the tests and code and examines the
 failures. We test these approaches as well: we place a frontier model in the test-author role, the
 judge role, and both, while keeping a fixed weak generator (gpt-4o-mini) on both benchmarks. We
@@ -139,8 +139,8 @@ and oracle-fidelity limitations that must accompany its headline rate.
 % trace: experiments/exp010_flagship/results/ANALYSIS.md
 
 \paragraph{Contributions.}
-(1)~An execution-grounded protocol for comparing a self-testing pipeline's verdict with
-external oracles, distinguishing false accepts, false rejects, and conditional error rates
+(1)~An instrumented test-first protocol for comparing pipeline verdicts with external
+oracles, accounting for false accepts, false rejects, conditional error rates, and gate abandonment
 (Sec.~\ref{sec:gap}).
 (2)~Role-assignment experiments on selected HumanEval and LiveCodeBench problems, replicated
 with three frontier verifiers, reporting residual errors and interventions that improve
@@ -157,21 +157,28 @@ RGRBench: \url{https://github.com/integrallis/rgrbench}.}
 \label{sec:related}
 
 \paragraph{Weak tests overestimate, in benchmarks and pipelines alike.}
-EvalPlus showed that the tests in the benchmark were the weak point in code
-evaluation: by expanding HumanEval's test suites, it found a significant amount of previously
-unnoticed incorrect code and changed the order of model rankings~\cite{liu2023evalplus}.
-LiveCodeBench addressed the related issue of contamination by using a rolling problem collection
-approach~\cite{jain2024livecodebench}. We used both tools. EvalPlus serves as a strengthened
-oracle, and for LiveCodeBench, we rely on a post-cutoff window as a hidden oracle. In the TDD
-pipeline, when the tests are weak, this overestimation happens inside the loop, and the
-pipeline's own self-assessment shows the same lack of awareness that EvalPlus found in
-benchmarks. At repository scale, Ahmed et al. compare generated-test-passing patches with
-held-out golden tests~\cite{ahmed2025overfitting}, while SWE-ABS re-evaluates
-benchmark-passing patches with strengthened suites~\cite{yu2026sweabs}. What we
-call the verification gap is the TDD-internal, agent-native version of this phenomenon, measured
-with additional mutation and adapter checks on RGRBench. These checks characterize the
-instrument; they do not estimate its population error rate. The cited SWE-bench studies use
-different acceptance events and denominators, so their rates are contextual comparisons.
+EvalPlus expanded HumanEval's tests and exposed previously undetected incorrect code,
+including changes in model rankings~\cite{liu2023evalplus}. LiveCodeBench uses a rolling
+collection of contest problems to reduce contamination concerns~\cite{jain2024livecodebench}.
+At repository scale, UTBoost and SWE-ABS strengthen benchmark tests and reject some
+previously passing patches~\cite{yu2025utboost,yu2026sweabs}. PatchDiff instead compares
+generated patches with developer patches through differential testing~\cite{wang2025patchdiff}.
+Behavioral divergence is evidence for investigation, not automatically a specification
+violation: valid implementations can differ. These studies motivate oracle sensitivity
+checks; their benchmark-passing denominators differ from our pipeline's success claims.
+BackendForge extends contract-reviewed oracle strengthening to backend services,
+providing an application-scale comparison~\cite{guo2026backendforge}.
+
+\paragraph{Earlier measurements of self-test error.}
+Chen et al. explicitly analyze false positives and false negatives from self-generated tests
+in self-debugging~\cite{chen2025revisit}. SFS also reports confusion accounting for generated
+validation tests~\cite{light2025sfs}. At repository scale, Ahmed et al. compare
+generated-test-passing patches with held-out golden tests and study refinement~\cite{ahmed2025overfitting}.
+Thus neither self-test/oracle disagreement nor its measurement is new. Our study applies
+this accounting to an executed test-first pipeline, intervenes on test-author and judge
+roles with a fixed generator, and examines application tasks, including abandonment at
+internal gates. Its contribution is the instrument and these comparisons, not the first
+identification of false confidence from generated tests.
 
 \paragraph{The ugly mirror.}
 TDD practitioners have long described the failure that happens when tests are written
@@ -179,56 +186,79 @@ after the implementation already exists: the \emph{ugly mirror}~\cite{rudolph200
 where a test simply reflects the code and confirms what it does, rather than what it should do,
 with the tautological test as the extreme case~\cite{pereira2010ttdd}. Writing tests before the
 code removes direct dependence on an existing implementation, but cannot prevent
-misunderstanding the specification. Our subject pipelines use this order, and yet we see
-that the mirror effect still appears, just at a higher level. When a model writes tests based on its
-interpretation of the specification and a similar model writes code to pass those tests, both the
-tests and the code can reflect the same misunderstanding, and successful test execution then
-establishes agreement on the generated cases. The pipeline then reports this internal consistency
-as success, but it only shows that the tests and the code are in agreement.
+misunderstanding the specification. Tests and code can agree on a mistaken interpretation;
+our inspected cases distinguish this possibility from disagreement caused by an incomplete
+requirement. Related evidence comes from tests generated for existing buggy code:
+Zhao et al. measure tests that pass the buggy implementation and fail its fix, and mitigate
+this effect using generated specifications~\cite{zhao2026misguidance}. That code-first
+mechanism differs from our initial test-first step and is not a causal explanation for
+every observed false accept.
 
 \paragraph{Test-first generation with LLMs.}
-Providing tests with problem statements improves generation~\cite{mathews2024tdd}; TiCoder
-makes the authorship of tests more interactive---a human checks the proposed tests before the
-code is accepted~\cite{fakhoury2024ticoder}; TENET and TDFlow extend test-driven loops to
-repository-scale agents~\cite{sun2025tenet,tdflow2025}. Testing is provided, verified by humans,
-or evaluated end-to-end by the impact on pass rates. Our subject class is the fully autonomous
-case, in which the pipeline authors both tests and code. What we are interested in is the
-reliability of the pipeline's own verdict on itself. End-to-end pass rates alone do not reveal whether a pipeline's internal acceptance
-correctly distinguishes the outputs that will pass the held-out oracle.
+Mathews and Nagappan study supplying tests during generation~\cite{mathews2024tdd}.
+TiCoder uses interactive test feedback to clarify intent~\cite{fakhoury2024ticoder}.
+TENET uses developer-written tests, while TDFlow studies both supplied and generated
+tests in repository-scale workflows~\cite{sun2025tenet,tdflow2025}. These input regimes
+must be distinguished from a pipeline authoring its own acceptance suite. End-to-end
+pass rates measure output quality; assessing an internal gate additionally requires
+comparing accepted and rejected outputs with an external oracle.
 
-\paragraph{Self-generated tests as a signal.}
+\paragraph{Generated tests can improve verification.}
 CodeT uses generated tests to rank candidate solutions through execution
 agreement~\cite{chen2023codet}. ConVerTest combines self-consistency, code verification, and
-execution agreement, evaluating test validity and coverage~\cite{convertest2026}. Such
-signals can improve selection without guaranteeing correctness. Our study measures residual
-oracle disagreement in a different, test-first pipeline; it does not reproduce or refute
-those methods' reported improvements.
+execution agreement, evaluating test validity and coverage~\cite{convertest2026}.
+SWT-Bench demonstrates improved precision when generated tests filter proposed
+bug fixes, with a recall tradeoff~\cite{mundler2024swtbench}. Sol-Ver jointly trains
+code and test generation and reports lower rates of known flawed solutions passing
+generated tests~\cite{lin2025solver}. CodeHacker improves rejection of contest
+submissions labeled incorrect through calibrated adversarial tests, using reference solutions and
+human-checked evaluation infrastructure~\cite{shi2026codehacker}. TCS trains soundness
+and adversarial discrimination in separate stages~\cite{xu2026tcs}. These results rule
+out a general claim that generated verification cannot improve. They involve training,
+filtering, or additional oracle information, rather than only substituting a stronger
+prompted model in our pipeline. Their false-positive metrics also need not condition on
+accepted outputs as our conditional gap does.
 
 \paragraph{LLM judges on code.}
 Benchmarks evaluating LLMs as judges for coding tasks show that these judges are imperfectly
-aligned with execution results, with performance varying by model and task~\cite{jiang2025codejudgebench}, and that LLMs
-consistently struggle when checking code against natural-language
-specifications~\cite{verifyfailures2025}. In our subject pipeline, we include judges as
-checkpoints in the process, along with an execution gate that can override the judge's
-predictions. The asymmetry experiments extend these findings: upgrading the judge to a frontier
-model is associated with higher oracle success in the primary LiveCodeBench experiment,
-consistent with useful feedback, while some accepted outputs still fail the oracle.
-Because changing the judge also changes generation, this experiment does not isolate its
-classification accuracy on a fixed set of implementations.
+aligned with execution results, with performance varying by model and task~\cite{jiang2025codejudgebench}.
+Jin and Chen specifically study false rejection of correct code when reviewing it against
+natural-language specifications~\cite{verifyfailures2025}. SWE-RM evaluates learned
+review scores on fixed trajectories using discrimination and calibration metrics as well
+as solution selection~\cite{shum2025swerm}. RETRACE reconstructs an issue from a patch
+without the original issue text, then reconciles the two directions and revises the
+patch~\cite{li2026retrace}. Such reconstruction provides a different review procedure;
+its final-resolution gains do not by themselves measure the reliability of an accept verdict.
+Our judge intervention also changes generation, so it does not isolate classification
+accuracy on fixed implementations.
 
 \paragraph{Multi-agent code generation.}
-Multi-agent SDLC frameworks have been effective at handling end-to-end
-tasks~\cite{hong2024metagpt}. End-to-end performance is complementary to auditing internal acceptance gates. Our protocol offers a
-complementary and transferable approach: any pipeline with a harness that records its executed
-self-verdict and outputs can use the same measurement.
+MetaGPT studies multi-agent software-development workflows~\cite{hong2024metagpt}.
+ReVeal trains code agents with explicit self-verification rewards and reports useful
+iterative refinement~\cite{jin2025reveal}. These are reasons to distinguish a trained
+verification policy from a prompted reviewer and to avoid interpreting our observational
+retry groups as a general refinement penalty. Any instrumented pipeline that records its
+acceptance decisions and outputs can be evaluated using the same verdict accounting.
 
 \paragraph{The oracle problem and imperfect verification.}
 The difficulty of deciding whether software behaves correctly is the established oracle
 problem in software testing~\cite{barr2015oracle}. Work on inference scaling analyzes
 imperfect verifiers when selecting among repeated code-generation attempts~\cite{stroebl2026resampling}.
-Our contribution is a measurement of this problem inside an executed test-first pipeline,
-with role interventions and accounting of accepted and rejected outputs; the general
-limitation of incomplete tests is not new.
+General AgentBench also uses the term \emph{verification gap}, for the difference between
+oracle pass@$K$ and model-based selection~\cite{li2026generalagentbench}; our metric
+instead concerns declared successes rejected by an oracle. VERINA separates code,
+specification, and proof generation and checks generated specifications against references~\cite{ye2026verina}.
+A proof can establish a formal contract while leaving its fidelity to the intended
+requirement unresolved; unsuccessful proof search likewise need not mean incorrect code.
+
+\paragraph{Requirements and evaluation contracts.}
+Recent benchmark audits also find failures in the opposite direction: SWE-Bench Pro
+Verified repairs overly narrow tests and misleading issue descriptions~\cite{zheng2026sweproverified}.
+Work on exception-oracle generation studies how documentation and code patterns shape
+expected behavior in specialized models~\cite{hossain2026exceptionpatterns}. These studies support investigating
+both the candidate and its evaluation contract when they disagree. Our RGRBench example
+illustrates that distinction; its aggregate disagreement rate is not an adjudicated
+rate of requirement violations.
 
 \paragraph{Connection to context ablations.}
 Sam-Bodden~\cite{sambodden2026context} studies what code representation a coding agent needs
@@ -253,7 +283,7 @@ $s_i \in \{0,1\}$, the pipeline's own claim that the problem is solved, based on
 $T_i$ against $y_i$ and from any internal quality gates (in our subject pipeline, LLM judges).
 An \emph{oracle verdict} $o_i \in \{0,1\}$ is the outcome of a test suite the pipeline never
 sees. We use three oracles of increasing distance from the pipeline's inputs: the
-\emph{visible-adjacent oracle} $o^{\mathrm{base}}_i$ (HumanEval's original tests, which
+\emph{visible-adjacent oracle} $o^{\mathrm{base}}_i$ (HumanEval's original tests~\cite{chen2021humaneval}, which
 overlap the worked examples visible in $\mathit{spec}_i$), a \emph{strong oracle}
 $o^{\mathrm{plus}}_i$ (HumanEval\texttt{+}~\cite{liu2023evalplus}, whose tests go far beyond
 the visible examples, by roughly two orders of magnitude), and a \emph{hidden oracle}
@@ -911,6 +941,8 @@ with the current test-centered GREEN rubric would test whether the prompt's info
 objective limit gatekeeping. A separate randomized ablation that withholds reviewer feedback
 while preserving verdicts would help isolate coaching. Both should report conditional error,
 acceptance, correct-output yield, and cost; neither baseline has been run here.
+SWE-RM's evaluation on fixed trajectories and RETRACE's reconstruction-based review
+provide concrete precedents for extending this comparison~\cite{shum2025swerm,li2026retrace}.
 
 \paragraph{Specifications and oracles can disagree.} Passing tests is not a proof of conformance
 to every requirement, and failing held-out tests is not always evidence of violating the supplied
@@ -941,7 +973,9 @@ oracles; the post hoc reporting correction uses complete matrices from each rath
 base passes and false rejects with plus false accepts. On RGRBench, the mutation kill rate
 characterizes detection of selected mutations, not the probability that the oracle's expected
 behavior matches the requirements. Classifying surviving mutants does not provide a semantic
-error bound. Positive self-verdicts require passing execution; negative verdicts additionally
+error bound. Coverage and mutation evidence also depend on the testing regime, as recent
+replication work distinguishes tests for correct code from tests intended to expose existing
+bugs~\cite{zhao2026coverage}. Positive self-verdicts require passing execution; negative verdicts additionally
 include judge rejection, exhausted retries, or failure to produce an implementation. Thus false
 rejects are not exclusively cases of faulty tests vetoing otherwise correct code.
 % trace: experiments/review_audit/results/ANALYSIS.md (oracle-consistent matrices);

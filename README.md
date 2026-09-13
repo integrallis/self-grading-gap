@@ -12,7 +12,8 @@ The September 2026 review corrects mixed HumanEval oracle reporting, adds uncert
 accounts for repeated tasks, and distinguishes specification errors from requirements–oracle
 mismatches. See [the review and changes](docs/REVIEW_AND_RELEASE.md),
 [statistical audit](docs/STATISTICAL_REVIEW.md), and
-[instrument audit](docs/INSTRUMENT_REVIEW.md). Original raw observations are preserved;
+[instrument audit](docs/INSTRUMENT_REVIEW.md), and
+[bibliography and current-research review](docs/LITERATURE_REVIEW.md). Original raw observations are preserved;
 new analyses are explicitly post hoc. Public release history is reconstructed and does not
 independently prove the private registration chronology; see [PROVENANCE.md](PROVENANCE.md).
 
