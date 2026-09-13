@@ -39,7 +39,8 @@ experiments/
   exp011_verifier_generalization/ cross-provider verifier replication on both subsets
   exp013_tau_sweep/           RGRBench judge-threshold sensitivity study
   review_audit/               reproducible review analyses and manuscript-number macros
-scripts/make_figures.py       regenerates every paper figure from committed result files
+scripts/make_figures.py       regenerates data plots and vector schematic alternatives
+paper/figures/README.md       manuscript illustration sources and editing provenance
 scripts/make_variants.py      regenerates the anchoring template variants from ANCHOR markers
 docs/RUNBOOK.md               experimenter guide: keys, environments, running and scoring
 docs/INSTRUMENT_REVIEW.md     implementation and provenance review, with remaining limitations

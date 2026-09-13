@@ -1,7 +1,9 @@
-"""Regenerate paper figures from recorded outcomes and the post hoc statistical audit.
+"""Regenerate data plots and vector schematic alternatives for the paper.
 
 No API calls. Schematics describe the instrument; numeric plots read recorded data.
 The Okabe-Ito palette and secondary marker/hatch encoding aid grayscale reading.
+The manuscript uses stored PNG illustrations for the loop and requirements--oracle
+example; this script does not overwrite them. See paper/figures/README.md.
 """
 
 from __future__ import annotations

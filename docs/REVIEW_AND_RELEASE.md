@@ -16,7 +16,7 @@ oracle scores, corrects the reporting, and makes the remaining limitations expli
   favorable point estimates instead of calling them flat or unchanged.
 - **Separate oracle disagreement from specification violations.** The numbers-to-words
   example requires an exception type in the oracle that the visible requirements omit.
-  The replacement figure and appendix identify this mismatch; historical requirements
+  The corrected figure and appendix identify this mismatch; historical requirements
   and scores have not been silently corrected.
 - **Remove unsupported causal explanations.** Retry count and difficulty are observational
   groupings. The judge intervention changes feedback, gates, and generated candidates
@@ -36,8 +36,13 @@ oracle scores, corrects the reporting, and makes the remaining limitations expli
   presenting them as prospective confirmations. Reconstructed history and deleted/repeated
   cross-provider attempts are explicitly disclosed.
 - **Improve positioning and reproduction.** Added the oracle-problem and imperfect-verifier
-  literature, corrected citation details, connected the context ablation, regenerated all
-  six figures, and expanded the offline reproduction command to cover the later studies.
+  literature, corrected citation details, connected the context ablation, regenerated the
+  data plots, and expanded the offline reproduction command to cover the later studies.
+- **Restore the detailed illustrations.** The manuscript uses the original loop PNG and
+  a corrected copy of the detailed requirements, generated-test, code, and oracle diagram.
+  Their layout is preserved; the example's labels now distinguish an omitted exception
+  type from a demonstrated model error. A landscape page keeps the detailed code
+  callouts legible. See [figure sources](../paper/figures/README.md).
 
 Detailed evidence: [statistical review](STATISTICAL_REVIEW.md),
 [instrument review](INSTRUMENT_REVIEW.md), and [publication review](PUBLICATION_REVIEW.md).
@@ -65,9 +70,11 @@ These issues cannot be repaired by wording or by recomputing saved scores:
    ablation, and comparable weak/strong threshold curves remain future work. Register
    these prospectively rather than treating this review as registration.
 
-No new model calls, benchmark-oracle executions, VPS jobs, or public communications were
-performed during this review. The checks reanalyze retained observations; they do not
-constitute an independent experimental replication.
+No new benchmark model calls, benchmark-oracle executions, VPS jobs, or public
+communications were performed during this review. The checks reanalyze retained
+observations; they do not constitute an independent experimental replication.
+The detailed illustration's labels were edited with the built-in image tool;
+its source and prompt are recorded in the figure notes above.
 
 ## Validation and deliverables
 
@@ -87,7 +94,7 @@ constitute an independent experimental replication.
   [self-contained TeX source](../release/self-grading-gap-reviewed-source.tar.gz),
   [revised abstract](../release/abstract.txt), and
   [submission comments](../release/submission-comments.txt) are prepared under `release/`,
-  with file hashes and a source manifest. This revision has **20 pages, 6 figures, and 7 tables**.
+  with file hashes and a source manifest. This revision has **22 pages, 6 figures, and 7 tables**.
 
 ## arXiv and public release
 
