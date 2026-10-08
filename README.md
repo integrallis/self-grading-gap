@@ -1,5 +1,7 @@
 # Who Grades the Grader? The Verification Gap in Self-Testing Code Agents
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23226465.svg)](https://doi.org/10.5281/zenodo.23226465)
+
 Reproducer repository for the paper ([`paper/main.pdf`](paper/main.pdf)). An instrumented
 self-testing code pipeline is evaluated against held-out oracles on selected HumanEval and
 LiveCodeBench problems and RGRBench application packages. Frontier test authors and judges
