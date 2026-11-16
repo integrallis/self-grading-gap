@@ -1,0 +1,82 @@
+\section{The Verification Gap}
+\label{sec:gap}
+
+\subsection{Definitions}
+For task $i$, the pipeline authors tests $T_i$ from a natural-language specification,
+generates implementation $y_i$, and records a self-verdict $s_i\in\{0,1\}$.
+An independent oracle verdict $o_i\in\{0,1\}$ comes from tests withheld from the
+pipeline. Acceptance requires successful final execution of the self-tests;
+rejection can also result from a judge gate or exhausted retries, including
+abandonment before any implementation exists.
+
+The verification gap is $G=\{i:s_i=1\wedge o_i=0\}$, the oracle-relative
+\emph{false accepts}. We report its count and its conditional rate,
+$|G|/|\{i:s_i=1\}|$, among claimed successes. False rejects are
+$R=\{i:s_i=0\wedge o_i=1\}$. True accepts and true rejects have
+$s_i=o_i=1$ and $s_i=o_i=0$, respectively. Reporting all four cells distinguishes
+an accurate decision from a policy that rarely produces or accepts code.
+
+Our oracles differ in distance from the prompts. HumanEval's original tests
+overlap visible worked examples~\cite{chen2021humaneval}; HumanEval\texttt{+}
+substantially expands that suite~\cite{liu2023evalplus}. LiveCodeBench provides
+private tests withheld from its problem statements~\cite{jain2024livecodebench}.
+Every false accept is a disagreement with the selected oracle. An omitted
+self-test, incorrect expected value, implementation defect, underspecified
+requirement, or oracle/adapter error can cause that disagreement. The definition
+alone does not establish a specification violation or shared misunderstanding.
+The RGRBench example in Sec.~\ref{sec:results-scale} makes this distinction concrete.
+
+\subsection{Pipeline and review inputs}
+\label{sec:prompts}
+The RED test author sees the task's specification and worked examples. Its prompt
+requires exact signatures, specified behavior, recalculated expected values,
+ordinary pytest, and a canonical test for each worked example. The RED judge sees
+the specification and proposed tests, checks example coverage, assertion fidelity,
+invented constraints, and coverage, and returns a score plus
+\texttt{ADD:}/\texttt{REMOVE:}/\texttt{FIX:} directives. A deducted error can still
+leave the score above the acceptance threshold. Failed attempts receive feedback
+and the preceding attempt.
+
+GREEN implements the generated tests, with the task title, available implementation
+hints, retained implementation files, and retry feedback. For HumanEval and LCB,
+these hints include the full original specification; RGRBench supplies generic
+implementation instructions instead. Its prompt prohibits
+hardcoding and returns implementation code as an escaped JSON field. The GREEN
+judge receives the generated tests, implementation, and task title rather than the
+full original specification. It predicts per-test outcomes and flags test-gaming.
+If its score clears the gate, execution checks the implementation against the
+generated suite and overrides an optimistic prediction. VERIFY runs the full suite;
+failures can trigger further GREEN attempts. A failure analyst returns textual fix
+directives, never code. Thus stronger judges operate under a particular
+test-centered contract, not an unrestricted specification-aware review.
+% trace: src/vgap/pipeline/templates/agents/code/python_generate_from_tests.j2;
+% src/vgap/pipeline/templates/judge/code_against_tests.j2; coordinator.py
+
+\input{pipeline-figure}
+
+The artifact retains the instrument, prompt templates, render-contract checks,
+canonical-example anchoring variants, and the full defect register. These details
+support inspection; the core measurement does not depend on a supplement being
+available to reviewers.
+
+\subsection{Independent measurement and repeated runs}
+\label{sec:protocol}
+The harness records the executed pipeline verdict and captures generated artifacts.
+It then runs the benchmark oracle on the implementation outside the feedback loop:
+EvalPlus, the LiveCodeBench evaluator, or RGRBench suites through the constrained
+adapter described below. Oracle tests and results never enter generation or review.
+The records support confusion matrices, acceptance, oracle success, and retained-call
+cost accounting.
+
+Oracle strength changes the measurement: the primary all-weak HumanEval control
+has $3.0$ false accepts per 30-problem run against the original oracle and $4.0$
+against HumanEval\texttt{+}. Byte-identical configurations also vary across runs:
+the control disagrees with itself on $6/30$ HumanEval tasks and $9/30$
+LiveCodeBench tasks across five runs, with maximum pairwise pass-total differences
+of $4$ and $3$. The protocols combine statistical tests with minimum per-run
+effect sizes of $4$ for oracle success, $2$ for false accepts, $2$ for false
+rejects, and $3$ for total verdict error. These thresholds are neither confidence
+bounds nor equivalence margins; some control spreads exceed them. Section~\ref{sec:design}
+distinguishes the original decision rules from the post hoc reporting audit.
+% trace: experiments/exp006_model_asymmetry/results/ANALYSIS.md;
+% experiments/exp007_lcb_asymmetry/results/ANALYSIS.md

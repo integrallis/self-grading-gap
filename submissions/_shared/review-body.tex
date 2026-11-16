@@ -1,0 +1,483 @@
+% Shared editorial review version derived from the frozen paper/main.tex.
+% Numerical macros, table entries, bibliography and images remain shared with that source.
+\input{sections/introduction}
+\input{sections/related}
+
+\input{sections/methods}
+
+\section{Study Design}
+\label{sec:design}
+
+The study asks four questions.
+
+\noindent\textbf{RQ1 (phenomenon).} How large is the verification gap, against visible-adjacent,
+strong, and hidden oracles, and how does it break down into false accepts and false rejects?
+
+\noindent\textbf{RQ2 (asymmetry).} Does a frontier model in the verification roles (as test author,
+as LLM-as-a-judge reviewer, or both) close the gap?
+
+\noindent\textbf{RQ3 (mechanism).} When a stronger verifier does help, does the improvement come
+from its \emph{verdicts} (better gatekeeping) or from its \emph{feedback} (better generation)?
+
+\noindent\textbf{RQ4 (scale).} Do the size of the gap and its resistance to verifier strength persist
+when moving from single-function algorithms to larger, application-scale programs that involve
+multiple concerns, and how does this gap change with increasing task complexity or as the loop
+itself is refined?
+
+\paragraph{Experiments.} The model experiments use a single asymmetry design with four conditions
+(\emph{cells}): a weak model W (\texttt{gpt-4o-mini}) generates code in every cell; a frontier
+verifier S replaces W in the test-author role, the judge role (covering all three judge duties), or
+both; the control condition uses W in every role. We assign the S role to three verifiers from
+three different providers---GPT-5.6 Terra, Gemini-2.5-Pro, and Claude-4.5-Sonnet\footnote{\texttt{gpt-4o-mini} is
+OpenAI's GPT-4o mini. The verifiers are OpenAI's \texttt{gpt-5.6-terra}, Google's \texttt{gemini-2.5-pro}
+(via Vertex AI), and Anthropic's \texttt{claude-sonnet-4-5}. All models are called through a LiteLLM
+shim.}---and run this design on both benchmarks for each verifier. $N{=}5$ runs per cell, $30$
+problems per run, model identity is fixed within each assigned role, and judge threshold and retries are held
+constant. The single-function runners can switch late generation attempts to a second client
+for the same model at a different temperature. The protocols record advance hypotheses,
+but the public release history was reconstructed: original chronology depends on private
+commits (\texttt{PROVENANCE.md}). Exp011 documents collection and retention changes during
+the runs; these limit a strictly confirmatory interpretation. The primary pair uses GPT-5.6 Terra: exp006 runs a HumanEval subset that
+includes previously unstable problems, scored by both EvalPlus oracles, and exp007 repeats this
+on contamination-controlled data---all $19$ easy plus the first $11$ medium LeetCode problems from
+LiveCodeBench release~v6 with contest dates $\geq$~2025-01-01, chosen by a deterministic rule fixed
+in advance after a pilot identified the weak model's measurable range, and scored by the private LCB
+suites. The exp007 protocol records predictions of fewer false rejects and no detectable
+false-accept contrast, following exp006. The exp011 replication then reruns
+both benchmark designs with the two non-OpenAI verifiers, Gemini-2.5-Pro and Claude-4.5-Sonnet, to
+test whether the soundness null depends on which frontier model is used (Sec.~\ref{sec:results-asym}).
+% trace: experiments/exp006_model_asymmetry/README.md, exp007_lcb_asymmetry/README.md,
+% exp011_verifier_generalization/PRE_REGISTRATION.md (pre-registrations);
+% experiments/pilots/README.md (band-location pilot)
+
+\paragraph{The application-scale experiment.} A third experiment (exp010) moves to
+RGRBench's $89$ packages. The pipeline receives only each package's requirements document
+(user-story acceptance criteria derived solely from the tests, with the tests themselves never
+shown) and is graded by the hidden, hand-verified suite through a non-cheating adapter
+(Sec.~\ref{sec:results-scale}). The design keeps the judge-role contrast: a \emph{control} cell (weak model in every role) versus a \emph{strong-judge}
+cell (GPT-5.6 Terra in all judge duties), with $N{=}3$ runs per package per cell ($534$ runs). Since
+RGRBench labels each package by difficulty tier and the harness records whether a claim was made on
+the first try or only after retries, these runs describe associations with complexity (H-D4) and additional attempts (H-D2).
+Neither difficulty tier nor retry count is randomized.
+% trace: experiments/exp010_flagship/README.md (pre-registration); results/plan.json
+
+\paragraph{Statistical protocol and reporting correction.} For oracle-pass and false-accept
+contrasts in the single-function experiments, the original analyzers take each problem's
+majority outcome over five runs and apply exact McNemar tests, alongside practical thresholds
+on mean per-run differences. We call these combined requirements the \emph{decision bar}.
+Majority outcomes and mean changes are different estimands. Failing this bar does not establish
+absence of an effect. The original scripts omit paired tests for false rejects and total
+verdict error, and do not apply the protocols' larger-control-spread adjustment; these are
+analysis deviations. Reported $p$-values are nominal, without multiplicity correction.
+
+The original HumanEval summaries combine base-oracle pass and false-reject counts with
+HumanEval\texttt{+} false accepts. Table~\ref{tab:cells} corrects this to use
+HumanEval\texttt{+} throughout, recomputed from retained scores. The original summaries
+remain available. A separately labeled post hoc audit provides complete matrices for both
+oracles, the missing paired tests, and problem/package-cluster bootstrap intervals that
+retain repeated runs together (\texttt{experiments/review\_audit/}). These supplemental
+analyses do not retroactively become pre-registered confirmations.
+
+\paragraph{Telemetry.} Retained successful LLM calls are logged with token counts, cost, and a problem, cell,
+or run tag. This telemetry enables the mechanism analysis described in
+Sec.~\ref{sec:results-mech}, and it is included with the artifact. The primary configurations use code-generation temperature $0.7$,
+weak/frontier test-author temperatures $0.7/1.0$, judge temperature $1.0$,
+threshold $\tau{=}0.70$, and $3$ RED/GREEN attempts. Late single-function generation
+can use the same model at temperature $1.0$. Self-tests have a $30$\,s timeout;
+oracle limits are harness-specific (LCB parameter $6$\,s; RGRBench $120$\,s).
+Exp013 varies the threshold. Provider handling and adapter token limits differ.
+% trace: per-run usage.jsonl files; totals in each asym_summary.json
+
+
+
+\paragraph{Threats addressed by design.} HumanEval is the field's best-known benchmark and
+predates the training data of all current models, so we consider it within-distribution. The
+LiveCodeBench window serves as the off-distribution check, since its problems were released more
+than a year after the weak model's training data. In the audited primary runs, we checked all $7{,}962$ logged prompts from both experiments and confirmed that rendered
+benchmark identity is conveyed through the statement and worked examples, without a
+benchmark-name or problem-number label; generated tests, code, and feedback also appear in prompts. A date after the generator's reported cutoff reduces contamination concerns but does not
+prove absence of exposure, particularly for later verifiers (Sec.~\ref{sec:threats}). Both problem sets are selected for measurability (with increased hardness; within the
+weak-model band), so per-run counts do not represent benchmark rates and are never reported as
+such.
+
+\section{Results}
+\label{sec:results}
+
+\subsection{RQ1: the gap on the corrected instrument}
+\label{sec:results-gap}
+
+Table~\ref{tab:cells} presents the full result matrix and error breakdown. On the all-weak control, the gap appears on both benchmarks and both sides.
+For each 30-problem run, HumanEval\texttt{+} has $\AuditHEControlPass$ oracle passes,
+$\AuditHEControlFA$ false accepts, and $\AuditHEControlFR$ false rejects in control.
+LiveCodeBench has $15.2$ oracle passes, $4.8$ false accepts ($29\%$ of claims), and $3.4$
+false rejects. The LCB problem dates are after the generator's reported cutoff, and private
+tests are not included in prompts. These controls reduce exposure concerns without proving
+that every problem is novel to every model. Both error labels are relative to the chosen
+oracle and the pipeline's complete set of acceptance gates.
+% trace: exp006 ANALYSIS.md control_rerun; exp007 ANALYSIS.md control
+
+\begin{table*}[t]
+\centering
+\caption{Complete result matrix: per-run means over $N{=}5$ runs of 30 problems (oracle-consistent HumanEval\texttt{+}
+values from the post hoc reporting correction). FA = false accepts (HumanEval: strong oracle; LCB: hidden
+oracle); FR = false rejects. The implemented decision bar uses a fixed minimum effect size (pass 4, FA 2, FR 2)
+\emph{and} exact McNemar $p{<}.05$; $^{\dagger}$ = past that fixed effect-size threshold,
+$^{\ast}$ = clears the full bar.}
+\label{tab:cells}
+\small
+\begin{tabular}{llrrrr}
+\toprule
+Benchmark & Cell & Oracle pass & FA & FR & tests/run \\
+\midrule
+HumanEval subset-30 & control (W everywhere) & \AuditHEControlPass & \AuditHEControlFA & \AuditHEControlFR & 84 \\
+(strong oracle)     & S authors tests & \AuditHETestPass & \AuditHETestFA & \AuditHETestFR & 89 \\
+                    & S judges & \AuditHEJudgePass & \AuditHEJudgeFA & \AuditHEJudgeFR$^{\dagger}$ & 105 \\
+                    & S authors + judges & \AuditHEBothPass & \AuditHEBothFA & \AuditHEBothFR$^{\dagger}$ & 101 \\
+\midrule
+LiveCodeBench lcb30 & control (W everywhere) & 15.2 & 4.8 & 3.4 & 76 \\
+(hidden oracle,     & S authors tests & 16.4 & 2.8 & 2.2 & 140 \\
+post-cutoff)        & S judges & 20.2$^{\ast}$ & 2.4$^{\dagger}$ & 0.0$^{\dagger}$ & 182 \\
+                    & S authors + judges & 21.4$^{\ast}$ & 3.0 & 0.0$^{\dagger}$ & 194 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+
+
+\subsection{RQ2: frontier models in the verification roles}
+\label{sec:results-asym}
+
+\paragraph{No primary false-accept contrast meets the decision bar.} On HumanEval, mean
+false-accept counts change from $4.0$ in control to $3.2/4.4/3.4$ under a strong test author,
+judge, or both (all nominal $p{=}1.0$). On LiveCodeBench, they decrease from $4.8$ to
+$2.8/2.4/3.0$, with nominal $p \in [0.125, 0.375]$. These estimates include potentially
+useful reductions, especially for the strong judge. The primary tests do not support the
+specified positive claim; equally, their null results do not establish invariance. False
+accepts persist in every measured condition.
+% trace: exp006/exp007 results/ANALYSIS.md (FA contrasts)
+
+\paragraph{Residual errors under two more frontier verifiers.} Exp011 repeats the design
+with Gemini-2.5-Pro and Claude-4.5-Sonnet. CodeJudgeBench reports strong results for
+Gemini-2.5-Pro and the earlier Claude-4-Sonnet, but did not evaluate the Sonnet 4.5 model used
+here~\cite{jiang2025codejudgebench}. No false-accept contrast meets the specified bar
+(Table~\ref{tab:verifiers}); several point estimates decline. False-reject changes are not
+uniform across providers: a strong judge does not eliminate them in every replication.
+Collection-time validity and rerun changes are documented in exp011's deviation log and
+must accompany interpretation of these retained runs.
+% trace: experiments/exp011_verifier_generalization/results/*/ANALYSIS.md; DEVIATIONS.md
+
+\begin{table*}[t]
+\centering
+\small
+\caption{False accepts per 30-problem run (mean, $N{=}5$) under three frontier verifiers, each
+swapped into the test-author (\emph{S tests}), judge (\emph{S judge}), or both roles against the
+fixed weak generator. For every verifier, on both benchmarks, no strong-cell contrast clears the
+decision bar. This is not an equivalence test against the all-weak control.
+GPT-5.6 Terra is exp006/exp007; Gemini-2.5-Pro and Claude-4.5-Sonnet are the exp011
+replication, with collection deviations disclosed (Sec.~\ref{sec:results-asym}). HumanEval is scored with HumanEval\texttt{+}.}
+\label{tab:verifiers}
+\begin{tabular}{lrrrr}
+\toprule
+Frontier verifier S & control & S tests & S judge & S both \\
+\midrule
+\multicolumn{5}{l}{\emph{HumanEval}\texttt{+}} \\
+\quad GPT-5.6 Terra     & $4.0$ & $3.2$ & $4.4$ & $3.4$ \\
+\quad Gemini-2.5-Pro    & $4.8$ & $3.2$ & $4.0$ & $4.8$ \\
+\quad Claude-4.5-Sonnet & $3.8$ & $2.8$ & $3.4$ & $4.2$ \\
+\midrule
+\multicolumn{5}{l}{\emph{LiveCodeBench} (hidden, post-cutoff oracle)} \\
+\quad GPT-5.6 Terra     & $4.8$ & $2.8$ & $2.4$ & $3.0$ \\
+\quad Gemini-2.5-Pro    & $3.8$ & $1.8$ & $3.4$ & $2.6$ \\
+\quad Claude-4.5-Sonnet & $3.6$ & $2.0$ & $3.4$ & $3.6$ \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+
+
+\paragraph{The primary frontier judge reduces observed false rejects.} On LiveCodeBench,
+both primary frontier-judge cells have zero false rejects in all ten runs (control: $3.4$).
+On HumanEval\texttt{+}, false rejects fall from $\AuditHEControlFR$ to $\AuditHEJudgeFR$
+(judge) and $\AuditHEBothFR$ (both). These are descriptive reductions; the completed
+majority-outcome tests do not establish a false-reject effect under the full decision rule.
+% trace: experiments/review_audit/results/ANALYSIS.md
+
+\paragraph{The primary frontier judge increases LiveCodeBench oracle passes.} Oracle
+passes rise from $15.2$ to $20.2$ (judge; $\Delta{+}5.0$, nominal $p{=}.0312$) and $21.4$
+(both; $\Delta{+}6.2$, nominal $p{=}.0156$), meeting the original decision bar. Neither
+corresponding HumanEval\texttt{+} contrast meets that bar. These nominal tests are not
+adjusted for the multiple comparisons. The post hoc audit also computes tests omitted by
+the original analyzer, so these should not be described as the only detectable outcomes.
+% trace: exp007 results/ANALYSIS.md; experiments/review_audit/results/ANALYSIS.md
+
+\paragraph{No pass-rate benefit is established for a frontier test author.} The
+strong-test-author cell has higher mean oracle passes than control on both benchmarks, but
+neither primary comparison meets the decision bar. FA and FR point estimates also decrease.
+The result is a failure to establish the specified benefit, not proof that test authorship
+quality has no effect.
+
+\subsection{RQ3: telemetry is consistent with a feedback benefit}
+\label{sec:results-mech}
+
+Canonical tests average $75$ per run in the LCB cells. Total test volume changes from about
+$76$ in control to $182$--$194$ in the frontier-judge cells, while cycle completions rise from
+about $17/30$ to $23$--$24/30$. A frontier test author also produces larger suites ($140$
+tests per run), without a pass-rate contrast meeting the decision bar.
+% trace: exp007 results/ANALYSIS.md; retained launch logs
+
+These observations are consistent with stronger feedback helping generation. They do not
+identify feedback as the cause: the judge intervention jointly changes scores, directives,
+retry paths, test volume, and the selected outputs. The strong-test-author condition also
+retains iterative review, so it is not a one-shot comparator. A feedback-only versus
+verdict-only ablation on matched candidates would be needed to separate these mechanisms.
+
+\subsection{RQ4: oracle disagreement at application scale}
+\label{sec:results-scale}
+
+In the RGRBench control, $65$ of $261$ valid runs end in a claimed success, of which
+$41.5\%$ fail the oracle. The strong-judge cell claims $50$ successes among $251$ valid runs,
+with a conditional gap of $42.0\%$ (Table~\ref{tab:scale}). The planned $267$ runs per cell
+reduce to these valid totals because evaluations without usable oracle verdicts are excluded:
+$21$ exclusions follow adapter import failures at test collection, and one control run has a
+harness environment error. A post hoc missing-verdict sensitivity analysis is included with
+the artifact. It does not resolve possible oracle or adapter errors among valid cases.
+% trace: exp010 results/ANALYSIS.md; experiments/review_audit/results/ANALYSIS.md
+
+The table preserves nominal run-level Wilson intervals. These treat repeated package-runs
+as independent and understate uncertainty when their errors cluster. A paired bootstrap that
+resamples whole packages gives a strong-minus-control conditional-gap difference of
+$\AuditRGRSharedDelta$ percentage points, with interval $\AuditRGRSharedCI$. This allows
+substantial improvement and harm; the data do not establish equivalence. Cross-benchmark
+point estimates are descriptive because tasks, oracle contracts, and adapters differ.
+% trace: experiments/review_audit/results/paper_numbers.tex
+
+RGRBench grades candidates through a generated adapter constrained to expose their APIs
+under the oracle's import names. The selected calibration fixtures have no observed adapter
+failures, but this is not a zero error bound (Sec.~\ref{sec:threats}). The example below
+also demonstrates that oracle failure need not mean violation of the supplied requirement.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/fig6_requirements_oracle.png}
+\caption{A requirements--oracle mismatch (RGRBench's \texttt{numbers\_to\_words}).
+AC-5.1 specifies the error message but leaves the exception type unspecified. The self-test
+accepts any \texttt{Exception}, which the code raises; the oracle additionally requires
+\texttt{ValueError}. The resulting false accept is relative to the oracle, not demonstrated
+violation of the visible text. Code snippets are simplified; full excerpts appear in
+the released long version.}
+\label{fig:misalignment}
+\end{figure*}
+
+\begin{table*}[t]
+\centering
+\caption{RGRBench (application scale): the self-verification confusion matrix and the
+false-accept analyses, over $N{=}3$ runs of $89$ packages ($534$ runs). Control = weak model
+everywhere; strong-judge = frontier model in all judge roles. TA/FA/FR/TR are counts over
+valid runs (accept/reject $\times$ oracle pass/fail); oracle-passing solutions $=$ TA${+}$FR.
+Conditional FA is FA as a fraction of claimed successes (TA${+}$FA); tier and attempt rows
+restrict that quantity to each subset. Brackets are nominal $95\%$ run-level Wilson
+intervals; package-cluster uncertainty is reported in the text.}
+\label{tab:scale}
+\small
+\begin{tabular}{lcc}
+\toprule
+ & control & strong-judge \\
+\midrule
+valid runs                           & 261 & 251 \\
+true accepts (TA)                    & 38  & 29  \\
+false accepts (FA)                   & 27  & 21  \\
+false rejects (FR, H-D3)             & 14  & 0   \\
+true rejects (TR)                    & 182 & 201 \\
+oracle-passing solutions (TA${+}$FR) & 52  & 29  \\
+\midrule
+claimed successes (TA${+}$FA)        & 65 & 50 \\
+conditional FA (H-D1) & 0.415 [0.304, 0.537] & 0.420 [0.294, 0.558] \\
+\quad beginner tier (H-D4) & 0.31 & 0.38 \\
+\quad intermediate tier & 0.54 & 0.50 \\
+\quad advanced tier & 0.86 & 0.75 \\
+first- / multi-attempt FA (H-D2) & 0.35 / 0.64 & 0.34 / 0.67 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\paragraph{Higher observed gap rates on harder packages.} Conditional false accepts rise
+across difficulty tiers: $31\% \to 54\% \to 86\%$ in control,
+and $38\% \to 50\% \to 75\%$ under the strong judge. The hardest control tier has only seven
+claimed successes, six rejected by the oracle. These small, selected denominators and
+nonrandom difficulty assignments limit any causal or general scaling interpretation.
+% trace: exp010 results/ANALYSIS.md (H-D4 rows)
+
+
+
+\paragraph{Additional attempts are associated with higher gap rates.} Claims reached after
+multiple GREEN attempts have higher conditional false accepts than first-attempt claims:
+$64\%$ versus $35\%$ in control, and $67\%$ versus $34\%$ with the strong judge. Retry count
+is a consequence of earlier failures; difficult cases are more likely to retry. The design
+therefore cannot distinguish selection from a harmful effect of refinement, and it does not
+provide a causal replication of the refinement intervention in Ahmed et al.~\cite{ahmed2025overfitting}.
+% trace: exp010 results/ANALYSIS.md (H-D2 rows)
+
+\paragraph{Acceptance and correct output must be considered together.} Although the
+conditional gap estimates are close ($41.5\%$ versus $42.0\%$), the strong judge reduces
+oracle-passing outputs from $52$ to $29$ and true accepts from $38$ to $29$. It rejects the
+self-authored suite before code generation on $189$ of $251$ valid runs; only $62$ reach
+GREEN, compared with $258$ under the weak judge. Zero false rejects consequently does not
+imply improved recovery of correct code. The intervention changes which implementations
+exist and which are accepted, so this is a comparison of pipeline policies, not judge
+accuracy on fixed candidates.
+% trace: exp010 results/ANALYSIS.md; result.json green_attempts
+
+\paragraph{Threshold follow-up: different operating points, incomplete matching.} Exp013
+varies the threshold shared by the RED and GREEN judges. The original new points are
+$\tau\in\{0.40,0.55,0.85\}$, with $N{=}1$ per package; $0.70$ reuses exp010. A later
+$\tau{=}0.50$ follow-up uses $N{=}3$ (Table~\ref{tab:tausweep}). That point is outside the
+original matching candidate set, and no separately frozen selection amendment is present;
+we treat it as adaptive follow-up rather than confirmatory matching.
+% trace: exp013 PRE_REGISTRATION.md; results/ANALYSIS.md
+
+Acceptance at $0.50$ is $31.5\%$, versus $24.9\%$ in control, so throughput was not equalized.
+Its conditional gap is $47.5\%$, versus $41.5\%$ in control. A post hoc paired package
+bootstrap gives a difference of $\AuditRGRFollowupDelta$ percentage points with interval
+$\AuditRGRFollowupCI$, supporting neither superiority nor equivalence. At $0.40$, both
+acceptance and the observed gap are higher; at $0.85$, acceptance is low and the gap estimate
+has wide uncertainty. The rates are not monotonic at every intermediate point. The sweep
+shows sensitivity to the operating threshold, but a weak-judge threshold curve and matched
+candidate evaluation would be needed to compare discrimination at similar throughput.
+% trace: experiments/review_audit/results/paper_numbers.tex; exp013 results/ANALYSIS.md
+
+\begin{table*}[t]
+\centering
+\caption{RED/GREEN threshold sweep on the strong-judge RGRBench cell (exp013).
+The adaptive $\tau{=}0.50$ follow-up has $N{=}3$; other new points have $N{=}1$;
+$\tau{=}0.70$ reuses exp010 ($N{=}3$). Acceptance is not matched to control.
+Brackets are nominal $95\%$ run-level Wilson intervals.}
+\label{tab:tausweep}
+\small
+\begin{tabular}{lccc}
+\toprule
+cell & accept\% & FA\% [$95\%$] & RED-gate\% \\
+\midrule
+control (weak), $\tau{=}0.70$      & $24.9$ & $41.5$ [$30.4, 53.7$] & $1.1$  \\
+strong, $\tau{=}0.85$              & $7.4$  & $33.3$ [$9.7, 70.0$]  & $91.4$ \\
+strong, $\tau{=}0.70$              & $19.9$ & $42.0$ [$29.4, 55.8$] & $75.3$ \\
+strong, $\tau{=}0.55$              & $20.0$ & $52.9$ [$31.0, 73.8$] & $72.9$ \\
+strong, $\tau{=}0.50$ ($N{=}3$)    & $31.5$ & $47.5$ [$36.9, 58.3$] & $62.6$ \\
+strong, $\tau{=}0.40$              & $43.0$ & $67.6$ [$51.5, 80.4$] & $47.7$ \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+
+
+\input{sections/discussion}
+
+\section{Threats to Validity}
+\label{sec:threats}
+
+\paragraph{Construct and oracle adequacy.} All correctness labels are relative to the stated
+benchmark oracle. Incomplete tests can miss defects, while an incorrect or underspecified oracle
+contract can reject behavior allowed by the prompt. HumanEval's base and plus suites are distinct
+oracles; the post hoc reporting correction uses complete matrices from each rather than combining
+base passes and false rejects with plus false accepts. On RGRBench, the mutation kill rate
+characterizes detection of selected mutations, not the probability that the oracle's expected
+behavior matches the requirements. Classifying surviving mutants does not provide a semantic
+error bound. Coverage and mutation evidence also depend on the testing regime, as recent
+replication work distinguishes tests for correct code from tests intended to expose existing
+bugs~\cite{zhao2026coverage}. Positive self-verdicts require passing execution; negative verdicts additionally
+include judge rejection, exhausted retries, or failure to produce an implementation. Thus false
+rejects are not exclusively cases of faulty tests vetoing otherwise correct code.
+% trace: experiments/review_audit/results/ANALYSIS.md (oracle-consistent matrices);
+% src/vgap/pipeline/subgraph.py; experiments/exp010_flagship/run_flagship.py
+
+\paragraph{Adapter calibration.} The calibration exercises model-written adapters on
+behavior-preserving transformations of reference implementations. It observes no adapter errors
+in $13$ retained fixtures, after excluding $5$ fixtures whose deterministic adaptation failed.
+These selected cases preserve much of the reference structure and do not cover arbitrary
+candidate APIs. The recorded calibration error is a fraction of tests failed, whereas the study's
+binary endpoint fails a candidate if any oracle test fails. Zero observed calibration errors
+neither gives a zero population error bound nor excludes adapter-caused disagreements in the
+experimental runs. Adapter and specification mismatches remain possible contributors to the
+application-scale measurements.
+% trace: experiments/exp010_flagship/calibration/calibration.json;
+% experiments/exp010_flagship/calibrate_adapter.py
+
+\paragraph{Selection and repeated packages.} Model and threshold changes alter both acceptance
+and the candidates reaching a usable oracle verdict. Restricting a comparison to packages valid
+in both cells does not match accepted candidates; similar throughput would not do so either.
+The threshold experiment changes RED and GREEN together, and the $\tau{=}0.50$ follow-up is
+adaptive and does not exactly match control acceptance. These are comparisons of pipeline
+policies, not estimates of reviewer accuracy on a fixed candidate population. Nominal Wilson
+intervals treat package-runs as independent; repeated runs on the same package can be correlated.
+The supplementary package bootstrap retains repeats and pairing and leaves broad uncertainty
+about the conditional-error contrasts. It describes resampling of these selected packages,
+not representative sampling of software projects. Three new threshold points have only one
+run per package, limiting interpretation of the operating curve. Retry and difficulty-tier
+comparisons are also observational: retrying tasks can be harder before the retry occurs.
+% trace: experiments/exp013_tau_sweep/PRE_REGISTRATION.md; run_tau_sweep.py;
+% experiments/review_audit/results/ANALYSIS.md (package bootstrap)
+
+\paragraph{Registration and collection deviations.} The authors retained protocols intended to
+precede collection, but the public history was reconstructed for release; historical run SHAs
+refer to a private working history. The released Git graph alone does not independently establish
+the original registration chronology. In exp011, partial runs were deleted and repeated after
+provider outages, using a nonempty-implementation inclusion threshold that was subsequently
+relaxed. This differs from the protocol's treatment of terminal API errors as failed runs and can
+also select on legitimate pipeline abandonment. Without the discarded attempts, the resulting
+selection and cost effects cannot be fully reconstructed. Cross-provider findings therefore
+refer to retained runs, with this additional limitation.
+% trace: PROVENANCE.md;
+% experiments/exp011_verifier_generalization/PRE_REGISTRATION.md; DEVIATIONS.md
+
+\paragraph{Conclusion validity.} The original tests dichotomize each problem's repeated outcomes
+by majority, while effect floors use mean per-run counts; these are different estimands. Some
+registered false-reject and total-error tests and the control-spread adjustment were omitted by
+the original runners. The review supplies completed tests and clustered intervals as explicitly
+post hoc analyses, with nominal, unadjusted $p$-values. They must not be relabeled as prospective
+confirmations. Neither failure of a significance test nor failure to exceed a practical floor
+establishes an effect of zero. With small selected task sets, repeated outcomes, and numerous
+contrasts, meaningful benefits and harms remain compatible with several comparisons.
+% trace: experiments/review_audit/results/ANALYSIS.md;
+% docs/STATISTICAL_REVIEW.md
+
+\paragraph{Scope and contamination.} The main interventions keep one implementation-generator
+model fixed in one pipeline. All three verifiers are evaluated on the two single-function
+subsets; only GPT-5.6 Terra is evaluated on RGRBench. Model aliases and available historical
+metadata do not fully identify immutable served snapshots. The LiveCodeBench window postdates
+the weak model's documented cutoff and reduces a known exposure risk, but does not establish
+that task ideas or variants were unseen. Later verifiers may have encountered the tasks;
+exposure could change tests, acceptance, feedback, and candidate selection, so its effect on
+conditional error has no established direction. Differences between benchmarks also combine
+changes in problem selection, specifications, and scoring contracts with application scale.
+The results should not be treated as benchmark-wide rates or a general complexity law.
+
+\paragraph{Artifact and execution limits.} The release supports reanalysis of stored outcomes,
+with incomplete historical provider snapshots, request settings, and some execution traces;
+exact API replay is not established. Logged costs estimate retained successful calls and can
+omit discarded or failed attempts; offline adapter grading also contributes to study spend.
+Generated code runs in temporary directories under subprocess timeouts, not a hardened sandbox
+with network, memory, and filesystem isolation. Timeout policies differ between self-testing
+and the benchmark harnesses. Fresh replication should record these settings and use appropriate
+execution isolation.
+
+\paragraph{Anchoring.} The artifact includes canonical-example anchoring variants, but these do
+not provide a false-accept comparison sufficient to establish that anchoring cannot help. The
+case studies show that covering worked examples can coexist with a held-out failure. A fully
+instrumented anchoring ablation with repeated runs remains a separate experiment.
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+A self-testing pipeline can accept implementations that fail held-out tests. We measure
+that disagreement across selected single-function problems and RGRBench packages, and show
+why acceptance, oracle success, and abandonment must be reported together. Frontier
+verification leaves residual false accepts in every measured condition, while some
+interventions improve oracle success and several false-accept estimates decrease. The
+experiments do not establish that verifier strength cannot help or that error rates are
+invariant. At application scale, stricter gating reduces correct output, and requirements,
+oracles, and adapters add measurement uncertainty.
+
+For builders, passing self-authored tests is useful evidence with an empirically measurable
+error rate, not a correctness guarantee. Independent evaluation and explicit verdict
+accounting remain necessary to assess that evidence. The released instrument and post hoc
+reporting corrections provide a basis for stronger tests of specification-aware review,
+feedback mechanisms, and oracle fidelity across more pipelines and generators.
